@@ -41,11 +41,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Serialization\BitPacker.cs" />
-    <Compile Include="Entity.cs" />
+    <Compile Include="EntityState.cs" />
+    <Compile Include="Serialization\DefaultEncoders.cs" />
     <Compile Include="Serialization\Encoders\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoders\IntEncoder.cs" />
     <Compile Include="Serialization\IEncoder.cs" />
+    <Compile Include="Config.cs" />
     <Compile Include="Util\RailgunUtil.cs" />
     <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>

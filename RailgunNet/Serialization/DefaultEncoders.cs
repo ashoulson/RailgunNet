@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Railgun
 {
-  internal static class DefaultEncoders
+  internal static class Encoders
   {
     internal static IntEncoder   EntityFlagEncoder  = null;
 
@@ -19,15 +19,15 @@ namespace Railgun
 
     internal static void Initialize()
     {
-      DefaultEncoders.EntityFlagEncoder  = new IntEncoder(0, (int)EntityState.FLAG_ALL);
+      Encoders.EntityFlagEncoder  = new IntEncoder(0, (int)EntityState.FLAG_ALL);
 
-      DefaultEncoders.UserIdEncoder      = new IntEncoder(0, 4095);
-      DefaultEncoders.EntityIdEncoder    = new IntEncoder(0, 65535);
-      DefaultEncoders.ArchetypeIdEncoder = new IntEncoder(0, 255);
-      DefaultEncoders.StatusEncoder      = new IntEncoder(0, 0xFFF);
+      Encoders.UserIdEncoder      = new IntEncoder(0, 4095);
+      Encoders.EntityIdEncoder    = new IntEncoder(0, 65535);
+      Encoders.ArchetypeIdEncoder = new IntEncoder(0, 255);
+      Encoders.StatusEncoder      = new IntEncoder(0, 0xFFF);
 
-      DefaultEncoders.AngleEncoder       = new FloatEncoder(0.0f, 360.0f, 0.1f);
-      DefaultEncoders.CoordinateEncoder  = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
+      Encoders.AngleEncoder       = new FloatEncoder(0.0f, 360.0f, 0.1f);
+      Encoders.CoordinateEncoder  = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
     }
   }
 }

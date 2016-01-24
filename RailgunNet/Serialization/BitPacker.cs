@@ -96,6 +96,15 @@ namespace Railgun
     }
 
     /// <summary>
+    /// Pushes an encodable value.
+    /// </summary>
+    internal void Push<T>(T value, IEncoder<T> encoder)
+    {
+      uint encoded = encoder.Pack(value);
+      this.Push(encoded, encoder.RequiredBits);
+    }
+
+    /// <summary>
     /// Pops the top numBits from the buffer and returns them as the lowest
     /// order bits in the return value.
     /// </summary>
