@@ -40,10 +40,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BitPacker.cs" />
+    <Compile Include="Serialization\BitPacker.cs" />
     <Compile Include="Entity.cs" />
-    <Compile Include="FloatSerializer.cs" />
+    <Compile Include="Serialization\Encoders\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Serialization\Encoders\IntEncoder.cs" />
+    <Compile Include="Serialization\IEncoder.cs" />
+    <Compile Include="Util\RailgunUtil.cs" />
+    <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

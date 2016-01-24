@@ -23,7 +23,7 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
-namespace RailgunNet
+namespace Railgun
 {
   public class BitPacker
   {
