@@ -25,6 +25,8 @@ using UnityEngine;
 
 namespace Railgun
 {
+  // This struct is the sort of thing that would be great to code-generate, but
+  // since there's only a couple of them at most the complexity isn't worth it
   public struct EntityState
   {
     #region Flags
@@ -45,13 +47,13 @@ namespace Railgun
     /// </summary>
     public static void Encode(BitPacker bitPacker, ref EntityState state)
     {
-      bitPacker.Push(state.userId, Encoders.UserId);
-      bitPacker.Push(state.entityId, Encoders.EntityId);
+      bitPacker.Push(state.userId,      Encoders.UserId);
+      bitPacker.Push(state.entityId,    Encoders.EntityId);
       bitPacker.Push(state.archetypeId, Encoders.ArchetypeId);
-      bitPacker.Push(state.x, Encoders.Coordinate);
-      bitPacker.Push(state.y, Encoders.Coordinate);
-      bitPacker.Push(state.angle, Encoders.Angle);
-      bitPacker.Push(state.status, Encoders.Status);
+      bitPacker.Push(state.x,           Encoders.Coordinate);
+      bitPacker.Push(state.y,           Encoders.Coordinate);
+      bitPacker.Push(state.angle,       Encoders.Angle);
+      bitPacker.Push(state.status,      Encoders.Status);
 
       bitPacker.Push(EntityState.FLAG_ALL, Encoders.EntityFlag);
     }
@@ -62,13 +64,13 @@ namespace Railgun
     public static void Encode(BitPacker bitPacker, ref EntityState state, ref EntityState basis)
     {
       int flags =
-        Encoders.PushIf(bitPacker, state.userId != basis.userId,                       state.userId,      Encoders.UserId,      EntityState.FLAG_USER_ID) |
-        Encoders.PushIf(bitPacker, state.entityId != basis.entityId,                   state.entityId,    Encoders.EntityId,    EntityState.FLAG_ENTITY_ID) |
-        Encoders.PushIf(bitPacker, state.archetypeId != basis.archetypeId,             state.archetypeId, Encoders.ArchetypeId, EntityState.FLAG_ARCHETYPE_ID) |
-        Encoders.PushIf(bitPacker, !RailgunMath.CoordinatesEqual(state.x, basis.x),    state.x,           Encoders.Coordinate,  EntityState.FLAG_X) |
-        Encoders.PushIf(bitPacker, !RailgunMath.CoordinatesEqual(state.y, basis.y),    state.y,           Encoders.Coordinate,  EntityState.FLAG_Y) |
-        Encoders.PushIf(bitPacker, !RailgunMath.AnglesEqual(state.angle, basis.angle), state.angle,       Encoders.Angle,       EntityState.FLAG_ANGLE) |
-        Encoders.PushIf(bitPacker, state.status != basis.status,                       state.status,      Encoders.Status,      EntityState.FLAG_STATUS);
+        bitPacker.PushIf(state.userId != basis.userId,                       state.userId,      Encoders.UserId,      FLAG_USER_ID) |
+        bitPacker.PushIf(state.entityId != basis.entityId,                   state.entityId,    Encoders.EntityId,    FLAG_ENTITY_ID) |
+        bitPacker.PushIf(state.archetypeId != basis.archetypeId,             state.archetypeId, Encoders.ArchetypeId, FLAG_ARCHETYPE_ID) |
+        bitPacker.PushIf(!RailgunMath.CoordinatesEqual(state.x, basis.x),    state.x,           Encoders.Coordinate,  FLAG_X) |
+        bitPacker.PushIf(!RailgunMath.CoordinatesEqual(state.y, basis.y),    state.y,           Encoders.Coordinate,  FLAG_Y) |
+        bitPacker.PushIf(!RailgunMath.AnglesEqual(state.angle, basis.angle), state.angle,       Encoders.Angle,       FLAG_ANGLE) |
+        bitPacker.PushIf(state.status != basis.status,                       state.status,      Encoders.Status,      FLAG_STATUS);
       bitPacker.Push(flags, Encoders.EntityFlag);
     }
 
@@ -92,20 +94,20 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Decode a fully populated data packet.
+    /// Decode a delta-encoded packet against a given basis.
     /// </summary>
     public static EntityState Decode(BitPacker bitPacker, ref EntityState basis)
     {
       int flags = bitPacker.Pop(Encoders.EntityFlag);
 
       return new EntityState(
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_STATUS,       Encoders.Status,      basis.status),
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_ANGLE,        Encoders.Angle,       basis.angle),
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_Y,            Encoders.Coordinate,  basis.y),
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_X,            Encoders.Coordinate,  basis.x),
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, basis.archetypeId),
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_ENTITY_ID,    Encoders.EntityId,    basis.entityId),
-        Encoders.PopIf(bitPacker, flags, EntityState.FLAG_USER_ID,      Encoders.UserId,      basis.userId));
+        bitPacker.PopIf(flags, FLAG_STATUS,       Encoders.Status,      basis.status),
+        bitPacker.PopIf(flags, FLAG_ANGLE,        Encoders.Angle,       basis.angle),
+        bitPacker.PopIf(flags, FLAG_Y,            Encoders.Coordinate,  basis.y),
+        bitPacker.PopIf(flags, FLAG_X,            Encoders.Coordinate,  basis.x),
+        bitPacker.PopIf(flags, FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, basis.archetypeId),
+        bitPacker.PopIf(flags, FLAG_ENTITY_ID,    Encoders.EntityId,    basis.entityId),
+        bitPacker.PopIf(flags, FLAG_USER_ID,      Encoders.UserId,      basis.userId));
     }
     #endregion
 
