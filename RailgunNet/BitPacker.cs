@@ -151,7 +151,7 @@ namespace RailgunNet
     /// <summary>
     /// Unit test for functionality.
     /// </summary>
-    public static bool TestBitPacker(int maxValues, int iterations)
+    public static void Test(int maxValues, int iterations)
     {
       BitPacker buffer = new BitPacker(1);
       Stack<uint> values = new Stack<uint>(maxValues);
@@ -190,11 +190,13 @@ namespace RailgunNet
           uint retrievedVal = buffer.Pop(expectedBits);
 
           if (expectedVal != retrievedVal)
-            return false;
+            Debug.LogWarning(
+              "Expected: " + 
+              expectedVal + 
+              " Got: " + 
+              retrievedVal);
         }
       }
-
-      return true;
     }
     #endregion
   }
