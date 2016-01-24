@@ -41,7 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Serialization\BitPacker.cs" />
-    <Compile Include="EntityState.cs" />
+    <Compile Include="Serialization\States\EntityState.cs" />
     <Compile Include="Serialization\Encoders.cs" />
     <Compile Include="Serialization\Encoders\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
