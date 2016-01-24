@@ -33,5 +33,15 @@ namespace Railgun
       b = a;
       a = temp;
     }
+
+    #region Debug
+    public static void RunTests()
+    {
+      BitPacker.Test(50, 400);
+      IntEncoder.Test(200, 200);
+      FloatEncoder.Test(200, 200);
+      Debug.Log("Done Tests");
+    }
+    #endregion
   }
 }

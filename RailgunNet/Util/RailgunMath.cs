@@ -51,5 +51,15 @@ namespace Railgun
         return -a;
       return a;
     }
+
+    internal static bool CoordinatesEqual(float a, float b)
+    {
+      return Mathf.Abs(a - b) < Config.COORDINATE_EPSILON;
+    }
+
+    internal static bool AnglesEqual(float a, float b)
+    {
+      return Mathf.Abs(a - b) < Config.ANGLE_EPSILON;
+    }
   }
 }
