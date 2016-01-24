@@ -159,6 +159,33 @@ namespace Railgun
       return encoder.Unpack(data);
     }
 
+    #region Conditional Serialization Helpers
+    internal int PushIf<T>(
+      bool condition,
+      T value,
+      IEncoder<T> encoder,
+      int flag)
+    {
+      if (condition)
+      {
+        this.Push(value, encoder);
+        return flag;
+      }
+      return 0;
+    }
+
+    internal T PopIf<T>(
+      int flags,
+      int requiredFlag,
+      IEncoder<T> encoder,
+      T basisVal)
+    {
+      if ((flags & requiredFlag) == requiredFlag)
+        return this.Pop(encoder);
+      return basisVal;
+    }
+    #endregion
+
     public void Clear()
     {
       for (int i = 0; i < this.data.Length; i++)

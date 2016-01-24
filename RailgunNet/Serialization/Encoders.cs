@@ -27,33 +27,6 @@ namespace Railgun
 {
   public static class Encoders
   {
-    internal static int PushIf<T>(
-      BitPacker bitPacker,
-      bool condition,
-      T value,
-      IEncoder<T> encoder,
-      int flag)
-    {
-      if (condition)
-      {
-        bitPacker.Push(value, encoder);
-        return flag;
-      }
-      return 0;
-    }
-
-    internal static T PopIf<T>(
-      BitPacker bitPacker,
-      int flags,
-      int requiredFlag,
-      IEncoder<T> encoder,
-      T basisVal)
-    {
-      if ((flags & requiredFlag) == requiredFlag)
-        return bitPacker.Pop(encoder);
-      return basisVal;
-    }
-
     internal static IntEncoder   EntityFlag  = null;
 
     internal static IntEncoder   UserId      = null;
