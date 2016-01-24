@@ -33,6 +33,8 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
+    public int MinValue { get { return this.minValue; } }
+    public int MaxValue { get { return this.maxValue; } }
     public int RequiredBits { get { return this.requiredBits; } }
 
     /// <summary>

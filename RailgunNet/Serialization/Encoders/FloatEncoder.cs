@@ -40,6 +40,8 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
+    public float MinValue { get { return this.minValue; } }
+    public float MaxValue { get { return this.maxValue; } }
     public int RequiredBits { get { return this.requiredBits; } }
 
     /// <summary>

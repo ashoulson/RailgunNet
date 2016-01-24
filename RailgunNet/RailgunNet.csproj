@@ -42,7 +42,7 @@
   <ItemGroup>
     <Compile Include="Serialization\BitPacker.cs" />
     <Compile Include="EntityState.cs" />
-    <Compile Include="Serialization\DefaultEncoders.cs" />
+    <Compile Include="Serialization\Encoders.cs" />
     <Compile Include="Serialization\Encoders\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoders\IntEncoder.cs" />

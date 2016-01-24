@@ -33,6 +33,8 @@ namespace Railgun
     private const int  SIZE_STORAGE = sizeof(uint) * 8;
     private const uint STORAGE_MASK = (uint)((1L << SIZE_STORAGE) - 1);
 
+    private const int  DEFAULT_CAPACITY = 8;
+
     private static int ClampBits(int bits)
     {
       if (bits < 0)
@@ -53,6 +55,11 @@ namespace Railgun
     private uint[] data;
 
     /// <summary>
+    /// The number of bits currently stored in the buffer.
+    /// </summary>
+    public int BitsUsed { get { return this.position; } }
+
+    /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
     public BitPacker(int capacity)
@@ -60,6 +67,8 @@ namespace Railgun
       this.data = new uint[capacity];
       this.Clear();
     }
+
+    public BitPacker() : this(BitPacker.DEFAULT_CAPACITY) { }
 
     /// <summary>
     /// Takes the lower numBits from the value and stores them in the buffer.
@@ -141,6 +150,15 @@ namespace Railgun
       return output;
     }
 
+    /// <summary>
+    /// Pushes an encodable value.
+    /// </summary>
+    internal T Pop<T>(IEncoder<T> encoder)
+    {
+      uint data = this.Pop(encoder.RequiredBits);
+      return encoder.Unpack(data);
+    }
+
     public void Clear()
     {
       for (int i = 0; i < this.data.Length; i++)
@@ -170,11 +188,32 @@ namespace Railgun
       for (int i = 0; i < iterations; i++)
       {
         if (values.Count <= 0)
+        {
           push = true; // Must push
+        }
         else if (values.Count >= maxValues)
+        {
           push = false; // Must pop
+        }
         else
-          push = (UnityEngine.Random.Range(0.0f, 1.0f)) > 0.4f; // Slight bias
+        {
+          float probability = UnityEngine.Random.Range(0.0f, 1.0f);
+          if (probability > 0.95f)
+          {
+            buffer.Clear();
+            values.Clear();
+            bits.Clear();
+            continue;
+          }
+          else if (probability > 0.4f)
+          {
+            push = true;
+          }
+          else
+          {
+            push = false;
+          }
+        }
 
         if (push)
         {

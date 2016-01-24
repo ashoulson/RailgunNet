@@ -9,9 +9,8 @@ public class Test : MonoBehaviour
 {
   void Start()
   {
-    IntEncoder.Test(100, 100);
-    FloatEncoder.Test(100, 100);
-    Debug.Log("Done");
+    Encoders.Initialize();
+    //RailgunUtil.RunTests();
   }
 
   void Update()
