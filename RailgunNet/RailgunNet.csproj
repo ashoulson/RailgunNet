@@ -34,12 +34,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Reservoir">
+      <HintPath>..\..\Reservoir\Reservoir\bin\Debug\Reservoir.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="UnityEngine">
       <HintPath>$(UnityPathWin)\Editor\Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Data\DataObject.cs" />
     <Compile Include="Serialization\BitPacker.cs" />
     <Compile Include="Serialization\States\EntityState.cs" />
     <Compile Include="Serialization\Encoders.cs" />
@@ -48,6 +52,7 @@
     <Compile Include="Serialization\Encoders\IntEncoder.cs" />
     <Compile Include="Serialization\IEncoder.cs" />
     <Compile Include="Config.cs" />
+    <Compile Include="Snapshot.cs" />
     <Compile Include="Util\RailgunUtil.cs" />
     <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>

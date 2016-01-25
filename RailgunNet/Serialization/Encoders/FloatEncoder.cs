@@ -76,7 +76,7 @@ namespace Railgun
     {
       float range = this.maxValue - this.minValue;
       float maxVal = range * (1.0f / this.precision);
-      return RailgunMath.Log2((int)(maxVal + 0.5f)) + 1;
+      return RailgunMath.Log2((uint)(maxVal + 0.5f)) + 1;
     }
 
     #region Debug
@@ -98,7 +98,7 @@ namespace Railgun
           uint packed = serializer.Pack(random);
           float unpacked = serializer.Unpack(packed);
 
-          Debug.Assert(Mathf.Abs(random - unpacked) > precision, 
+          RailgunUtil.Assert(Mathf.Abs(random - unpacked) > precision, 
             random +
             " " +
             unpacked +

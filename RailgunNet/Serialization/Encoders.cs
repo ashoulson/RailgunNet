@@ -27,11 +27,14 @@ namespace Railgun
 {
   public static class Encoders
   {
-    internal static IntEncoder   EntityFlag  = null;
+    internal static IntEncoder   FrameNumber = null;
 
-    internal static IntEncoder   UserId      = null;
+    internal static IntEncoder   EntityCount = null;
+    internal static IntEncoder   EntityDirty = null;
+
     internal static IntEncoder   EntityId    = null;
     internal static IntEncoder   ArchetypeId = null;
+    internal static IntEncoder   UserId      = null;
     internal static IntEncoder   Status      = null;
 
     internal static FloatEncoder Coordinate  = null;
@@ -39,15 +42,19 @@ namespace Railgun
 
     public static void Initialize()
     {
-      Encoders.EntityFlag  = new IntEncoder(0, (int)EntityState.FLAG_ALL);
+      Encoders.FrameNumber = new IntEncoder(0, 8388607);
 
-      Encoders.UserId      = new IntEncoder(0, 4095);
+      Encoders.EntityDirty = new IntEncoder(0, (int)EntityState.FLAG_ALL);
+      Encoders.EntityCount = new IntEncoder(0, 1023);
+
       Encoders.EntityId    = new IntEncoder(0, 65535);
       Encoders.ArchetypeId = new IntEncoder(0, 255);
+      Encoders.UserId      = new IntEncoder(0, 4095);
       Encoders.Status      = new IntEncoder(0, 0xFFF);
 
       Encoders.Angle       = new FloatEncoder(0.0f, 360.0f, 0.1f);
       Encoders.Coordinate  = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
+
     }
   }
 }

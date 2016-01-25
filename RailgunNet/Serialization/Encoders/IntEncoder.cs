@@ -38,8 +38,7 @@ namespace Railgun
     public int RequiredBits { get { return this.requiredBits; } }
 
     /// <summary>
-    /// Initializes a float serializer. We use shorts to retrieve the min and
-    /// max values in order to avoid overflow errors during conversion.
+    /// Initializes a float serializer.
     /// </summary>
     public IntEncoder(int minValue, int maxValue)
     {
@@ -62,8 +61,13 @@ namespace Railgun
 
     private int ComputeRequiredBits()
     {
-      int range = this.maxValue - this.minValue;
-      return RailgunMath.Log2((int)range) + 1;
+      if (this.minValue >= this.maxValue)
+        return 0;
+
+      long minLong = (long)this.minValue;
+      long maxLong = (long)this.maxValue;
+      uint range = (uint)(maxLong - minLong);
+      return RailgunMath.Log2(range) + 1;
     }
 
     #region Debug
@@ -84,7 +88,7 @@ namespace Railgun
           uint packed = serializer.Pack(random);
           int unpacked = serializer.Unpack(packed);
 
-          Debug.Assert(random == unpacked,
+          RailgunUtil.Assert(random == unpacked,
             random +
             " " +
             unpacked +
@@ -97,14 +101,14 @@ namespace Railgun
 
       // Test extreme cases
       IntEncoder extreme1 = new IntEncoder(0, 0);
-      Debug.Assert(extreme1.Unpack(extreme1.Pack(0)) == 0);
-      Debug.Assert(extreme1.Unpack(extreme1.Pack(1)) == 0);
+      RailgunUtil.Assert(extreme1.Unpack(extreme1.Pack(0)) == 0, "A " + extreme1.Unpack(extreme1.Pack(0)));
+      RailgunUtil.Assert(extreme1.Unpack(extreme1.Pack(1)) == 0, "B " + extreme1.Unpack(extreme1.Pack(1)));
 
       IntEncoder extreme2 = new IntEncoder(int.MinValue, int.MaxValue);
-      Debug.Assert(extreme2.Unpack(extreme2.Pack(0)) == 0);
-      Debug.Assert(extreme2.Unpack(extreme2.Pack(1024)) == 1024);
-      Debug.Assert(extreme2.Unpack(extreme2.Pack(int.MaxValue)) == int.MaxValue);
-      Debug.Assert(extreme2.Unpack(extreme2.Pack(int.MinValue)) == int.MinValue);
+      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(0)) == 0, "C " + extreme2.Unpack(extreme2.Pack(0)));
+      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(1024)) == 1024, "D " + extreme2.Unpack(extreme2.Pack(1024)));
+      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(int.MaxValue)) == int.MaxValue, "E " + extreme2.Unpack(extreme2.Pack(int.MaxValue)));
+      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(int.MinValue)) == int.MinValue, "F " + extreme2.Unpack(extreme2.Pack(int.MinValue)));
     }
     #endregion
   }
