@@ -85,7 +85,7 @@ namespace Railgun
 
         // Increase our capacity if needed
         if (index >= this.data.Length)
-          this.Expand();
+          RailgunUtil.ExpandArray(ref this.data);
 
         // Create and apply the mask
         ulong mask = (1UL << numBits) - 1;
@@ -107,7 +107,7 @@ namespace Railgun
     /// <summary>
     /// Pushes an encodable value.
     /// </summary>
-    internal void Push<T>(T value, IEncoder<T> encoder)
+    internal void Push<T>(IEncoder<T> encoder, T value)
     {
       uint encoded = encoder.Pack(value);
       this.Push(encoded, encoder.RequiredBits);
@@ -120,8 +120,10 @@ namespace Railgun
     public uint Pop(int numBits)
     {
       numBits = BitPacker.ClampBits(numBits);
-      uint output = 0;
+      if (numBits > this.position)
+        throw new AccessViolationException();
 
+      uint output = 0;
       while (numBits > 0)
       {
         // Find the position of the last written bit
@@ -151,7 +153,7 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Pushes an encodable value.
+    /// Pops a value and decodes it.
     /// </summary>
     internal T Pop<T>(IEncoder<T> encoder)
     {
@@ -159,19 +161,62 @@ namespace Railgun
       return encoder.Unpack(data);
     }
 
-    #region Conditional Serialization Helpers
-    internal int PushIf<T>(
-      bool condition,
-      T value,
-      IEncoder<T> encoder,
-      int flag)
+    /// <summary>
+    /// Pops the top numBits from the buffer and returns them as the lowest
+    /// order bits in the return value.
+    /// </summary>
+    public uint Peek(int numBits)
     {
-      if (condition)
+      int startingPosition = this.position;
+      numBits = BitPacker.ClampBits(numBits);
+      uint output = 0;
+
+      while (numBits > 0)
       {
-        this.Push(value, encoder);
-        return flag;
+        // Find the position of the last written bit
+        int lastWritten = this.position - 1;
+        int index = lastWritten / BitPacker.SIZE_STORAGE;
+        int used = (lastWritten % BitPacker.SIZE_STORAGE) + 1;
+
+        // Create the mask and extract the value
+        int available = (numBits < used) ? numBits : used;
+        // Lower mask cuts out any data lower in the stack
+        int ignoreBottom = used - available;
+        uint mask = STORAGE_MASK << ignoreBottom;
+
+        // Extract the value, but don't flash out the data
+        uint value = (this.data[index] & mask) >> ignoreBottom;
+
+        // Update our position
+        numBits -= available;
+        this.position -= available;
+
+        // Merge the resulting value
+        output |= value << numBits;
       }
-      return 0;
+
+      this.position = startingPosition;
+      return output;
+    }
+
+    /// <summary>
+    /// Peeks at a value and decodes it.
+    /// </summary>
+    internal T Peek<T>(IEncoder<T> encoder)
+    {
+      uint data = this.Peek(encoder.RequiredBits);
+      return encoder.Unpack(data);
+    }
+
+    #region Conditional Serialization Helpers
+    internal void PushIf<T>(
+      int flags,
+      int requiredFlag,
+      IEncoder<T> encoder,
+      T value)
+    {
+      if ((flags & requiredFlag) == requiredFlag)
+        this.Push(encoder, value);
     }
 
     internal T PopIf<T>(
@@ -191,14 +236,6 @@ namespace Railgun
       for (int i = 0; i < this.data.Length; i++)
         this.data[i] = 0;
       this.position = 0;
-    }
-
-    private void Expand()
-    {
-      int newCapacity = this.data.Length * 2;
-      uint[] newData = new uint[newCapacity];
-      Array.Copy(this.data, newData, this.data.Length);
-      this.data = newData;
     }
 
     #region Debug
@@ -241,6 +278,9 @@ namespace Railgun
             push = false;
           }
         }
+
+        if (values.Count > 0)
+          Debug.Assert(buffer.Peek(bits.Peek()) == values.Peek());
 
         if (push)
         {

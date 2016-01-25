@@ -34,7 +34,7 @@ namespace Railgun
         8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
     };
 
-    internal static int Log2(int v)
+    internal static int Log2(uint v)
     {
       v |= v >> 1; // Round down to one less than a power of 2 
       v |= v >> 2;
@@ -42,7 +42,7 @@ namespace Railgun
       v |= v >> 8;
       v |= v >> 16;
 
-      return DeBruijnLookup[(uint)(v * 0x07C4ACDDU) >> 27];
+      return DeBruijnLookup[(v * 0x07C4ACDDU) >> 27];
     }
 
     internal static int Abs(int a)

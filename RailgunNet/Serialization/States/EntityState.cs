@@ -23,206 +23,275 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
+using Reservoir;
+
 namespace Railgun
 {
-  // This struct is the sort of thing that would be great to code-generate, but
-  // since there's only a couple of them at most the complexity isn't worth it
-  public struct EntityState
+  /// <summary>
+  /// Entities represent physical objects in the game world.
+  /// </summary>
+  public class EntityState : IPoolable<EntityState>
   {
+    // TODO: This struct is the sort of thing that would be great to code-
+    // generate, but since there's only a couple of them at most the 
+    // complexity hasn't seemed to be worth it so far
     #region Flags
-    private const int  FLAG_USER_ID        = 0x01;
-    private const int  FLAG_ENTITY_ID      = 0x02;
-    private const int  FLAG_ARCHETYPE_ID   = 0x04;
-    private const int  FLAG_X              = 0x08;
-    private const int  FLAG_Y              = 0x10;
-    private const int  FLAG_ANGLE          = 0x20;
-    private const int  FLAG_STATUS         = 0x40;
+    private const int  FLAG_ARCHETYPE_ID   = 0x01;
+    private const int  FLAG_USER_ID        = 0x02;
+    private const int  FLAG_X              = 0x04;
+    private const int  FLAG_Y              = 0x08;
+    private const int  FLAG_ANGLE          = 0x10;
+    private const int  FLAG_STATUS         = 0x20;
 
-    internal const int FLAG_ALL            = 0x7F;
+    internal const int FLAG_ALL =
+      FLAG_ARCHETYPE_ID |
+      FLAG_USER_ID |
+      FLAG_X |
+      FLAG_Y |
+      FLAG_ANGLE |
+      FLAG_STATUS;
+    #endregion
+
+    #region IPoolable Members
+    NodeList<EntityState> INode<EntityState>.List { get; set; }
+    EntityState INode<EntityState>.Next { get; set; }
+    EntityState INode<EntityState>.Previous { get; set; }
+
+    Pool<EntityState> IPoolable<EntityState>.Pool { get; set; }
     #endregion
 
     #region Serialization Functions
-    /// <summary>
-    /// Write a fully populated encoding of the state.
-    /// </summary>
-    public static void Encode(BitPacker bitPacker, ref EntityState state)
-    {
-      bitPacker.Push(state.userId,      Encoders.UserId);
-      bitPacker.Push(state.entityId,    Encoders.EntityId);
-      bitPacker.Push(state.archetypeId, Encoders.ArchetypeId);
-      bitPacker.Push(state.x,           Encoders.Coordinate);
-      bitPacker.Push(state.y,           Encoders.Coordinate);
-      bitPacker.Push(state.angle,       Encoders.Angle);
-      bitPacker.Push(state.status,      Encoders.Status);
+    // TODO: Some of this is boilerplate and can be migrated if we want to
+    // introduce a new entity type and share some read/write code between
 
-      bitPacker.Push(EntityState.FLAG_ALL, Encoders.EntityFlag);
+    /// <summary>
+    /// Peeks at an entity ID at the top of the bit buffer.
+    /// </summary>
+    /// <param name="bitPacker"></param>
+    /// <returns></returns>
+    public static int PeekId(BitPacker bitPacker)
+    {
+      return bitPacker.Peek(Encoders.EntityId);
     }
 
     /// <summary>
-    /// Delta-encode this state relative to the given basis.
+    /// Compares a state against a predecessor and returns a bit bucket of
+    /// which fields are dirty.
     /// </summary>
-    public static void Encode(BitPacker bitPacker, ref EntityState state, ref EntityState basis)
+    public static int GetDirtyFlags(
+      EntityState state, 
+      EntityState basis)
     {
-      int flags =
-        bitPacker.PushIf(state.userId != basis.userId,                       state.userId,      Encoders.UserId,      FLAG_USER_ID) |
-        bitPacker.PushIf(state.entityId != basis.entityId,                   state.entityId,    Encoders.EntityId,    FLAG_ENTITY_ID) |
-        bitPacker.PushIf(state.archetypeId != basis.archetypeId,             state.archetypeId, Encoders.ArchetypeId, FLAG_ARCHETYPE_ID) |
-        bitPacker.PushIf(!RailgunMath.CoordinatesEqual(state.x, basis.x),    state.x,           Encoders.Coordinate,  FLAG_X) |
-        bitPacker.PushIf(!RailgunMath.CoordinatesEqual(state.y, basis.y),    state.y,           Encoders.Coordinate,  FLAG_Y) |
-        bitPacker.PushIf(!RailgunMath.AnglesEqual(state.angle, basis.angle), state.angle,       Encoders.Angle,       FLAG_ANGLE) |
-        bitPacker.PushIf(state.status != basis.status,                       state.status,      Encoders.Status,      FLAG_STATUS);
-      bitPacker.Push(flags, Encoders.EntityFlag);
+      return
+        (state.ArchetypeId == basis.ArchetypeId            ? 0 : FLAG_ARCHETYPE_ID) |
+        (state.UserId == basis.UserId                      ? 0 : FLAG_USER_ID) |
+        (RailgunMath.CoordinatesEqual(state.X, basis.X)    ? 0 : FLAG_X) |
+        (RailgunMath.CoordinatesEqual(state.Y, basis.Y)    ? 0 : FLAG_Y) |
+        (RailgunMath.AnglesEqual(state.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
+        (state.Status == basis.Status                      ? 0 : FLAG_STATUS);
     }
 
     /// <summary>
-    /// Decode a fully populated data packet.
+    /// Write a fully populated encoding of this state.
     /// </summary>
-    public static EntityState Decode(BitPacker bitPacker)
+    public void Encode(BitPacker bitPacker)
     {
-      int flags = bitPacker.Pop(Encoders.EntityFlag);
-      Debug.Assert(flags == EntityState.FLAG_ALL);
+      // Write in opposite order so we can read in constructor order
+      bitPacker.Push(Encoders.Status,      this.Status);
+      bitPacker.Push(Encoders.Angle,       this.Angle);
+      bitPacker.Push(Encoders.Coordinate,  this.Y);
+      bitPacker.Push(Encoders.Coordinate,  this.X);
+      bitPacker.Push(Encoders.UserId,      this.UserId);
+      bitPacker.Push(Encoders.ArchetypeId, this.ArchetypeId);
 
-      // Use the backwards constructor
-      return new EntityState(
-        bitPacker.Pop(Encoders.Status),
-        bitPacker.Pop(Encoders.Angle),
-        bitPacker.Pop(Encoders.Coordinate),
-        bitPacker.Pop(Encoders.Coordinate),
+      // Add metadata
+      bitPacker.Push(Encoders.EntityDirty, EntityState.FLAG_ALL);
+      bitPacker.Push(Encoders.EntityId,    this.EntityId);
+    }
+
+    /// <summary>
+    /// Delta-encode this state relative to the given basis state.
+    /// Returns true iff the state was encoded (will bypass if no change).
+    /// </summary>
+    public bool Encode(BitPacker bitPacker, EntityState basis)
+    {
+      Debug.Assert(this.EntityId == basis.EntityId);
+      int dirty = EntityState.GetDirtyFlags(this, basis);
+      if (dirty == 0)
+        return false;
+
+      // Write in opposite order so we can read in constructor order
+      bitPacker.PushIf(dirty, FLAG_STATUS,       Encoders.Status,      this.Status);
+      bitPacker.PushIf(dirty, FLAG_ANGLE,        Encoders.Angle,       this.Angle);
+      bitPacker.PushIf(dirty, FLAG_Y,            Encoders.Coordinate,  this.Y);
+      bitPacker.PushIf(dirty, FLAG_X,            Encoders.Coordinate,  this.X);
+      bitPacker.PushIf(dirty, FLAG_USER_ID,      Encoders.UserId,      this.UserId);
+      bitPacker.PushIf(dirty, FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, this.ArchetypeId);
+
+      // Add metadata
+      bitPacker.Push(Encoders.EntityDirty, dirty);
+      bitPacker.Push(Encoders.EntityId,    this.EntityId);
+      return true;
+    }
+
+    /// <summary>
+    /// Decode a fully populated data packet and set values to this object.
+    /// </summary>
+    public void Decode(BitPacker bitPacker)
+    {
+      int entityId = bitPacker.Pop(Encoders.EntityId);
+      int dirty = bitPacker.Pop(Encoders.EntityDirty);
+      Debug.Assert(dirty == EntityState.FLAG_ALL);
+
+      this.Set(
+        entityId,
         bitPacker.Pop(Encoders.ArchetypeId),
-        bitPacker.Pop(Encoders.EntityId),
-        bitPacker.Pop(Encoders.UserId));
+        bitPacker.Pop(Encoders.UserId),
+        bitPacker.Pop(Encoders.Coordinate),
+        bitPacker.Pop(Encoders.Coordinate),
+        bitPacker.Pop(Encoders.Angle),
+        bitPacker.Pop(Encoders.Status));
     }
 
     /// <summary>
-    /// Decode a delta-encoded packet against a given basis.
+    /// Decode a delta-encoded packet against a given basis and set values
+    /// to this object.
     /// </summary>
-    public static EntityState Decode(BitPacker bitPacker, ref EntityState basis)
+    public void Decode(BitPacker bitPacker, EntityState basis)
     {
-      int flags = bitPacker.Pop(Encoders.EntityFlag);
+      int entityId = bitPacker.Pop(Encoders.EntityId);
+      int dirty = bitPacker.Pop(Encoders.EntityDirty);
+      Debug.Assert(entityId == basis.EntityId);
 
-      return new EntityState(
-        bitPacker.PopIf(flags, FLAG_STATUS,       Encoders.Status,      basis.status),
-        bitPacker.PopIf(flags, FLAG_ANGLE,        Encoders.Angle,       basis.angle),
-        bitPacker.PopIf(flags, FLAG_Y,            Encoders.Coordinate,  basis.y),
-        bitPacker.PopIf(flags, FLAG_X,            Encoders.Coordinate,  basis.x),
-        bitPacker.PopIf(flags, FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, basis.archetypeId),
-        bitPacker.PopIf(flags, FLAG_ENTITY_ID,    Encoders.EntityId,    basis.entityId),
-        bitPacker.PopIf(flags, FLAG_USER_ID,      Encoders.UserId,      basis.userId));
+      this.Set(
+        entityId,
+        bitPacker.PopIf(dirty, FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, basis.ArchetypeId),
+        bitPacker.PopIf(dirty, FLAG_USER_ID,      Encoders.UserId,      basis.UserId),
+        bitPacker.PopIf(dirty, FLAG_X,            Encoders.Coordinate,  basis.X),
+        bitPacker.PopIf(dirty, FLAG_Y,            Encoders.Coordinate,  basis.Y),
+        bitPacker.PopIf(dirty, FLAG_ANGLE,        Encoders.Angle,       basis.Angle),
+        bitPacker.PopIf(dirty, FLAG_STATUS,       Encoders.Status,      basis.Status));
     }
     #endregion
 
-    private readonly int userId;
-    private readonly int entityId;
-    private readonly int archetypeId;
-    private readonly float x;
-    private readonly float y;
-    private readonly float angle;
-    private readonly int status;
+    public int   EntityId    { get; private set; }
+    public int   ArchetypeId { get; private set; }
+    public int   UserId      { get; private set; }
+    public float X           { get; private set; }
+    public float Y           { get; private set; }
+    public float Angle       { get; private set; }
+    public int   Status      { get; private set; }
 
-    public int UserId { get { return this.userId; } }
-    public int EntityId { get { return this.entityId; } }
-    public int ArchetypeId { get { return this.archetypeId; } }
-    public float X { get { return this.x; } }
-    public float Y { get { return this.y; } }
-    public float Angle { get { return this.angle; } }
-    public int Status { get { return this.status; } }
-
-    public EntityState(
-      int userId,
+    public void Set(
       int entityId,
       int archetypeId,
+      int userId,
       float x,
       float y,
       float angle,
       int status)
     {
-      this.userId = userId;
-      this.entityId = entityId;
-      this.archetypeId = archetypeId;
-
-      this.x = x;
-      this.y = y;
-      this.angle = angle;
-
-      this.status = status;
+      this.EntityId = entityId;
+      this.ArchetypeId = archetypeId;
+      this.UserId = userId;
+      this.X = x;
+      this.Y = y;
+      this.Angle = angle;
+      this.Status = status;
     }
 
-    /// <summary>
-    /// Backwards-parameter constructor. A cheeky, probably stupid trick for
-    /// code clarity in the serialization functions.
-    /// </summary>
-    public EntityState(
-      int status,
-      float angle,
-      float y,
-      float x,
-      int archetypeId,
-      int entityId,
-      int userId)
+    public void Set(EntityState other)
     {
-      this.userId = userId;
-      this.entityId = entityId;
-      this.archetypeId = archetypeId;
-
-      this.x = x;
-      this.y = y;
-      this.angle = angle;
-
-      this.status = status;
+      this.EntityId = other.EntityId;
+      this.ArchetypeId = other.ArchetypeId;
+      this.UserId = other.UserId;
+      this.X = other.X;
+      this.Y = other.Y;
+      this.Angle = other.Angle;
+      this.Status = other.Status;
     }
+
+    public void Initialize() { }
+    public void Reset() { this.Set(0, 0, 0, 0.0f, 0.0f, 0.0f, 0); }
 
     #region Debug
     public static void Test(int iterations)
     {
+      int entityId = UnityEngine.Random.Range(Encoders.EntityId.MinValue, Encoders.EntityId.MaxValue);
+
       BitPacker bitPacker = new BitPacker();
+
+      // Normally these are pooled, but we'll just allocate some here
       EntityState basis = new EntityState();
+      EntityState current = new EntityState();
+      EntityState decoded = new EntityState();
+      basis.Set(entityId, 0, 0, 0.0f, 0.0f, 0.0f, 0);
+
       int maxBitsUsed = 0;
       float sum = 0.0f;
 
       for (int i = 0; i < iterations; i++)
       {
-        EntityState current =
-          new EntityState(
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.UserId.MinValue, Encoders.UserId.MaxValue) : basis.UserId,
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.EntityId.MinValue, Encoders.EntityId.MaxValue) : basis.EntityId,
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.ArchetypeId.MinValue, Encoders.ArchetypeId.MaxValue) : basis.ArchetypeId,
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue) : basis.X,
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue) : basis.Y,
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Angle.MinValue, Encoders.Angle.MaxValue) : basis.Angle,
-            UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Status.MinValue, Encoders.Status.MaxValue) : basis.Status);
+        EntityState.GenerateState(basis, current);
 
         float probability = UnityEngine.Random.Range(0.0f, 1.0f);
         if (probability > 0.5f)
         {
-          EntityState.Encode(bitPacker, ref current);
+          current.Encode(bitPacker);
           maxBitsUsed = bitPacker.BitsUsed;
           sum += (float)bitPacker.BitsUsed;
-          EntityState decoded = EntityState.Decode(bitPacker);
+          decoded.Decode(bitPacker);
           EntityState.TestCompare(current, decoded);
         }
         else
         {
-          EntityState.Encode(bitPacker, ref current, ref basis);
-          sum += (float)bitPacker.BitsUsed;
-          EntityState decoded = EntityState.Decode(bitPacker, ref basis);
-          EntityState.TestCompare(current, decoded);
+          if (current.Encode(bitPacker, basis))
+          {
+            sum += (float)bitPacker.BitsUsed;
+            decoded.Decode(bitPacker, basis);
+            EntityState.TestCompare(current, decoded);
+          }
         }
 
-        basis = current;
+        basis.Set(current);
       }
 
       Debug.Log("EntityState Max: " + maxBitsUsed + ", Avg: " + (sum / (float)iterations));
     }
 
-    private static void TestCompare(EntityState a, EntityState b)
+    internal static void TestCompare(EntityState a, EntityState b)
     {
-      Debug.Assert(a.UserId == b.UserId, "UserId mismatch: " + (a.UserId - b.UserId));
-      Debug.Assert(a.EntityId == b.EntityId, "EntityId mismatch: " + (a.EntityId - b.EntityId));
-      Debug.Assert(a.ArchetypeId == b.ArchetypeId, "ArchetypeId mismatch: " + (a.ArchetypeId - b.ArchetypeId));
-      Debug.Assert(RailgunMath.CoordinatesEqual(a.X, b.X), "X mismatch: " + (a.X - b.X));
-      Debug.Assert(RailgunMath.CoordinatesEqual(a.Y, b.Y), "Y mismatch: " + (a.Y - b.Y));
-      Debug.Assert(RailgunMath.AnglesEqual(a.Angle, b.Angle), "Angle mismatch: " + (a.Angle - b.Angle));
-      Debug.Assert(a.Status == b.Status, "Status mismatch: " + (a.Status - b.Status));
+      RailgunUtil.Assert(a.EntityId == b.EntityId, "EntityId mismatch: " + (a.EntityId - b.EntityId));
+      RailgunUtil.Assert(a.ArchetypeId == b.ArchetypeId, "ArchetypeId mismatch: " + (a.ArchetypeId - b.ArchetypeId));
+      RailgunUtil.Assert(a.UserId == b.UserId, "UserId mismatch: " + (a.UserId - b.UserId));
+      RailgunUtil.Assert(RailgunMath.CoordinatesEqual(a.X, b.X), "X mismatch: " + (a.X - b.X));
+      RailgunUtil.Assert(RailgunMath.CoordinatesEqual(a.Y, b.Y), "Y mismatch: " + (a.Y - b.Y));
+      RailgunUtil.Assert(RailgunMath.AnglesEqual(a.Angle, b.Angle), "Angle mismatch: " + (a.Angle - b.Angle));
+      RailgunUtil.Assert(a.Status == b.Status, "Status mismatch: " + (a.Status - b.Status));
+    }
+
+    internal static void GenerateState(int entityId, EntityState destination)
+    {
+      destination.Set(
+        entityId,
+        UnityEngine.Random.Range(Encoders.ArchetypeId.MinValue, Encoders.ArchetypeId.MaxValue),
+        UnityEngine.Random.Range(Encoders.UserId.MinValue, Encoders.UserId.MaxValue),
+        UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue),
+        UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue),
+        UnityEngine.Random.Range(Encoders.Angle.MinValue, Encoders.Angle.MaxValue),
+        UnityEngine.Random.Range(Encoders.Status.MinValue, Encoders.Status.MaxValue));
+    }
+
+    internal static void GenerateState(EntityState basis, EntityState destination)
+    {
+      destination.Set(
+        basis.EntityId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.ArchetypeId.MinValue, Encoders.ArchetypeId.MaxValue) : basis.ArchetypeId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.UserId.MinValue, Encoders.UserId.MaxValue) : basis.UserId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue) : basis.X,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue) : basis.Y,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Angle.MinValue, Encoders.Angle.MaxValue) : basis.Angle,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Status.MinValue, Encoders.Status.MaxValue) : basis.Status);
     }
     #endregion
   }
