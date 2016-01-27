@@ -30,7 +30,7 @@ namespace Railgun
   /// <summary>
   /// Entities represent physical objects in the game world.
   /// </summary>
-  public class EntityState : IPoolable<EntityState>
+  public class EntityState : State<EntityState>, IPoolable<EntityState>
   {
     // TODO: This struct is the sort of thing that would be great to code-
     // generate, but since there's only a couple of them at most the 
@@ -56,23 +56,18 @@ namespace Railgun
     NodeList<EntityState> INode<EntityState>.List { get; set; }
     EntityState INode<EntityState>.Next { get; set; }
     EntityState INode<EntityState>.Previous { get; set; }
-
     Pool<EntityState> IPoolable<EntityState>.Pool { get; set; }
+
+    void IPoolable<EntityState>.Initialize() { }
+    void IPoolable<EntityState>.Reset() 
+    { 
+      this.SetData(0, 0, 0.0f, 0.0f, 0.0f, 0); 
+    }
     #endregion
 
     #region Serialization Functions
     // TODO: Some of this is boilerplate and can be migrated if we want to
     // introduce a new entity type and share some read/write code between
-
-    /// <summary>
-    /// Peeks at an entity ID at the top of the bit buffer.
-    /// </summary>
-    /// <param name="bitPacker"></param>
-    /// <returns></returns>
-    public static int PeekId(BitPacker bitPacker)
-    {
-      return bitPacker.Peek(Encoders.EntityId);
-    }
 
     /// <summary>
     /// Compares a state against a predecessor and returns a bit bucket of
@@ -94,87 +89,80 @@ namespace Railgun
     /// <summary>
     /// Write a fully populated encoding of this state.
     /// </summary>
-    public void Encode(BitPacker bitPacker)
+    protected internal override void Encode(BitPacker bitPacker)
     {
-      // Write in opposite order so we can read in constructor order
-      bitPacker.Push(Encoders.Status,      this.Status);
-      bitPacker.Push(Encoders.Angle,       this.Angle);
-      bitPacker.Push(Encoders.Coordinate,  this.Y);
-      bitPacker.Push(Encoders.Coordinate,  this.X);
-      bitPacker.Push(Encoders.UserId,      this.UserId);
-      bitPacker.Push(Encoders.ArchetypeId, this.ArchetypeId);
+      // Write in opposite order so we can read in SetData order
+      bitPacker.Push(Encoder.Status,      this.Status);
+      bitPacker.Push(Encoder.Angle,       this.Angle);
+      bitPacker.Push(Encoder.Coordinate,  this.Y);
+      bitPacker.Push(Encoder.Coordinate,  this.X);
+      bitPacker.Push(Encoder.UserId,      this.UserId);
+      bitPacker.Push(Encoder.ArchetypeId, this.ArchetypeId);
 
       // Add metadata
-      bitPacker.Push(Encoders.EntityDirty, EntityState.FLAG_ALL);
-      bitPacker.Push(Encoders.EntityId,    this.EntityId);
+      bitPacker.Push(Encoder.EntityDirty, EntityState.FLAG_ALL);
     }
 
     /// <summary>
     /// Delta-encode this state relative to the given basis state.
     /// Returns true iff the state was encoded (will bypass if no change).
     /// </summary>
-    public bool Encode(BitPacker bitPacker, EntityState basis)
+    protected internal override bool Encode(BitPacker bitPacker, EntityState basis)
     {
-      Debug.Assert(this.EntityId == basis.EntityId);
+      RailgunUtil.Assert(this.Id == basis.Id);
       int dirty = EntityState.GetDirtyFlags(this, basis);
       if (dirty == 0)
         return false;
 
-      // Write in opposite order so we can read in constructor order
-      bitPacker.PushIf(dirty, FLAG_STATUS,       Encoders.Status,      this.Status);
-      bitPacker.PushIf(dirty, FLAG_ANGLE,        Encoders.Angle,       this.Angle);
-      bitPacker.PushIf(dirty, FLAG_Y,            Encoders.Coordinate,  this.Y);
-      bitPacker.PushIf(dirty, FLAG_X,            Encoders.Coordinate,  this.X);
-      bitPacker.PushIf(dirty, FLAG_USER_ID,      Encoders.UserId,      this.UserId);
-      bitPacker.PushIf(dirty, FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, this.ArchetypeId);
+      // Write in opposite order so we can read in SetData order
+      bitPacker.PushIf(dirty, FLAG_STATUS,       Encoder.Status,      this.Status);
+      bitPacker.PushIf(dirty, FLAG_ANGLE,        Encoder.Angle,       this.Angle);
+      bitPacker.PushIf(dirty, FLAG_Y,            Encoder.Coordinate,  this.Y);
+      bitPacker.PushIf(dirty, FLAG_X,            Encoder.Coordinate,  this.X);
+      bitPacker.PushIf(dirty, FLAG_USER_ID,      Encoder.UserId,      this.UserId);
+      bitPacker.PushIf(dirty, FLAG_ARCHETYPE_ID, Encoder.ArchetypeId, this.ArchetypeId);
 
       // Add metadata
-      bitPacker.Push(Encoders.EntityDirty, dirty);
-      bitPacker.Push(Encoders.EntityId,    this.EntityId);
+      bitPacker.Push(Encoder.EntityDirty, dirty);
       return true;
     }
 
     /// <summary>
     /// Decode a fully populated data packet and set values to this object.
     /// </summary>
-    public void Decode(BitPacker bitPacker)
+    protected internal override void Decode(BitPacker bitPacker)
     {
-      int entityId = bitPacker.Pop(Encoders.EntityId);
-      int dirty = bitPacker.Pop(Encoders.EntityDirty);
-      Debug.Assert(dirty == EntityState.FLAG_ALL);
+      int dirty = bitPacker.Pop(Encoder.EntityDirty);
+      RailgunUtil.Assert(dirty == EntityState.FLAG_ALL);
 
-      this.Set(
-        entityId,
-        bitPacker.Pop(Encoders.ArchetypeId),
-        bitPacker.Pop(Encoders.UserId),
-        bitPacker.Pop(Encoders.Coordinate),
-        bitPacker.Pop(Encoders.Coordinate),
-        bitPacker.Pop(Encoders.Angle),
-        bitPacker.Pop(Encoders.Status));
+      this.SetData(
+        bitPacker.Pop(Encoder.ArchetypeId),
+        bitPacker.Pop(Encoder.UserId),
+        bitPacker.Pop(Encoder.Coordinate),
+        bitPacker.Pop(Encoder.Coordinate),
+        bitPacker.Pop(Encoder.Angle),
+        bitPacker.Pop(Encoder.Status));
     }
 
     /// <summary>
     /// Decode a delta-encoded packet against a given basis and set values
     /// to this object.
     /// </summary>
-    public void Decode(BitPacker bitPacker, EntityState basis)
+    protected internal override void Decode(BitPacker bitPacker, EntityState basis)
     {
-      int entityId = bitPacker.Pop(Encoders.EntityId);
-      int dirty = bitPacker.Pop(Encoders.EntityDirty);
-      Debug.Assert(entityId == basis.EntityId);
+      RailgunUtil.Assert(this.Id == basis.Id);
+      int dirty = bitPacker.Pop(Encoder.EntityDirty);
 
-      this.Set(
-        entityId,
-        bitPacker.PopIf(dirty, FLAG_ARCHETYPE_ID, Encoders.ArchetypeId, basis.ArchetypeId),
-        bitPacker.PopIf(dirty, FLAG_USER_ID,      Encoders.UserId,      basis.UserId),
-        bitPacker.PopIf(dirty, FLAG_X,            Encoders.Coordinate,  basis.X),
-        bitPacker.PopIf(dirty, FLAG_Y,            Encoders.Coordinate,  basis.Y),
-        bitPacker.PopIf(dirty, FLAG_ANGLE,        Encoders.Angle,       basis.Angle),
-        bitPacker.PopIf(dirty, FLAG_STATUS,       Encoders.Status,      basis.Status));
+      this.SetData(
+        bitPacker.PopIf(dirty, FLAG_ARCHETYPE_ID, Encoder.ArchetypeId, basis.ArchetypeId),
+        bitPacker.PopIf(dirty, FLAG_USER_ID,      Encoder.UserId,      basis.UserId),
+        bitPacker.PopIf(dirty, FLAG_X,            Encoder.Coordinate,  basis.X),
+        bitPacker.PopIf(dirty, FLAG_Y,            Encoder.Coordinate,  basis.Y),
+        bitPacker.PopIf(dirty, FLAG_ANGLE,        Encoder.Angle,       basis.Angle),
+        bitPacker.PopIf(dirty, FLAG_STATUS,       Encoder.Status,      basis.Status));
     }
     #endregion
 
-    public int   EntityId    { get; private set; }
     public int   ArchetypeId { get; private set; }
     public int   UserId      { get; private set; }
     public float X           { get; private set; }
@@ -182,8 +170,7 @@ namespace Railgun
     public float Angle       { get; private set; }
     public int   Status      { get; private set; }
 
-    public void Set(
-      int entityId,
+    public void SetData(
       int archetypeId,
       int userId,
       float x,
@@ -191,7 +178,6 @@ namespace Railgun
       float angle,
       int status)
     {
-      this.EntityId = entityId;
       this.ArchetypeId = archetypeId;
       this.UserId = userId;
       this.X = x;
@@ -200,9 +186,8 @@ namespace Railgun
       this.Status = status;
     }
 
-    public void Set(EntityState other)
+    protected internal override void SetFrom(EntityState other)
     {
-      this.EntityId = other.EntityId;
       this.ArchetypeId = other.ArchetypeId;
       this.UserId = other.UserId;
       this.X = other.X;
@@ -211,28 +196,23 @@ namespace Railgun
       this.Status = other.Status;
     }
 
-    public void Initialize() { }
-    public void Reset() { this.Set(0, 0, 0, 0.0f, 0.0f, 0.0f, 0); }
-
     #region Debug
     public static void Test(int iterations)
     {
-      int entityId = UnityEngine.Random.Range(Encoders.EntityId.MinValue, Encoders.EntityId.MaxValue);
-
       BitPacker bitPacker = new BitPacker();
 
       // Normally these are pooled, but we'll just allocate some here
       EntityState basis = new EntityState();
       EntityState current = new EntityState();
       EntityState decoded = new EntityState();
-      basis.Set(entityId, 0, 0, 0.0f, 0.0f, 0.0f, 0);
+      basis.SetData(0, 0, 0.0f, 0.0f, 0.0f, 0);
 
       int maxBitsUsed = 0;
       float sum = 0.0f;
 
       for (int i = 0; i < iterations; i++)
       {
-        EntityState.GenerateState(basis, current);
+        EntityState.MutateState(basis, current);
 
         float probability = UnityEngine.Random.Range(0.0f, 1.0f);
         if (probability > 0.5f)
@@ -253,7 +233,7 @@ namespace Railgun
           }
         }
 
-        basis.Set(current);
+        basis.SetFrom(current);
       }
 
       Debug.Log("EntityState Max: " + maxBitsUsed + ", Avg: " + (sum / (float)iterations));
@@ -261,7 +241,6 @@ namespace Railgun
 
     internal static void TestCompare(EntityState a, EntityState b)
     {
-      RailgunUtil.Assert(a.EntityId == b.EntityId, "EntityId mismatch: " + (a.EntityId - b.EntityId));
       RailgunUtil.Assert(a.ArchetypeId == b.ArchetypeId, "ArchetypeId mismatch: " + (a.ArchetypeId - b.ArchetypeId));
       RailgunUtil.Assert(a.UserId == b.UserId, "UserId mismatch: " + (a.UserId - b.UserId));
       RailgunUtil.Assert(RailgunMath.CoordinatesEqual(a.X, b.X), "X mismatch: " + (a.X - b.X));
@@ -270,28 +249,26 @@ namespace Railgun
       RailgunUtil.Assert(a.Status == b.Status, "Status mismatch: " + (a.Status - b.Status));
     }
 
-    internal static void GenerateState(int entityId, EntityState destination)
+    internal static void PopulateState(EntityState state)
     {
-      destination.Set(
-        entityId,
-        UnityEngine.Random.Range(Encoders.ArchetypeId.MinValue, Encoders.ArchetypeId.MaxValue),
-        UnityEngine.Random.Range(Encoders.UserId.MinValue, Encoders.UserId.MaxValue),
-        UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue),
-        UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue),
-        UnityEngine.Random.Range(Encoders.Angle.MinValue, Encoders.Angle.MaxValue),
-        UnityEngine.Random.Range(Encoders.Status.MinValue, Encoders.Status.MaxValue));
+      state.SetData(
+        UnityEngine.Random.Range(Encoder.ArchetypeId.MinValue, Encoder.ArchetypeId.MaxValue),
+        UnityEngine.Random.Range(Encoder.UserId.MinValue, Encoder.UserId.MaxValue),
+        UnityEngine.Random.Range(Encoder.Coordinate.MinValue, Encoder.Coordinate.MaxValue),
+        UnityEngine.Random.Range(Encoder.Coordinate.MinValue, Encoder.Coordinate.MaxValue),
+        UnityEngine.Random.Range(Encoder.Angle.MinValue, Encoder.Angle.MaxValue),
+        UnityEngine.Random.Range(Encoder.Status.MinValue, Encoder.Status.MaxValue));
     }
 
-    internal static void GenerateState(EntityState basis, EntityState destination)
+    internal static void MutateState(EntityState state, EntityState basis)
     {
-      destination.Set(
-        basis.EntityId,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.ArchetypeId.MinValue, Encoders.ArchetypeId.MaxValue) : basis.ArchetypeId,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.UserId.MinValue, Encoders.UserId.MaxValue) : basis.UserId,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue) : basis.X,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Coordinate.MinValue, Encoders.Coordinate.MaxValue) : basis.Y,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Angle.MinValue, Encoders.Angle.MaxValue) : basis.Angle,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoders.Status.MinValue, Encoders.Status.MaxValue) : basis.Status);
+      state.SetData(
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoder.ArchetypeId.MinValue, Encoder.ArchetypeId.MaxValue) : basis.ArchetypeId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoder.UserId.MinValue, Encoder.UserId.MaxValue) : basis.UserId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoder.Coordinate.MinValue, Encoder.Coordinate.MaxValue) : basis.X,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoder.Coordinate.MinValue, Encoder.Coordinate.MaxValue) : basis.Y,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoder.Angle.MinValue, Encoder.Angle.MaxValue) : basis.Angle,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(Encoder.Status.MinValue, Encoder.Status.MaxValue) : basis.Status);
     }
     #endregion
   }

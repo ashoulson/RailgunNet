@@ -107,7 +107,7 @@ namespace Railgun
     /// <summary>
     /// Pushes an encodable value.
     /// </summary>
-    internal void Push<T>(IEncoder<T> encoder, T value)
+    internal void Push<T>(Encoder<T> encoder, T value)
     {
       uint encoded = encoder.Pack(value);
       this.Push(encoded, encoder.RequiredBits);
@@ -155,7 +155,7 @@ namespace Railgun
     /// <summary>
     /// Pops a value and decodes it.
     /// </summary>
-    internal T Pop<T>(IEncoder<T> encoder)
+    internal T Pop<T>(Encoder<T> encoder)
     {
       uint data = this.Pop(encoder.RequiredBits);
       return encoder.Unpack(data);
@@ -202,7 +202,7 @@ namespace Railgun
     /// <summary>
     /// Peeks at a value and decodes it.
     /// </summary>
-    internal T Peek<T>(IEncoder<T> encoder)
+    internal T Peek<T>(Encoder<T> encoder)
     {
       uint data = this.Peek(encoder.RequiredBits);
       return encoder.Unpack(data);
@@ -212,7 +212,7 @@ namespace Railgun
     internal void PushIf<T>(
       int flags,
       int requiredFlag,
-      IEncoder<T> encoder,
+      Encoder<T> encoder,
       T value)
     {
       if ((flags & requiredFlag) == requiredFlag)
@@ -222,7 +222,7 @@ namespace Railgun
     internal T PopIf<T>(
       int flags,
       int requiredFlag,
-      IEncoder<T> encoder,
+      Encoder<T> encoder,
       T basisVal)
     {
       if ((flags & requiredFlag) == requiredFlag)

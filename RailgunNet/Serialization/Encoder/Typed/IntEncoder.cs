@@ -25,7 +25,7 @@ using UnityEngine;
 
 namespace Railgun
 {
-  internal class IntEncoder : IEncoder<int>
+  internal class IntEncoder : Encoder<int>
   {
     private readonly int minValue;
     private readonly int maxValue;
@@ -33,14 +33,14 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    public int MinValue { get { return this.minValue; } }
-    public int MaxValue { get { return this.maxValue; } }
-    public int RequiredBits { get { return this.requiredBits; } }
+    internal int MinValue { get { return this.minValue; } }
+    internal int MaxValue { get { return this.maxValue; } }
+    internal override int RequiredBits { get { return this.requiredBits; } }
 
     /// <summary>
     /// Initializes a float serializer.
     /// </summary>
-    public IntEncoder(int minValue, int maxValue)
+    internal IntEncoder(int minValue, int maxValue)
     {
       this.minValue = minValue;
       this.maxValue = maxValue;
@@ -49,12 +49,12 @@ namespace Railgun
       this.mask = (uint)((1L << requiredBits) - 1);
     }
 
-    public uint Pack(int value)
+    internal override uint Pack(int value)
     {
       return (uint)(value - this.minValue) & this.mask;
     }
 
-    public int Unpack(uint data)
+    internal override int Unpack(uint data)
     {
       return (int)(data + this.minValue);
     }

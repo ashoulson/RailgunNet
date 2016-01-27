@@ -46,12 +46,12 @@ namespace Railgun
     #region Debug
     public static void RunTests()
     {
-      Encoders.Initialize();
+      Encoder.Initialize();
       //BitPacker.Test(50, 400);
       //IntEncoder.Test(200, 200);
       //FloatEncoder.Test(200, 200);
-      EntityState.Test(100);
-      //Snapshot.Test(100, 10);
+      //EntityState.Test(100);
+      StateBag<EntityState>.Test(100, 10);
       Debug.Log("Done Tests");
     }
 
