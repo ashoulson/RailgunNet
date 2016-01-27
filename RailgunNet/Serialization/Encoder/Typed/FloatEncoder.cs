@@ -29,7 +29,7 @@ namespace Railgun
   /// Compresses floats to a given range with a given precision.
   /// http://stackoverflow.com/questions/8382629/compress-floating-point-numbers-with-specified-range-and-precision
   /// </summary>
-  internal class FloatEncoder : IEncoder<float>
+  internal class FloatEncoder : Encoder<float>
   {
     private readonly float precision;
     private readonly float invPrecision;
@@ -40,15 +40,15 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    public float MinValue { get { return this.minValue; } }
-    public float MaxValue { get { return this.maxValue; } }
-    public int RequiredBits { get { return this.requiredBits; } }
+    internal float MinValue { get { return this.minValue; } }
+    internal float MaxValue { get { return this.maxValue; } }
+    internal override int RequiredBits { get { return this.requiredBits; } }
 
     /// <summary>
     /// Initializes a float serializer. We use shorts to retrieve the min and
     /// max values in order to avoid overflow errors during conversion.
     /// </summary>
-    public FloatEncoder(float minValue, float maxValue, float precision)
+    internal FloatEncoder(float minValue, float maxValue, float precision)
     {
       this.minValue = minValue;
       this.maxValue = maxValue;
@@ -59,14 +59,14 @@ namespace Railgun
       this.mask = (uint)((1L << requiredBits) - 1);
     }
 
-    public uint Pack(float value)
+    internal override uint Pack(float value)
     {
       value = Mathf.Clamp(value, this.minValue, this.maxValue);
       float adjusted = (value - this.minValue) * this.invPrecision;
       return (uint)(adjusted + 0.5f) & this.mask;
     }
 
-    public float Unpack(uint data)
+    internal override float Unpack(uint data)
     {
       float adjusted = ((float)data * this.precision) + this.minValue;
       return Mathf.Clamp(adjusted, this.minValue, this.maxValue);

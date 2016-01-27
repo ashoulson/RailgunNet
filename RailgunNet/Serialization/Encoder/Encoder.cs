@@ -25,14 +25,14 @@ using UnityEngine;
 
 namespace Railgun
 {
-  public static class Encoders
+  internal class Encoder
   {
-    internal static IntEncoder   FrameNumber = null;
+    #region Static Encoders (Read-Only)
+    // Used by StateBag
+    internal static IntEncoder   StateCount  = null;
+    internal static IntEncoder   StateId     = null;
 
-    internal static IntEncoder   EntityCount = null;
     internal static IntEncoder   EntityDirty = null;
-
-    internal static IntEncoder   EntityId    = null;
     internal static IntEncoder   ArchetypeId = null;
     internal static IntEncoder   UserId      = null;
     internal static IntEncoder   Status      = null;
@@ -42,19 +42,27 @@ namespace Railgun
 
     public static void Initialize()
     {
-      Encoders.FrameNumber = new IntEncoder(0, 8388607);
+      // Used by StateBag
+      Encoder.StateCount  = new IntEncoder(0, 1023);
+      Encoder.StateId     = Encoder.StateCount;
 
-      Encoders.EntityDirty = new IntEncoder(0, (int)EntityState.FLAG_ALL);
-      Encoders.EntityCount = new IntEncoder(0, 1023);
+      Encoder.Angle       = new FloatEncoder(0.0f, 360.0f, 1.0f);
+      Encoder.Coordinate  = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
 
-      Encoders.EntityId    = new IntEncoder(0, 65535);
-      Encoders.ArchetypeId = new IntEncoder(0, 255);
-      Encoders.UserId      = new IntEncoder(0, 4095);
-      Encoders.Status      = new IntEncoder(0, 0xFFF);
-
-      Encoders.Angle       = new FloatEncoder(0.0f, 360.0f, 0.1f);
-      Encoders.Coordinate  = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
-
+      // Used by EntityState
+      Encoder.EntityDirty = new IntEncoder(0, (int)EntityState.FLAG_ALL);
+      Encoder.ArchetypeId = new IntEncoder(0, 255);
+      Encoder.UserId      = new IntEncoder(0, 1023);
+      Encoder.Status      = new IntEncoder(0, 0x3F);
     }
+    #endregion
+  }
+
+  internal abstract class Encoder<T> : Encoder
+  {
+    internal abstract int RequiredBits { get; }
+
+    internal abstract uint Pack(T value);
+    internal abstract T Unpack(uint data);
   }
 }
