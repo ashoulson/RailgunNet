@@ -21,44 +21,11 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Reservoir;
 
 namespace Railgun
 {
-  internal class Encoder
-  {
-    #region Static Encoders (Read-Only)
-    // Used by StateBag
-    internal static IntEncoder   StateCount  = null;
-    internal static IntEncoder   StateId     = null;
-
-    internal static IntEncoder   EntityDirty = null;
-    internal static IntEncoder   ArchetypeId = null;
-    internal static IntEncoder   UserId      = null;
-    internal static IntEncoder   Status      = null;
-
-    internal static FloatEncoder Coordinate  = null;
-    internal static FloatEncoder Angle       = null;
-
-    public static void Initialize()
-    {
-      // Used by StateBag
-      Encoder.StateCount  = new IntEncoder(0, 1023);
-      Encoder.StateId     = Encoder.StateCount;
-
-      Encoder.Angle       = new FloatEncoder(0.0f, 360.0f, 1.0f);
-      Encoder.Coordinate  = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
-
-      // Used by EntityState
-      Encoder.EntityDirty = new IntEncoder(0, (int)EntityState.FLAG_ALL);
-      Encoder.ArchetypeId = new IntEncoder(0, 255);
-      Encoder.UserId      = new IntEncoder(0, 1023);
-      Encoder.Status      = new IntEncoder(0, 0x3F);
-    }
-    #endregion
-  }
-
-  internal abstract class Encoder<T> : Encoder
+  internal abstract class Encoder<T>
   {
     internal abstract int RequiredBits { get; }
 

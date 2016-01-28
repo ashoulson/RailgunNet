@@ -21,43 +21,26 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
 namespace Railgun
 {
-  public static class RailgunUtil
+  public class Entity<T> : Poolable<Entity<T>>
+    where T : State<T>, new()
   {
-    public static void Swap<T>(ref T a, ref T b)
-    {
-      T temp = b;
-      b = a;
-      a = temp;
-    }
+    public int Id { get; set; }
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
-    {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
-    }
+    /// <summary>
+    /// Given a state, fills the data in that state with the current status.
+    /// </summary>
+    public virtual void Write(T state) { }
 
-    #region Debug
-    internal static void Assert(bool condition)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError("Assert failed\n" + t);
-    }
+    /// <summary>
+    /// Given a state, extracts the data and applies it to this entity.
+    /// </summary>
+    /// <param name="state"></param>
+    public virtual void Read(T state) { }
 
-    internal static void Assert(bool condition, object message)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError(message + "\n" + t);
-    }
-    #endregion
+    public Entity() { }
   }
 }

@@ -21,7 +21,7 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Reservoir;
 
 namespace Railgun
 {
@@ -69,6 +69,13 @@ namespace Railgun
     }
 
     public BitPacker() : this(BitPacker.DEFAULT_CAPACITY) { }
+
+    public void Clear()
+    {
+      for (int i = 0; i < this.data.Length; i++)
+        this.data[i] = 0;
+      this.position = 0;
+    }
 
     /// <summary>
     /// Takes the lower numBits from the value and stores them in the buffer.
@@ -228,90 +235,6 @@ namespace Railgun
       if ((flags & requiredFlag) == requiredFlag)
         return this.Pop(encoder);
       return basisVal;
-    }
-    #endregion
-
-    public void Clear()
-    {
-      for (int i = 0; i < this.data.Length; i++)
-        this.data[i] = 0;
-      this.position = 0;
-    }
-
-    #region Debug
-    /// <summary>
-    /// Unit test for functionality.
-    /// </summary>
-    public static void Test(int maxValues, int iterations)
-    {
-      BitPacker buffer = new BitPacker(1);
-      Stack<uint> values = new Stack<uint>(maxValues);
-      Stack<int> bits = new Stack<int>(maxValues);
-
-      bool push = true;
-      for (int i = 0; i < iterations; i++)
-      {
-        if (values.Count <= 0)
-        {
-          push = true; // Must push
-        }
-        else if (values.Count >= maxValues)
-        {
-          push = false; // Must pop
-        }
-        else
-        {
-          float probability = UnityEngine.Random.Range(0.0f, 1.0f);
-          if (probability > 0.95f)
-          {
-            buffer.Clear();
-            values.Clear();
-            bits.Clear();
-            continue;
-          }
-          else if (probability > 0.4f)
-          {
-            push = true;
-          }
-          else
-          {
-            push = false;
-          }
-        }
-
-        if (values.Count > 0)
-          Debug.Assert(buffer.Peek(bits.Peek()) == values.Peek());
-
-        if (push)
-        {
-          uint randVal = 0;
-          unchecked
-          {
-            uint randNum =
-              (uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-            randVal = randNum;
-          }
-          int randBits = UnityEngine.Random.Range(0, 32);
-          uint trimmedVal = randVal & (uint)((1 << randBits) - 1);
-
-          values.Push(trimmedVal);
-          bits.Push(randBits);
-          buffer.Push(trimmedVal, randBits);
-        }
-        else
-        {
-          uint expectedVal = values.Pop();
-          int expectedBits = bits.Pop();
-          uint retrievedVal = buffer.Pop(expectedBits);
-
-          if (expectedVal != retrievedVal)
-            Debug.LogWarning(
-              "Expected: " + 
-              expectedVal + 
-              " Got: " + 
-              retrievedVal);
-        }
-      }
     }
     #endregion
   }

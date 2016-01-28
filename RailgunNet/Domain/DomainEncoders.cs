@@ -21,43 +21,30 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
-namespace Railgun
+namespace Railgun.Domain
 {
-  public static class RailgunUtil
+  internal static class DomainEncoders
   {
-    public static void Swap<T>(ref T a, ref T b)
-    {
-      T temp = b;
-      b = a;
-      a = temp;
-    }
+    internal static IntEncoder EntityDirty = null;
+    internal static IntEncoder ArchetypeId = null;
+    internal static IntEncoder UserId = null;
+    internal static IntEncoder Status = null;
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
-    {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
-    }
+    internal static FloatEncoder Coordinate = null;
+    internal static FloatEncoder Angle = null;
 
-    #region Debug
-    internal static void Assert(bool condition)
+    public static void Initialize()
     {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError("Assert failed\n" + t);
-    }
+      DomainEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 1.0f);
+      DomainEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
 
-    internal static void Assert(bool condition, object message)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError(message + "\n" + t);
+      // Used by EntityState
+      DomainEncoders.EntityDirty = new IntEncoder(0, (int)PawnState.FLAG_ALL);
+      DomainEncoders.ArchetypeId = new IntEncoder(0, 255);
+      DomainEncoders.UserId = new IntEncoder(0, 1023);
+      DomainEncoders.Status = new IntEncoder(0, 0x3F);
     }
-    #endregion
   }
 }

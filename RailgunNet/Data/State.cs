@@ -21,43 +21,21 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
 namespace Railgun
 {
-  public static class RailgunUtil
+  public class State<T> : Poolable<T>
+    where T : Poolable<T>, new()
   {
-    public static void Swap<T>(ref T a, ref T b)
-    {
-      T temp = b;
-      b = a;
-      a = temp;
-    }
+    protected internal int Id { get; set; }
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
-    {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
-    }
+    protected internal virtual void Encode(BitPacker bitPacker) { }
+    protected internal virtual bool Encode(BitPacker bitPacker, T basis) { return false; }
 
-    #region Debug
-    internal static void Assert(bool condition)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError("Assert failed\n" + t);
-    }
+    protected internal virtual void Decode(BitPacker bitPacker) { }
+    protected internal virtual void Decode(BitPacker bitPacker, T basis) { }
 
-    internal static void Assert(bool condition, object message)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError(message + "\n" + t);
-    }
-    #endregion
+    protected internal virtual void SetFrom(T other) { }
   }
 }
