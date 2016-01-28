@@ -5,7 +5,11 @@ using System.Text;
 
 namespace Railgun
 {
-  class DataObject
+  public static class Railgun
   {
+    public static void Initialize()
+    {
+      InternalEncoders.Initialize();
+    }
   }
 }

@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 
 using UnityEngine;
+using Reservoir;
 
 namespace Railgun
 {
@@ -60,6 +61,11 @@ namespace Railgun
     internal static bool AnglesEqual(float a, float b)
     {
       return Mathf.Abs(a - b) < Config.ANGLE_EPSILON;
+    }
+
+    internal static float Clamp(float val, float min, float max)
+    {
+      return Mathf.Clamp(val, min, max);
     }
   }
 }

@@ -21,43 +21,28 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
 namespace Railgun
 {
-  public static class RailgunUtil
+  public class EntityGroup<T> 
+    where T : State<T>, new()
   {
-    public static void Swap<T>(ref T a, ref T b)
+    private NodeList<Entity<T>> entities;
+
+    internal void PopulateBag(StateBag<T> stateBag)
     {
-      T temp = b;
-      b = a;
-      a = temp;
+      foreach (Entity<T> entity in this.entities)
+      {
+        T state = stateBag.GetEmpty(entity.Id);
+        entity.Write(state);
+        stateBag.Add(state);
+      }
     }
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
+    public EntityGroup()
     {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
+      this.entities = new NodeList<Entity<T>>();
     }
-
-    #region Debug
-    internal static void Assert(bool condition)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError("Assert failed\n" + t);
-    }
-
-    internal static void Assert(bool condition, object message)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError(message + "\n" + t);
-    }
-    #endregion
   }
 }

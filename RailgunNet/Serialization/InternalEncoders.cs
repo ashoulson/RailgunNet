@@ -21,43 +21,21 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
 namespace Railgun
 {
-  public static class RailgunUtil
+  internal static class InternalEncoders
   {
-    public static void Swap<T>(ref T a, ref T b)
-    {
-      T temp = b;
-      b = a;
-      a = temp;
-    }
+    // Used by StateBag
+    internal static IntEncoder StateCount = null;
+    internal static IntEncoder StateId = null;
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
+    internal static void Initialize()
     {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
+      // Used by StateBag
+      InternalEncoders.StateCount = new IntEncoder(0, 1023);
+      InternalEncoders.StateId = InternalEncoders.StateCount;
     }
-
-    #region Debug
-    internal static void Assert(bool condition)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError("Assert failed\n" + t);
-    }
-
-    internal static void Assert(bool condition, object message)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        Debug.LogError(message + "\n" + t);
-    }
-    #endregion
   }
 }

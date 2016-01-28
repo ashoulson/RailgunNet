@@ -43,19 +43,26 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Data\DataObject.cs" />
+    <Compile Include="Domain\DomainEncoders.cs" />
+    <Compile Include="Domain\PawnEntity.cs" />
+    <Compile Include="Entity\Entity.cs" />
+    <Compile Include="Entity\EntityGroup.cs" />
+    <Compile Include="Railgun.cs" />
     <Compile Include="Serialization\BitPacker.cs" />
-    <Compile Include="Serialization\States\EntityState.cs" />
+    <Compile Include="Domain\PawnState.cs" />
     <Compile Include="Serialization\Encoder\Encoder.cs" />
     <Compile Include="Serialization\Encoder\Typed\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoder\Typed\IntEncoder.cs" />
     <Compile Include="Config.cs" />
-    <Compile Include="Serialization\State.cs" />
-    <Compile Include="Serialization\StateBag.cs" />
+    <Compile Include="Serialization\InternalEncoders.cs" />
+    <Compile Include="Data\State.cs" />
+    <Compile Include="Data\StateBag.cs" />
+    <Compile Include="Testing.cs" />
     <Compile Include="Util\RailgunUtil.cs" />
     <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

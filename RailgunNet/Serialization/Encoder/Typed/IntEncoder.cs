@@ -21,7 +21,7 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
+using Reservoir;
 
 namespace Railgun
 {
@@ -69,47 +69,5 @@ namespace Railgun
       uint range = (uint)(maxLong - minLong);
       return RailgunMath.Log2(range) + 1;
     }
-
-    #region Debug
-    public static void Test(int outerIter, int innerIter)
-    {
-      for (int i = 0; i < outerIter; i++)
-      {
-        int a = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-        int b = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-
-        if (a > b)
-          RailgunUtil.Swap(ref a, ref b);
-        IntEncoder serializer = new IntEncoder(a, b);
-
-        for (int j = 0; j < innerIter; j++)
-        {
-          int random = UnityEngine.Random.Range(a, b);
-          uint packed = serializer.Pack(random);
-          int unpacked = serializer.Unpack(packed);
-
-          RailgunUtil.Assert(random == unpacked,
-            random +
-            " " +
-            unpacked +
-            " " +
-            (int)Mathf.Abs(random - unpacked) +
-            " Min: " + a +
-            " Max: " + b);
-        }
-      }
-
-      // Test extreme cases
-      IntEncoder extreme1 = new IntEncoder(0, 0);
-      RailgunUtil.Assert(extreme1.Unpack(extreme1.Pack(0)) == 0, "A " + extreme1.Unpack(extreme1.Pack(0)));
-      RailgunUtil.Assert(extreme1.Unpack(extreme1.Pack(1)) == 0, "B " + extreme1.Unpack(extreme1.Pack(1)));
-
-      IntEncoder extreme2 = new IntEncoder(int.MinValue, int.MaxValue);
-      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(0)) == 0, "C " + extreme2.Unpack(extreme2.Pack(0)));
-      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(1024)) == 1024, "D " + extreme2.Unpack(extreme2.Pack(1024)));
-      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(int.MaxValue)) == int.MaxValue, "E " + extreme2.Unpack(extreme2.Pack(int.MaxValue)));
-      RailgunUtil.Assert(extreme2.Unpack(extreme2.Pack(int.MinValue)) == int.MinValue, "F " + extreme2.Unpack(extreme2.Pack(int.MinValue)));
-    }
-    #endregion
   }
 }
