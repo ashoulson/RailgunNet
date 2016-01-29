@@ -25,17 +25,67 @@ using Reservoir;
 
 namespace Railgun
 {
-  public class State<T> : Poolable<T>
-    where T : Poolable<T>, new()
+  /// <summary>
+  /// States are attached to entities and contain user-defined data. They are
+  /// responsible for encoding and decoding that data, and delta-compression.
+  /// </summary>
+  public abstract class State : INode<State>
   {
-    protected internal int Id { get; set; }
+    #region INode<State> Members
+    NodeList<State> INode<State>.List { get; set; }
+    State INode<State>.Next { get; set; }
+    State INode<State>.Previous { get; set; }
+    #endregion
 
-    protected internal virtual void Encode(BitPacker bitPacker) { }
-    protected internal virtual bool Encode(BitPacker bitPacker, T basis) { return false; }
+    #region Factory-Related
+    internal Factory Factory { get; set; }
+    internal void Free() { this.Factory.Deallocate(this); }
 
-    protected internal virtual void Decode(BitPacker bitPacker) { }
-    protected internal virtual void Decode(BitPacker bitPacker, T basis) { }
+    internal State Clone()
+    {
+      State state = this.Factory.Allocate();
+      state.SetFrom(this);
+      return state;
+    }
+    #endregion
 
-    protected internal virtual void SetFrom(T other) { }
+    internal abstract void SetFrom(State other);
+    internal abstract bool Encode(BitPacker bitPacker, State basis);
+    internal abstract void Decode(BitPacker bitPacker, State basis);
+
+    protected internal abstract byte Type { get; }
+    protected internal abstract void Encode(BitPacker bitPacker);
+    protected internal abstract void Decode(BitPacker bitPacker);
+
+    protected internal virtual void Initialize() { }
+    protected internal virtual void Reset() { }
+  }
+
+  /// <summary>
+  /// This is the class to override to attach user-defined data to an entity.
+  /// </summary>
+  public abstract class State<T> : State
+    where T : State<T>
+  {
+    #region Casting Overrides
+    internal override void SetFrom(State other)
+    {
+      this.SetFrom((T)other);
+    }
+
+    internal override bool Encode(BitPacker bitPacker, State basis)
+    {
+      return this.Encode(bitPacker, (T)basis);
+    }
+
+    internal override void Decode(BitPacker bitPacker, State basis)
+    {
+      this.Decode(bitPacker, (T)basis);
+    }
+    #endregion
+
+    protected internal abstract void SetFrom(T other);
+    protected internal abstract bool Encode(BitPacker bitPacker, T basis);
+    protected internal abstract void Decode(BitPacker bitPacker, T basis);
   }
 }

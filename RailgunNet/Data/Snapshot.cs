@@ -21,41 +21,48 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
 namespace Railgun
 {
-  internal static class RailgunMath
+  internal class Snapshot : Poolable<Snapshot>
   {
-    // http://stackoverflow.com/questions/15967240/fastest-implementation-of-log2int-and-log2float
-    private static readonly int[] DeBruijnLookup = new int[32]
-    {
-        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
-        8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
-    };
+    internal int Frame { get; set; }
 
-    internal static int Log2(uint v)
-    {
-      v |= v >> 1; // Round down to one less than a power of 2 
-      v |= v >> 2;
-      v |= v >> 4;
-      v |= v >> 8;
-      v |= v >> 16;
+    internal NodeList<Image> images;
+    private Dictionary<int, Image> idToImage;
 
-      return DeBruijnLookup[(v * 0x07C4ACDDU) >> 27];
+    public void Clear()
+    {
+      Pool.FreeAll(this.images);
+      this.idToImage.Clear();
     }
 
-    internal static int Abs(int a)
+    public Snapshot()
     {
-      if (a < 0)
-        return -a;
-      return a;
+      this.images = new NodeList<Image>();
+      this.idToImage = new Dictionary<int, Image>();
     }
 
-    internal static float Clamp(float val, float min, float max)
+    protected override void Reset()
     {
-      return Mathf.Clamp(val, min, max);
+      this.Clear();
+    }
+
+    internal void Add(Image image)
+    {
+      this.images.Add(image);
+      this.idToImage[image.Id] = image;
+    }
+
+    internal bool TryGet(int id, out Image image)
+    {
+      return this.idToImage.TryGetValue(id, out image);
+    }
+
+    internal bool Contains(int id)
+    {
+      return this.idToImage.ContainsKey(id);
     }
   }
 }

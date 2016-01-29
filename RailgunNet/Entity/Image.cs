@@ -21,41 +21,50 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
 namespace Railgun
 {
-  internal static class RailgunMath
+  /// <summary>
+  /// An image is a frozen snapshot of an entity for a particular frame.
+  /// It contains a recording of that entity's state with that frame's data.
+  /// </summary>
+  internal class Image : Poolable<Image>
   {
-    // http://stackoverflow.com/questions/15967240/fastest-implementation-of-log2int-and-log2float
-    private static readonly int[] DeBruijnLookup = new int[32]
-    {
-        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
-        8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
-    };
+    public int Id { get; internal set; }
+    public State State { get; internal set; }
 
-    internal static int Log2(uint v)
+    public Image() 
     {
-      v |= v >> 1; // Round down to one less than a power of 2 
-      v |= v >> 2;
-      v |= v >> 4;
-      v |= v >> 8;
-      v |= v >> 16;
-
-      return DeBruijnLookup[(v * 0x07C4ACDDU) >> 27];
+      this.Reset();
     }
 
-    internal static int Abs(int a)
+    protected override void Reset()
     {
-      if (a < 0)
-        return -a;
-      return a;
+      this.Id = Entity.INVALID_ID;
+      this.State = null;
     }
 
-    internal static float Clamp(float val, float min, float max)
+    internal void Encode(BitPacker bitPacker)
     {
-      return Mathf.Clamp(val, min, max);
+      this.State.Encode(bitPacker);
+    }
+
+    internal void Encode(BitPacker bitPacker, Image basis)
+    {
+      this.State.Encode(bitPacker, basis.State);
+    }
+
+    internal void Decode(BitPacker bitPacker)
+    {
+      // We assume this image is already populated with a state before decoding
+      this.State.Decode(bitPacker);
+    }
+
+    internal void Decode(BitPacker bitPacker, Image basis)
+    {
+      // We assume this image is already populated with a state before decoding
+      this.State.Decode(bitPacker, basis.State);
     }
   }
 }

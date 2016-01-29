@@ -20,6 +20,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 using UnityEngine;
 using Reservoir;
@@ -45,18 +46,20 @@ namespace Railgun
     }
 
     #region Debug
+    [Conditional("DEBUG")]
     internal static void Assert(bool condition)
     {
       System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
       if (condition == false)
-        Debug.LogError("Assert failed\n" + t);
+        UnityEngine.Debug.LogError("Assert failed\n" + t);
     }
 
+    [Conditional("DEBUG")]
     internal static void Assert(bool condition, object message)
     {
       System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
       if (condition == false)
-        Debug.LogError(message + "\n" + t);
+        UnityEngine.Debug.LogError(message + "\n" + t);
     }
     #endregion
   }
