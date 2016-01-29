@@ -43,10 +43,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="New\Box\Factory.cs" />
+    <Compile Include="New\Box\Image.cs" />
     <Compile Include="Domain\DomainEncoders.cs" />
-    <Compile Include="Domain\PawnEntity.cs" />
     <Compile Include="Entity\Entity.cs" />
     <Compile Include="Entity\EntityGroup.cs" />
+    <Compile Include="New\Box\Box.cs" />
+    <Compile Include="New\EntityNew.cs" />
     <Compile Include="Railgun.cs" />
     <Compile Include="Serialization\BitPacker.cs" />
     <Compile Include="Domain\PawnState.cs" />
@@ -62,7 +65,9 @@
     <Compile Include="Util\RailgunUtil.cs" />
     <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="New\Entity\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
