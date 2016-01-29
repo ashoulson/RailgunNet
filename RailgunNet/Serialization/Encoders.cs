@@ -23,28 +23,27 @@ using System.Collections.Generic;
 
 using Reservoir;
 
-namespace Railgun.Domain
+namespace Railgun
 {
-  internal static class DomainEncoders
+  internal static class Encoders
   {
-    internal static IntEncoder EntityDirty = null;
-    internal static IntEncoder ArchetypeId = null;
-    internal static IntEncoder UserId = null;
-    internal static IntEncoder Status = null;
+    // Used by StateBag
+    internal static IntEncoder EntityCount = null;
+    internal static IntEncoder EntityId = null;
 
-    internal static FloatEncoder Coordinate = null;
-    internal static FloatEncoder Angle = null;
+    internal static IntEncoder StateType = null;
 
-    public static void Initialize()
+    internal static IntEncoder Frame = null;
+
+    internal static void Initialize()
     {
-      DomainEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 1.0f);
-      DomainEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
+      // Used by StateBag
+      Encoders.EntityCount = new IntEncoder(0, 1023);
+      Encoders.EntityId = Encoders.EntityCount;
 
-      // Used by EntityState
-      DomainEncoders.EntityDirty = new IntEncoder(0, (int)PawnState.FLAG_ALL);
-      DomainEncoders.ArchetypeId = new IntEncoder(0, 255);
-      DomainEncoders.UserId = new IntEncoder(0, 1023);
-      DomainEncoders.Status = new IntEncoder(0, 0x3F);
+      Encoders.StateType = new IntEncoder(0, 31);
+
+      Encoders.Frame = new IntEncoder(0, 4194303);
     }
   }
 }

@@ -21,41 +21,12 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
 using Reservoir;
 
-namespace Railgun
+namespace Railgun.User
 {
-  internal static class RailgunMath
+  public static class UserTypes
   {
-    // http://stackoverflow.com/questions/15967240/fastest-implementation-of-log2int-and-log2float
-    private static readonly int[] DeBruijnLookup = new int[32]
-    {
-        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
-        8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
-    };
-
-    internal static int Log2(uint v)
-    {
-      v |= v >> 1; // Round down to one less than a power of 2 
-      v |= v >> 2;
-      v |= v >> 4;
-      v |= v >> 8;
-      v |= v >> 16;
-
-      return DeBruijnLookup[(v * 0x07C4ACDDU) >> 27];
-    }
-
-    internal static int Abs(int a)
-    {
-      if (a < 0)
-        return -a;
-      return a;
-    }
-
-    internal static float Clamp(float val, float min, float max)
-    {
-      return Mathf.Clamp(val, min, max);
-    }
+    public const byte TYPE_USER_STATE = 1;
   }
 }

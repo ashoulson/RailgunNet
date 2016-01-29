@@ -9,7 +9,7 @@ namespace Railgun
   {
     public static void Initialize()
     {
-      InternalEncoders.Initialize();
+      Encoders.Initialize();
     }
   }
 }

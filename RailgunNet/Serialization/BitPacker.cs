@@ -128,7 +128,7 @@ namespace Railgun
     {
       numBits = BitPacker.ClampBits(numBits);
       if (numBits > this.position)
-        throw new AccessViolationException();
+        throw new AccessViolationException("BitPacker access underrun");
 
       uint output = 0;
       while (numBits > 0)

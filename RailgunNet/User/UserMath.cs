@@ -21,21 +21,21 @@
 using System;
 using System.Collections.Generic;
 
+using UnityEngine;
 using Reservoir;
 
-namespace Railgun
+namespace Railgun.User
 {
-  internal static class InternalEncoders
+  public static class UserMath
   {
-    // Used by StateBag
-    internal static IntEncoder StateCount = null;
-    internal static IntEncoder StateId = null;
-
-    internal static void Initialize()
+    internal static bool CoordinatesEqual(float a, float b)
     {
-      // Used by StateBag
-      InternalEncoders.StateCount = new IntEncoder(0, 1023);
-      InternalEncoders.StateId = InternalEncoders.StateCount;
+      return Mathf.Abs(a - b) < Config.COORDINATE_EPSILON;
+    }
+
+    internal static bool AnglesEqual(float a, float b)
+    {
+      return Mathf.Abs(a - b) < Config.ANGLE_EPSILON;
     }
   }
 }
