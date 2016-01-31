@@ -24,13 +24,15 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class BitPacker
+  public class BitBuffer
   {
     // This class works with both uint-based and byte-based storage,
     // so you can adjust these constants accordingly with data type
-    private const int  SIZE_INPUT   = sizeof(uint) * 8;
-    private const int  SIZE_STORAGE = sizeof(uint) * 8;
-    private const uint STORAGE_MASK = (uint)((1L << SIZE_STORAGE) - 1);
+    private const int  SIZE_BYTE       = 8;
+    private const int  SIZE_INPUT      = sizeof(uint) * SIZE_BYTE;
+    private const int  SIZE_STORAGE    = sizeof(uint) * SIZE_BYTE;
+    private const int  BYTES_PER_CHUNK = SIZE_STORAGE / SIZE_BYTE;
+    private const uint STORAGE_MASK    = (uint)((1L << SIZE_STORAGE) - 1);
 
     private const int  DEFAULT_CAPACITY = 8;
 
@@ -38,8 +40,8 @@ namespace Railgun
     {
       if (bits < 0)
         return 0;
-      if (bits > BitPacker.SIZE_INPUT)
-        return BitPacker.SIZE_INPUT;
+      if (bits > BitBuffer.SIZE_INPUT)
+        return BitBuffer.SIZE_INPUT;
       return bits;
     }
 
@@ -49,9 +51,9 @@ namespace Railgun
     private int position;
 
     /// <summary>
-    /// Buffer for storing data.
+    /// Buffer of chunks for storing data.
     /// </summary>
-    private uint[] data;
+    private uint[] chunks;
 
     /// <summary>
     /// The number of bits currently stored in the buffer.
@@ -61,18 +63,22 @@ namespace Railgun
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
-    public BitPacker(int capacity)
+    public BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
     {
-      this.data = new uint[capacity];
+      this.chunks = new uint[capacity];
       this.Clear();
     }
 
-    public BitPacker() : this(BitPacker.DEFAULT_CAPACITY) { }
+    public BitBuffer(byte[] data)
+    {
+      this.chunks = new uint[(data.Length / BitBuffer.BYTES_PER_CHUNK) + 1];
+      this.ReadBytes(data);
+    }
 
     public void Clear()
     {
-      for (int i = 0; i < this.data.Length; i++)
-        this.data[i] = 0;
+      for (int i = 0; i < this.chunks.Length; i++)
+        this.chunks[i] = 0;
       this.position = 0;
     }
 
@@ -81,17 +87,17 @@ namespace Railgun
     /// </summary>
     public void Push(uint value, int numBits)
     {
-      numBits = BitPacker.ClampBits(numBits);
+      numBits = BitBuffer.ClampBits(numBits);
 
       while (numBits > 0)
       {
         // Find our place
-        int index = this.position / BitPacker.SIZE_STORAGE;
-        int used = this.position % BitPacker.SIZE_STORAGE;
+        int index = this.position / BitBuffer.SIZE_STORAGE;
+        int used = this.position % BitBuffer.SIZE_STORAGE;
 
         // Increase our capacity if needed
-        if (index >= this.data.Length)
-          RailgunUtil.ExpandArray(ref this.data);
+        if (index >= this.chunks.Length)
+          RailgunUtil.ExpandArray(ref this.chunks);
 
         // Create and apply the mask
         ulong mask = (1UL << numBits) - 1;
@@ -99,12 +105,12 @@ namespace Railgun
         uint entry = masked << used;
 
         // Record how much was written and shift the value
-        int remaining = BitPacker.SIZE_STORAGE - used;
+        int remaining = BitBuffer.SIZE_STORAGE - used;
         int written = (numBits < remaining) ? numBits : remaining;
         value >>= written;
 
         // Store and advance
-        this.data[index] |= entry;
+        this.chunks[index] |= entry;
         this.position += written;
         numBits -= written;
       }
@@ -125,17 +131,17 @@ namespace Railgun
     /// </summary>
     public uint Pop(int numBits)
     {
-      numBits = BitPacker.ClampBits(numBits);
+      numBits = BitBuffer.ClampBits(numBits);
       if (numBits > this.position)
-        throw new AccessViolationException("BitPacker access underrun");
+        throw new AccessViolationException("BitBuffer access underrun");
 
       uint output = 0;
       while (numBits > 0)
       {
         // Find the position of the last written bit
         int lastWritten = this.position - 1;
-        int index = lastWritten / BitPacker.SIZE_STORAGE;
-        int used = (lastWritten % BitPacker.SIZE_STORAGE) + 1;
+        int index = lastWritten / BitBuffer.SIZE_STORAGE;
+        int used = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
 
         // Create the mask and extract the value
         int available = (numBits < used) ? numBits : used;
@@ -144,8 +150,8 @@ namespace Railgun
         uint mask = STORAGE_MASK << ignoreBottom;
 
         // Extract the value and flash the bits out of the data
-        uint value = (this.data[index] & mask) >> ignoreBottom;
-        this.data[index] &= ~mask;
+        uint value = (this.chunks[index] & mask) >> ignoreBottom;
+        this.chunks[index] &= ~mask;
 
         // Update our position
         numBits -= available;
@@ -173,16 +179,20 @@ namespace Railgun
     /// </summary>
     public uint Peek(int numBits)
     {
-      int startingPosition = this.position;
-      numBits = BitPacker.ClampBits(numBits);
-      uint output = 0;
+      numBits = BitBuffer.ClampBits(numBits);
+      if (numBits > this.position)
+        throw new AccessViolationException("BitBuffer access underrun");
 
+      int startingPosition = this.position;
+      uint output = 0;
       while (numBits > 0)
       {
         // Find the position of the last written bit
         int lastWritten = this.position - 1;
-        int index = lastWritten / BitPacker.SIZE_STORAGE;
-        int used = (lastWritten % BitPacker.SIZE_STORAGE) + 1;
+        int index = lastWritten / BitBuffer.SIZE_STORAGE;
+
+        // Add the +1 here because used is a count, not an index
+        int used = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
 
         // Create the mask and extract the value
         int available = (numBits < used) ? numBits : used;
@@ -191,7 +201,7 @@ namespace Railgun
         uint mask = STORAGE_MASK << ignoreBottom;
 
         // Extract the value, but don't flash out the data
-        uint value = (this.data[index] & mask) >> ignoreBottom;
+        uint value = (this.chunks[index] & mask) >> ignoreBottom;
 
         // Update our position
         numBits -= available;
@@ -212,6 +222,101 @@ namespace Railgun
     {
       uint data = this.Peek(encoder.RequiredBits);
       return encoder.Unpack(data);
+    }
+
+    /// <summary>
+    /// Converts the buffer to a byte array.
+    /// </summary>
+    public byte[] StoreBytes()
+    {
+      // Push a sentinel bit for finding position
+      this.Push(1, 1);
+
+      // Find the position of the last written bit
+      int lastWritten = this.position - 1;
+      int numChunks = (lastWritten / BitBuffer.SIZE_STORAGE) + 1;
+      int numBytes = (lastWritten / BitBuffer.SIZE_BYTE) + 1;
+
+      byte[] data = new byte[numBytes];
+      for (int i = 0; i < numChunks; i++)
+      {
+        int index = i * BitBuffer.BYTES_PER_CHUNK;
+        int bytesRemaining = BitBuffer.GetRemainingBytes(index, numBytes);
+        BitBuffer.StoreValue(data, index, bytesRemaining, this.chunks[i]);
+      }
+
+      // Remove the sentinel bit from our working copy
+      this.Pop(1);
+
+      return data;
+    }
+
+    /// <summary>
+    /// Overwrites this buffer with an array of byte data.
+    /// </summary>
+    public void ReadBytes(byte[] data)
+    {
+      int numBytes = data.Length;
+      int numChunks = (data.Length / BitBuffer.BYTES_PER_CHUNK) + 1;
+
+      if (this.chunks.Length < numChunks)
+        this.chunks = new uint[numChunks];
+      this.Clear();
+
+      for (int i = 0; i < numChunks; i++)
+      {
+        int index = i * BitBuffer.BYTES_PER_CHUNK;
+        int bytesRemaining = BitBuffer.GetRemainingBytes(index, numBytes);
+        this.chunks[i] = BitBuffer.ReadValue(data, index, bytesRemaining);
+      }
+
+      // Find position and pop the sentinel bit
+      this.position = BitBuffer.FindPosition(data);
+      this.Pop(1);
+    }
+
+    private static int GetRemainingBytes(int index, int numBytes)
+    {
+      int maxBytes = index + BitBuffer.BYTES_PER_CHUNK;
+      int capacity = (maxBytes > numBytes) ? numBytes : maxBytes;
+      return capacity - index;
+    }
+
+    internal static void StoreValue(
+      byte[] array, 
+      int index, 
+      int numToWrite,
+      uint value)
+    {
+      for (int i = 0; i < numToWrite; i++)
+        array[index + i] = (byte)(value >> (BitBuffer.SIZE_BYTE * i));
+    }
+
+    internal static uint ReadValue(
+      byte[] array, 
+      int index, 
+      int numToRead)
+    {
+      uint value = 0;
+      for (int i = 0; i < numToRead; i++)
+        value |= (uint)array[index + i] << (BitBuffer.SIZE_BYTE * i);
+      return value;
+    }
+
+    private static int FindPosition(byte[] data)
+    {
+      if (data.Length == 0)
+        return 0;
+
+      byte last = data[data.Length - 1];
+      int shiftCount = 0;
+      while (last != 0)
+      {
+        last >>= 1;
+        shiftCount++;
+      }
+
+      return ((data.Length - 1) * BitBuffer.SIZE_BYTE) + shiftCount;
     }
 
     #region Conditional Serialization Helpers

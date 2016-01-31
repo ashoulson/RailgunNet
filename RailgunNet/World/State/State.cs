@@ -41,12 +41,12 @@ namespace Railgun
     }
 
     internal abstract void SetFrom(State other);
-    internal abstract bool Encode(BitPacker bitPacker, State basis);
-    internal abstract void Decode(BitPacker bitPacker, State basis);
+    internal abstract bool Encode(BitBuffer buffer, State basis);
+    internal abstract void Decode(BitBuffer buffer, State basis);
 
     protected internal abstract int Type { get; }
-    protected internal abstract void Encode(BitPacker bitPacker);
-    protected internal abstract void Decode(BitPacker bitPacker);
+    protected internal abstract void Encode(BitBuffer buffer);
+    protected internal abstract void Decode(BitBuffer buffer);
 
     protected internal virtual void Reset() { }
   }
@@ -63,19 +63,19 @@ namespace Railgun
       this.SetFrom((T)other);
     }
 
-    internal override bool Encode(BitPacker bitPacker, State basis)
+    internal override bool Encode(BitBuffer buffer, State basis)
     {
-      return this.Encode(bitPacker, (T)basis);
+      return this.Encode(buffer, (T)basis);
     }
 
-    internal override void Decode(BitPacker bitPacker, State basis)
+    internal override void Decode(BitBuffer buffer, State basis)
     {
-      this.Decode(bitPacker, (T)basis);
+      this.Decode(buffer, (T)basis);
     }
     #endregion
 
     protected internal abstract void SetFrom(T other);
-    protected internal abstract bool Encode(BitPacker bitPacker, T basis);
-    protected internal abstract void Decode(BitPacker bitPacker, T basis);
+    protected internal abstract bool Encode(BitBuffer buffer, T basis);
+    protected internal abstract void Decode(BitBuffer buffer, T basis);
   }
 }
