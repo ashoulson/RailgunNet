@@ -36,10 +36,10 @@ namespace Railgun
       UserEncoders.Initialize();
 
       Testing.TestBitBuffer(50, 400);
-      //Testing.TestIntEncoder(200, 200);
-      //Testing.TestFloatEncoder(200, 200);
-      //Testing.TestEntityState(100);
-      //Testing.TestSnapshotTransmission(30, 10, 20);
+      Testing.TestIntEncoder(200, 200);
+      Testing.TestFloatEncoder(200, 200);
+      Testing.TestEntityState(100);
+      Testing.TestSnapshotTransmission(30, 10, 20);
       Debug.Log("Done Tests");
     }
 
@@ -132,41 +132,43 @@ namespace Railgun
         Interpreter interpreter =
           new Interpreter(new Factory<UserState>());
         Environment environment = Testing.CreateEnvironment(interpreter, numEntities - 5);
-        BitBuffer buffer = new BitBuffer();
 
         Snapshot lastSent = null;
         Snapshot lastReceived = null;
 
         for (int j = 0; j < innerIter; j++)
         {
+          BitBuffer outBuffer = new BitBuffer();
           Snapshot sending = environment.Clone();
         
           if (lastSent != null)
           {
-            interpreter.Encode(buffer, sending, lastSent);
-            deltaSum += buffer.BitsUsed;
+            interpreter.Encode(outBuffer, sending, lastSent);
+            deltaSum += outBuffer.BitsUsed;
             deltaCount++;
           }
           else
           {
-            interpreter.Encode(buffer, sending);
-            int bitsUsed = buffer.BitsUsed;
+            interpreter.Encode(outBuffer, sending);
+            int bitsUsed = outBuffer.BitsUsed;
             if (bitsUsed > complete)
               complete = bitsUsed;
           }
 
+          byte[] serialized = outBuffer.StoreBytes();
+          BitBuffer inBuffer = new BitBuffer(serialized);
           Snapshot receiving;
 
           if (lastReceived != null)
           {
-            receiving = interpreter.Decode(buffer, lastReceived);
+            receiving = interpreter.Decode(inBuffer, lastReceived);
           }
           else
           {
-            receiving = interpreter.Decode(buffer);
+            receiving = interpreter.Decode(inBuffer);
           }
 
-          RailgunUtil.Assert(buffer.BitsUsed == 0);
+          RailgunUtil.Assert(inBuffer.BitsUsed == 0);
           Testing.FakeUpdateState(environment);
           if (environment.Count < numEntities)
             if (UnityEngine.Random.Range(0.0f, 1.0f) > 0.8f)
