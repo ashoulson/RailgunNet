@@ -11,5 +11,11 @@ namespace Railgun
     {
 
     }
+
+    public T GetState<T>()
+      where T : State<T>
+    {
+      return (T)this.State;
+    }
   }
 }

@@ -44,7 +44,7 @@ namespace Railgun
 
       Encoders.StateType = new IntEncoder(0, 31);
 
-      Encoders.Frame = new IntEncoder(0, 4194303);
+      Encoders.Frame = new IntEncoder(-1, 4194301);
 
       Encoders.Bit = new IntEncoder(0, 1);
     }
