@@ -19,43 +19,18 @@
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-
-using Reservoir;
 
 namespace Railgun
 {
-  public class Entity : Poolable<Entity>
+  public interface IPoolable
   {
-    public const int INVALID_ID = -1;
-
-    public int Id { get; internal set; }
-    public State State { get; internal set; }
-
-    public Entity() { }
-
-    protected override void Reset()
-    {
-      this.Id = Entity.INVALID_ID;
-      this.State = null;
-    }
+    Pool Pool { get; set; }
 
     /// <summary>
-    /// Deep-copies this entity into the given image.
+    /// Called when this object is deallocated.
     /// </summary>
-    internal void PopulateImage(Image image)
-    {
-      RailgunUtil.Assert(image.Id != Entity.INVALID_ID);
-      RailgunUtil.Assert(image.State != null);
-
-      image.Id = this.Id;
-      image.State = this.State.Clone();
-    }
-
-    public T GetState<T>() 
-      where T : State<T>
-    {
-      return (T)this.State;
-    }
+    void Reset();
   }
 }

@@ -24,29 +24,8 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal static class Encoders
+  internal class Clock
   {
-    // Used by StateBag
-    internal static IntEncoder EntityCount = null;
-    internal static IntEncoder EntityId = null;
-
-    internal static IntEncoder StateType = null;
-
-    internal static IntEncoder Frame = null;
-
-    internal static IntEncoder Bit = null;
-
-    internal static void Initialize()
-    {
-      // Used by StateBag
-      Encoders.EntityCount = new IntEncoder(0, 1023);
-      Encoders.EntityId = Encoders.EntityCount;
-
-      Encoders.StateType = new IntEncoder(0, 31);
-
-      Encoders.Frame = new IntEncoder(0, 4194303);
-
-      Encoders.Bit = new IntEncoder(0, 1);
-    }
+    public const int INVALID_FRAME = -1;
   }
 }

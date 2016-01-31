@@ -19,52 +19,43 @@
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-
-using Reservoir;
 
 namespace Railgun
 {
   /// <summary>
-  /// An image is a frozen snapshot of an entity for a particular frame.
-  /// It contains a recording of that entity's state with that frame's data.
+  /// Factories are responsible for creating states.
   /// </summary>
-  internal class Image : Poolable<Image>
+  public abstract class Factory : AbstractPool<State>
   {
-    public int Id { get; internal set; }
-    public State State { get; internal set; }
+    internal int Type { get; private set; }
 
-    public Image() 
+    public Factory() : base()
     {
-      this.Reset();
+      // Make one dummy state to get the type (we'll just pool it for later)
+      State dummy = this.Allocate();
+      this.Type = dummy.Type;
+      this.Deallocate(dummy);
     }
+  }
 
-    protected override void Reset()
+  /// <summary>
+  /// Factories are responsible for creating states. For a given state class,
+  /// you will need to instantiate and provide a typed state factory in order
+  /// to provide the system with a way to create states of your type.
+  /// </summary>
+  public sealed class Factory<T> : Factory
+    where T : State<T>, IPoolable, new()
+  {
+    public override State Allocate()
     {
-      this.Id = Entity.INVALID_ID;
-      this.State = null;
-    }
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
 
-    internal void Encode(BitPacker bitPacker)
-    {
-      this.State.Encode(bitPacker);
-    }
-
-    internal void Encode(BitPacker bitPacker, Image basis)
-    {
-      this.State.Encode(bitPacker, basis.State);
-    }
-
-    internal void Decode(BitPacker bitPacker)
-    {
-      // We assume this image is already populated with a state before decoding
-      this.State.Decode(bitPacker);
-    }
-
-    internal void Decode(BitPacker bitPacker, Image basis)
-    {
-      // We assume this image is already populated with a state before decoding
-      this.State.Decode(bitPacker, basis.State);
+      T state = new T();
+      state.Pool = this;
+      return state;
     }
   }
 }

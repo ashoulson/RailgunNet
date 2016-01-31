@@ -19,9 +19,8 @@
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-
-using Reservoir;
 
 namespace Railgun.User
 {
@@ -67,7 +66,7 @@ namespace Railgun.User
         (state.Status == basis.Status ? 0 : FLAG_STATUS);
     }
 
-    protected internal override byte Type { get { return UserTypes.TYPE_USER_STATE; } }
+    protected internal override int Type { get { return UserTypes.TYPE_USER_STATE; } }
 
     public int ArchetypeId { get; set; }
     public int UserId { get; set; }

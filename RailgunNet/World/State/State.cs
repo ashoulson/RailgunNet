@@ -21,7 +21,7 @@
 using System;
 using System.Collections.Generic;
 
-using Reservoir;
+
 
 namespace Railgun
 {
@@ -29,35 +29,26 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class State : INode<State>
+  public abstract class State : IPoolable
   {
-    #region INode<State> Members
-    NodeList<State> INode<State>.List { get; set; }
-    State INode<State>.Next { get; set; }
-    State INode<State>.Previous { get; set; }
-    #endregion
-
-    #region Factory-Related
-    internal Factory Factory { get; set; }
-    internal void Free() { this.Factory.Deallocate(this); }
+    Pool IPoolable.Pool { get; set; }
+    void IPoolable.Reset() { this.Reset(); }
 
     internal State Clone()
     {
-      State state = this.Factory.Allocate();
+      State state = Pool.CloneEmpty(this);
       state.SetFrom(this);
       return state;
     }
-    #endregion
 
     internal abstract void SetFrom(State other);
     internal abstract bool Encode(BitPacker bitPacker, State basis);
     internal abstract void Decode(BitPacker bitPacker, State basis);
 
-    protected internal abstract byte Type { get; }
+    protected internal abstract int Type { get; }
     protected internal abstract void Encode(BitPacker bitPacker);
     protected internal abstract void Decode(BitPacker bitPacker);
 
-    protected internal virtual void Initialize() { }
     protected internal virtual void Reset() { }
   }
 
