@@ -39,7 +39,7 @@ namespace Railgun
       Testing.TestIntEncoder(200, 200);
       Testing.TestFloatEncoder(200, 200);
       Testing.TestEntityState(100);
-      Testing.TestSnapshotTransmission(30, 10, 20);
+      Testing.TestHostPacketTransmission(30, 10, 20);
       Debug.Log("Done Tests");
     }
 
@@ -83,7 +83,7 @@ namespace Railgun
         basis.SetFrom(current);
       }
 
-      Debug.Log("EntityState Max: " + maxBitsUsed + ", Avg: " + (sum / (float)iterations));
+      Debug.Log("EntityState Max: " + maxBitsUsed + "b, Avg: " + (int)((sum / (float)iterations) + 0.5f) + "b");
     }
 
     internal static void TestCompare(UserState a, UserState b)
@@ -121,11 +121,12 @@ namespace Railgun
 
     #region Snapshot/Interpreter
 
-    private static void TestSnapshotTransmission(int numEntities, int innerIter, int outerIter)
+    private static void TestHostPacketTransmission(int numEntities, int innerIter, int outerIter)
     {
       int deltaCount = 0;
       int deltaSum = 0;
       int complete = 0;
+      List<Image> newEntities = new List<Image>();
 
       for (int i = 0; i < outerIter; i++)
       {
@@ -133,54 +134,54 @@ namespace Railgun
           new Interpreter(new Factory<UserState>());
         Environment environment = Testing.CreateEnvironment(interpreter, numEntities - 5);
 
-        Snapshot lastSent = null;
-        Snapshot lastReceived = null;
+        HostPacket lastSent = null;
+        HostPacket lastReceived = null;
 
         for (int j = 0; j < innerIter; j++)
         {
-          BitBuffer outBuffer = new BitBuffer();
-          Snapshot sending = environment.Clone();
+          HostPacket sending = new HostPacket();
+          sending.Snapshot = environment.Clone();
+          byte[] payload = null;
+          newEntities.Clear();
         
+          // SEND
           if (lastSent != null)
           {
-            interpreter.Encode(outBuffer, sending, lastSent);
-            deltaSum += outBuffer.BitsUsed;
+            payload = interpreter.EncodeHostPacket(sending, lastSent);
+            deltaSum += payload.Length;
             deltaCount++;
           }
           else
           {
-            interpreter.Encode(outBuffer, sending);
-            int bitsUsed = outBuffer.BitsUsed;
+            payload = interpreter.EncodeHostPacket(sending);
+            int bitsUsed = payload.Length;
             if (bitsUsed > complete)
               complete = bitsUsed;
           }
 
-          byte[] serialized = outBuffer.StoreBytes();
-          BitBuffer inBuffer = new BitBuffer(serialized);
-          Snapshot receiving;
-
+          // RECEIVE
+          HostPacket receiving = null;
           if (lastReceived != null)
           {
-            receiving = interpreter.Decode(inBuffer, lastReceived);
+            receiving = interpreter.DecodeHostPacket(payload, lastReceived, newEntities);
           }
           else
           {
-            receiving = interpreter.Decode(inBuffer);
+            receiving = interpreter.DecodeHostPacket(payload, newEntities);
           }
 
-          RailgunUtil.Assert(inBuffer.BitsUsed == 0);
           Testing.FakeUpdateState(environment);
           if (environment.Count < numEntities)
             if (UnityEngine.Random.Range(0.0f, 1.0f) > 0.8f)
               Testing.FakeAddEntity(interpreter, environment);
 
-          TestCompare(sending, receiving);
+          TestCompare(sending.Snapshot, receiving.Snapshot);
           lastSent = sending;
           lastReceived = receiving;
         }
       }
 
-      Debug.Log("Snapshot Max: " + complete + ", Avg: " + ((float)deltaSum / (float)deltaCount));
+      Debug.Log("Snapshot Max: " + complete + "B, Avg: " + (int)(((float)deltaSum / (float)deltaCount) + 0.5f) + "B");
     }
 
     private static void TestCompare(Snapshot a, Snapshot b)
@@ -214,7 +215,7 @@ namespace Railgun
       Environment environment)
     {
       Entity entity = new Entity();
-      interpreter.Link(entity);
+      interpreter.Bind(entity);
 
       UserState state =
         (UserState)interpreter.CreateEmptyState(
@@ -232,7 +233,7 @@ namespace Railgun
       int numEntities)
     {
       Environment environment = new Environment();
-      interpreter.Link(environment);
+      interpreter.Bind(environment);
      
       for (int i = 0; i < numEntities; i++)
         Testing.FakeAddEntity(interpreter, environment);
