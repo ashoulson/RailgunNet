@@ -256,12 +256,13 @@ namespace Railgun
     /// </summary>
     public void ReadBytes(byte[] data)
     {
+      this.Clear();
+
       int numBytes = data.Length;
       int numChunks = (data.Length / BitBuffer.BYTES_PER_CHUNK) + 1;
 
       if (this.chunks.Length < numChunks)
         this.chunks = new uint[numChunks];
-      this.Clear();
 
       for (int i = 0; i < numChunks; i++)
       {

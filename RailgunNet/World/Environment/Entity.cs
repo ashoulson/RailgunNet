@@ -26,6 +26,8 @@ namespace Railgun
 {
   public class Entity : Image
   {
+    public bool IsMaster { get; internal set; }
+
     public void Update()
     {
 
