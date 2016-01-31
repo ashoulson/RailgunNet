@@ -25,7 +25,7 @@ using System.Collections.Generic;
 namespace Railgun
 {
   /// <summary>
-  /// Responsible for encoding and decoding snapshots (bundles of images).
+  /// Responsible for encoding and decoding snapshots.
   /// 
   /// Encoding order:
   /// | FRAME | IMAGE COUNT | ----- IMAGE ----- | ----- IMAGE ----- | ...
@@ -36,36 +36,130 @@ namespace Railgun
   /// </summary>
   internal class Interpreter
   {
+    /// <summary>
+    /// Incorporates any non-updated entities from the basis snapshot into
+    /// the newly-populated snapshot.
+    /// </summary>
+    private static void ReconcileBasis(Snapshot snapshot, Snapshot basis)
+    {
+      foreach (Image basisImage in basis.GetImages())
+        if (snapshot.Contains(basisImage.Id) == false)
+          snapshot.Add(basisImage.Clone());
+    }
+
     private Pool<Snapshot> snapshotPool;
     private Pool<Image> imagePool;
     private Dictionary<int, Factory> stateFactories;
 
-    internal Interpreter(Factory[] factories)
+    internal Interpreter(params Factory[] factories)
     {
       this.snapshotPool = new Pool<Snapshot>();
       this.imagePool = new Pool<Image>();
 
       this.stateFactories = new Dictionary<int, Factory>();
-      for (int i = 0; i < factories.Length; i++)
-      {
-        Factory factory = factories[i];
+      foreach (Factory factory in factories)
         this.stateFactories[factory.Type] = factory;
+    }
+
+    internal void Link(Environment environment)
+    {
+      ((IPoolable)environment).Pool = this.snapshotPool;
+    }
+
+    internal void Link(Entity entity)
+    {
+      ((IPoolable)entity).Pool = this.imagePool;
+    }
+
+    internal State CreateEmptyState(int type)
+    {
+      return this.stateFactories[type].Allocate();
+    }
+
+    internal void Encode(BitPacker bitPacker, Snapshot snapshot)
+    {
+      //UnityEngine.Debug.LogWarning("[Encode Full]");
+      foreach (Image image in snapshot.GetImages())
+      {
+        // Write: [Image Data]
+        this.EncodeImage(bitPacker, image);
+
+        // Write: [Id]
+        //UnityEngine.Debug.LogWarning("Writing Id: " + image.Id);
+        bitPacker.Push(Encoders.EntityId, image.Id);
       }
+
+      // Write: [Count]
+      //UnityEngine.Debug.LogWarning("Writing Count: " + snapshot.Count);
+      bitPacker.Push(Encoders.EntityCount, snapshot.Count);
+
+      // Write: [Frame]
+      //UnityEngine.Debug.LogWarning("Writing Frame: " + snapshot.Frame);
+      bitPacker.Push(Encoders.Frame, snapshot.Frame);
+    }
+
+    internal void Encode(
+      BitPacker bitPacker, 
+      Snapshot snapshot, 
+      Snapshot basis)
+    {
+      //UnityEngine.Debug.LogWarning("[Encode Delta]");
+      int count = 0;
+
+      foreach (Image image in snapshot.GetImages())
+      {
+        // Write: [Image Data]
+        Image basisImage;
+        if (basis.TryGet(image.Id, out basisImage))
+        {
+          if (this.EncodeImage(bitPacker, image, basisImage) == false)
+            continue;
+        }
+        else
+        {
+          this.EncodeImage(bitPacker, image);
+        }
+
+        // We may not write every state
+        count++;
+
+        // Write: [Id]
+        //UnityEngine.Debug.LogWarning("Writing Id: " + image.Id);
+        bitPacker.Push(Encoders.EntityId, image.Id);
+      }
+
+      // Write: [Count]
+      //UnityEngine.Debug.LogWarning("Writing Count: " + count);
+      bitPacker.Push(Encoders.EntityCount, count);
+
+      // Write: [Frame]
+      //UnityEngine.Debug.LogWarning("Writing Frame: " + snapshot.Frame);
+      bitPacker.Push(Encoders.Frame, snapshot.Frame);
     }
 
     internal Snapshot Decode(BitPacker bitPacker)
     {
+      //UnityEngine.Debug.LogWarning("[Decode Full]");
+
+      // Read: [Frame]
       int frame = bitPacker.Pop(Encoders.Frame);
+      //UnityEngine.Debug.LogWarning("Reading Frame: " + frame);
+
+      // Read: [Count]
       int count = bitPacker.Pop(Encoders.EntityCount);
+      //UnityEngine.Debug.LogWarning("Reading Count: " + count);
 
       Snapshot snapshot = this.snapshotPool.Allocate();
       snapshot.Frame = frame;
 
       for (int i = 0; i < count; i++)
       {
+        // Read: [Id]
         int imageId = bitPacker.Pop(Encoders.EntityId);
+        //UnityEngine.Debug.LogWarning("Reading Id: " + imageId);
 
-        snapshot.Add(this.PopulateImage(bitPacker, imageId));
+        // Read: [Image Data]
+        snapshot.Add(this.DecodeImage(bitPacker, imageId));
       }
 
       return snapshot;
@@ -73,69 +167,89 @@ namespace Railgun
 
     internal Snapshot Decode(BitPacker bitPacker, Snapshot basis)
     {
+      //UnityEngine.Debug.LogWarning("[Decode Delta]");
+
+      // Read: [Frame]
       int frame = bitPacker.Pop(Encoders.Frame);
+      //UnityEngine.Debug.LogWarning("Reading Frame: " + frame);
+
+      // Read: [Count]
       int count = bitPacker.Pop(Encoders.EntityCount);
+      //UnityEngine.Debug.LogWarning("Reading Count: " + count);
 
       Snapshot snapshot = this.snapshotPool.Allocate();
       snapshot.Frame = frame;
 
       for (int i = 0; i < count; i++)
       {
+        // Read: [Id]
         int imageId = bitPacker.Pop(Encoders.EntityId);
+        //UnityEngine.Debug.LogWarning("Reading Id: " + imageId);
 
+        // Read: [Image Data]
         Image basisImage;
         if (basis.TryGet(imageId, out basisImage))
-          snapshot.Add(this.PopulateImage(bitPacker, imageId, basisImage));
+          snapshot.Add(this.DecodeImage(bitPacker, imageId, basisImage));
         else
-          snapshot.Add(this.PopulateImage(bitPacker, imageId));
+          snapshot.Add(this.DecodeImage(bitPacker, imageId));
       }
 
-      this.ReconcileBasis(snapshot, basis);
+      Interpreter.ReconcileBasis(snapshot, basis);
       return snapshot;
     }
 
-    private Image PopulateImage(BitPacker bitPacker, int imageId)
+    private void EncodeImage(BitPacker bitPacker, Image image)
     {
-      // This is a new image, so we expect that the state type is encoded
+      // Write: [State Data]
+      //UnityEngine.Debug.LogWarning("Writing State Data...");
+      image.State.Encode(bitPacker);
+
+      // Write: [Type]
+      //UnityEngine.Debug.LogWarning("Writing Type: " + image.State.Type);
+      bitPacker.Push(Encoders.StateType, image.State.Type);
+    }
+
+    private bool EncodeImage(BitPacker bitPacker, Image image, Image basis)
+    {
+      // Write: [State Data]
+      //UnityEngine.Debug.LogWarning("Writing State Data...");
+      return image.State.Encode(bitPacker, basis.State);
+
+      // (No type identifier for delta images)
+    }
+
+    private Image DecodeImage(BitPacker bitPacker, int imageId)
+    {
+      // Read: [Type]
       int stateType = bitPacker.Pop(Encoders.StateType);
+      //UnityEngine.Debug.LogWarning("Reading Type: " + stateType);
 
       Image image = this.imagePool.Allocate();
       State state = this.stateFactories[stateType].Allocate();
+
+      // Read: [State Data]
       state.Decode(bitPacker);
+      //UnityEngine.Debug.LogWarning("Reading State Data...");
 
       image.Id = imageId;
       image.State = state;
       return image;
     }
 
-    private Image PopulateImage(BitPacker bitPacker, int imageId, Image basis)
+    private Image DecodeImage(BitPacker bitPacker, int imageId, Image basis)
     {
-      // This is a delta image, so we don't expect an encoded state type
+      // (No type identifier for delta images)
+
       Image image = this.imagePool.Allocate();
       State state = this.stateFactories[basis.State.Type].Allocate();
+
+      // Read: [State Data]
       state.Decode(bitPacker, basis.State);
+      //UnityEngine.Debug.LogWarning("Reading State Data...");
 
       image.Id = imageId;
       image.State = state;
       return image;
-    }
-
-    /// <summary>
-    /// Incorporates any non-updated entities from the basis snapshot into
-    /// the newly-populated snapshot.
-    /// </summary>
-    private void ReconcileBasis(Snapshot snapshot, Snapshot basis)
-    {
-      foreach (Image basisImage in basis.GetImages())
-      {
-        if (snapshot.Contains(basisImage.Id) == false)
-        {
-          Image image = this.imagePool.Allocate();
-          image.Id = basisImage.Id;
-          image.State = basisImage.State.Clone();
-          snapshot.Add(image);
-        }
-      }
     }
   }
 }

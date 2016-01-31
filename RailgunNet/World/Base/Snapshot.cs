@@ -32,6 +32,8 @@ namespace Railgun
     public int Frame { get; internal protected set; }
     private Dictionary<int, Image> idToImage;
 
+    public int Count { get { return this.idToImage.Count; } }
+
     public Snapshot()
     {
       this.Frame = Clock.INVALID_FRAME;
@@ -63,6 +65,11 @@ namespace Railgun
     public bool TryGet(int id, out Image image)
     {
       return this.idToImage.TryGetValue(id, out image);
+    }
+
+    public Image Get(int id)
+    {
+      return this.idToImage[id];
     }
 
     public bool Contains(int id)

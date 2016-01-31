@@ -36,7 +36,7 @@ namespace Railgun.User
 
     public static void Initialize()
     {
-      UserEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 1.0f);
+      UserEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
       UserEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
 
       // Used by EntityState

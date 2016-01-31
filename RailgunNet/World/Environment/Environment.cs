@@ -14,6 +14,11 @@ namespace Railgun
       this.idToEntity = new Dictionary<int, Entity>();
     }
 
+    internal void SetFrame(int frame)
+    {
+      this.Frame = frame;
+    }
+
     public void Update()
     {
       foreach (Entity entity in this.idToEntity.Values)
