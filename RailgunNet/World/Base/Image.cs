@@ -5,6 +5,13 @@
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
  *  arising from the use of this software.
+/*
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
+ *
+ *  This software is provided 'as-is', without any express or implied
+ *  warranty. In no event will the authors be held liable for any damages
+ *  arising from the use of this software.
  *  Permission is granted to anyone to use this software for any purpose,
  *  including commercial applications, and to alter it and redistribute it
  *  freely, subject to the following restrictions:
@@ -22,44 +29,43 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 namespace Railgun
 {
-  public static class RailgunUtil
+  /// <summary>
+  /// An image is the state of an entity at a given point in time.
+  /// </summary>
+  public class Image : IPoolable
   {
-    public static void Swap<T>(ref T a, ref T b)
+    public const int INVALID_ID = -1;
+
+    Pool IPoolable.Pool { get; set; }
+    void IPoolable.Reset() { this.Reset(); }
+
+    public int Id { get; internal set; }
+    public State State { get; internal set; }
+
+    public Image()
     {
-      T temp = b;
-      b = a;
-      a = temp;
+      this.Reset();
     }
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
+    /// <summary>
+    /// Deep-copies this Image, allocating from the pool in the process.
+    /// </summary>
+    public Image Clone()
     {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
+      Image clone = Pool.CloneEmpty(this);
+      clone.Id = this.Id;
+      clone.State = this.State.Clone();
+      return clone;
     }
 
-    #region Debug
-    [System.Diagnostics.Conditional("DEBUG")]
-    internal static void Assert(bool condition)
+    protected void Reset()
     {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        UnityEngine.Debug.LogError("Assert failed\n" + t);
+      this.Id = Image.INVALID_ID;
+      if (this.State != null)
+        Pool.Free(this.State);
+      this.State = null;
     }
-
-    [System.Diagnostics.Conditional("DEBUG")]
-    internal static void Assert(bool condition, object message)
-    {
-      System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
-      if (condition == false)
-        UnityEngine.Debug.LogError(message + "\n" + t);
-    }
-    #endregion
   }
 }

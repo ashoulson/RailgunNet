@@ -19,34 +19,44 @@
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-
-using Reservoir;
 
 namespace Railgun
 {
+  /// <summary>
+  /// Responsible for encoding and decoding snapshots (bundles of images).
+  /// 
+  /// Encoding order:
+  /// | FRAME | IMAGE COUNT | ----- IMAGE ----- | ----- IMAGE ----- | ...
+  /// 
+  /// Image encoding order:
+  /// If new: | ID | TYPE | ----- STATE DATA ----- |
+  /// If old: | ID | ----- STATE DATA ----- |
+  /// </summary>
   internal class Interpreter
   {
     private Pool<Snapshot> snapshotPool;
     private Pool<Image> imagePool;
     private Dictionary<int, Factory> stateFactories;
 
-    public Interpreter(Pool<Snapshot> snapshotPool, Pool<Image> imagePool)
+    internal Interpreter(Factory[] factories)
     {
-      this.snapshotPool = snapshotPool;
-      this.imagePool = imagePool;
+      this.snapshotPool = new Pool<Snapshot>();
+      this.imagePool = new Pool<Image>();
+
       this.stateFactories = new Dictionary<int, Factory>();
+      for (int i = 0; i < factories.Length; i++)
+      {
+        Factory factory = factories[i];
+        this.stateFactories[factory.Type] = factory;
+      }
     }
 
-    public void AddFactory(Factory factory)
+    internal Snapshot Decode(BitPacker bitPacker)
     {
-      this.stateFactories[factory.StateType] = factory;
-    }
-
-    public Snapshot Decode(BitPacker bitPacker)
-    {
-      int count = bitPacker.Pop(Encoders.EntityCount);
       int frame = bitPacker.Pop(Encoders.Frame);
+      int count = bitPacker.Pop(Encoders.EntityCount);
 
       Snapshot snapshot = this.snapshotPool.Allocate();
       snapshot.Frame = frame;
@@ -61,10 +71,10 @@ namespace Railgun
       return snapshot;
     }
 
-    public Snapshot Decode(BitPacker bitPacker, Snapshot basis)
+    internal Snapshot Decode(BitPacker bitPacker, Snapshot basis)
     {
-      int count = bitPacker.Pop(Encoders.EntityCount);
       int frame = bitPacker.Pop(Encoders.Frame);
+      int count = bitPacker.Pop(Encoders.EntityCount);
 
       Snapshot snapshot = this.snapshotPool.Allocate();
       snapshot.Frame = frame;
@@ -116,7 +126,7 @@ namespace Railgun
     /// </summary>
     private void ReconcileBasis(Snapshot snapshot, Snapshot basis)
     {
-      foreach (Image basisImage in basis.images)
+      foreach (Image basisImage in basis.GetImages())
       {
         if (snapshot.Contains(basisImage.Id) == false)
         {

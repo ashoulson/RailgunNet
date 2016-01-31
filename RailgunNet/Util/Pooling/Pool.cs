@@ -19,50 +19,69 @@
 */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-
-using Reservoir;
 
 namespace Railgun
 {
-  internal class Snapshot : Poolable<Snapshot>
+  public abstract class Pool
   {
-    internal int Frame { get; set; }
+    protected abstract object AllocateGeneric();
+    protected abstract void DeallocateGeneric(object item);
 
-    internal NodeList<Image> images;
-    private Dictionary<int, Image> idToImage;
-
-    public void Clear()
+    public static void Free(IPoolable item)
     {
-      Pool.FreeAll(this.images);
-      this.idToImage.Clear();
+      item.Pool.DeallocateGeneric(item);
     }
 
-    public Snapshot()
+    public static T CloneEmpty<T>(T item)
+      where T : IPoolable
     {
-      this.images = new NodeList<Image>();
-      this.idToImage = new Dictionary<int, Image>();
+      return (T)item.Pool.AllocateGeneric();
+    }
+  }
+
+  public abstract class AbstractPool<T> : Pool
+    where T : IPoolable
+  {
+    protected Stack<T> freeList;
+
+    public AbstractPool()
+    {
+      this.freeList = new Stack<T>();
     }
 
-    protected override void Reset()
+    public abstract T Allocate();
+
+    public void Deallocate(T value)
     {
-      this.Clear();
+      RailgunUtil.Assert(value.Pool == this);
+      value.Reset();
+      this.freeList.Push(value);
     }
 
-    internal void Add(Image image)
+    protected override object AllocateGeneric()
     {
-      this.images.Add(image);
-      this.idToImage[image.Id] = image;
+      return this.Allocate();
     }
 
-    internal bool TryGet(int id, out Image image)
+    protected override void DeallocateGeneric(object item)
     {
-      return this.idToImage.TryGetValue(id, out image);
+      this.Deallocate((T)item);
     }
+  }
 
-    internal bool Contains(int id)
+  public class Pool<T> : AbstractPool<T>
+    where T : IPoolable, new()
+  {
+    public override T Allocate()
     {
-      return this.idToImage.ContainsKey(id);
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
+
+      T state = new T();
+      state.Pool = this;
+      return state;
     }
   }
 }

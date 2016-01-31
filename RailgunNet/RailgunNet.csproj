@@ -34,24 +34,23 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Reservoir">
-      <HintPath>..\..\Reservoir\Reservoir\bin\Debug\Reservoir.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="UnityEngine">
       <HintPath>$(UnityPathWin)\Editor\Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Data\Interpreter.cs" />
-    <Compile Include="Data\Snapshot.cs" />
+    <Compile Include="Clock.cs" />
+    <Compile Include="World\Base\Snapshot.cs" />
+    <Compile Include="World\Environment\Entity.cs" />
+    <Compile Include="World\State\Factory.cs" />
+    <Compile Include="Serialization\Interpreter.cs" />
+    <Compile Include="World\Environment\Environment.cs" />
     <Compile Include="User\UserMath.cs" />
     <Compile Include="User\UserTypes.cs" />
-    <Compile Include="Data\Factory.cs" />
-    <Compile Include="Entity\Image.cs" />
+    <Compile Include="World\Base\Image.cs" />
     <Compile Include="User\UserEncoders.cs" />
-    <Compile Include="Data\State.cs" />
-    <Compile Include="Entity\Entity.cs" />
+    <Compile Include="World\State\State.cs" />
     <Compile Include="Railgun.cs" />
     <Compile Include="Serialization\BitPacker.cs" />
     <Compile Include="User\UserState.cs" />
@@ -62,6 +61,8 @@
     <Compile Include="Config.cs" />
     <Compile Include="Serialization\Encoders.cs" />
     <Compile Include="User\Testing.cs" />
+    <Compile Include="Util\Pooling\IPoolable.cs" />
+    <Compile Include="Util\Pooling\Pool.cs" />
     <Compile Include="Util\RailgunUtil.cs" />
     <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>
