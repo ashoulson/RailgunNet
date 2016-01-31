@@ -76,30 +76,30 @@ namespace Railgun
       return this.stateFactories[type].Allocate();
     }
 
-    internal void Encode(BitPacker bitPacker, Snapshot snapshot)
+    internal void Encode(BitBuffer buffer, Snapshot snapshot)
     {
       //UnityEngine.Debug.LogWarning("[Encode Full]");
       foreach (Image image in snapshot.GetImages())
       {
         // Write: [Image Data]
-        this.EncodeImage(bitPacker, image);
+        this.EncodeImage(buffer, image);
 
         // Write: [Id]
         //UnityEngine.Debug.LogWarning("Writing Id: " + image.Id);
-        bitPacker.Push(Encoders.EntityId, image.Id);
+        buffer.Push(Encoders.EntityId, image.Id);
       }
 
       // Write: [Count]
       //UnityEngine.Debug.LogWarning("Writing Count: " + snapshot.Count);
-      bitPacker.Push(Encoders.EntityCount, snapshot.Count);
+      buffer.Push(Encoders.EntityCount, snapshot.Count);
 
       // Write: [Frame]
       //UnityEngine.Debug.LogWarning("Writing Frame: " + snapshot.Frame);
-      bitPacker.Push(Encoders.Frame, snapshot.Frame);
+      buffer.Push(Encoders.Frame, snapshot.Frame);
     }
 
     internal void Encode(
-      BitPacker bitPacker, 
+      BitBuffer buffer, 
       Snapshot snapshot, 
       Snapshot basis)
     {
@@ -112,12 +112,12 @@ namespace Railgun
         Image basisImage;
         if (basis.TryGet(image.Id, out basisImage))
         {
-          if (this.EncodeImage(bitPacker, image, basisImage) == false)
+          if (this.EncodeImage(buffer, image, basisImage) == false)
             continue;
         }
         else
         {
-          this.EncodeImage(bitPacker, image);
+          this.EncodeImage(buffer, image);
         }
 
         // We may not write every state
@@ -125,28 +125,28 @@ namespace Railgun
 
         // Write: [Id]
         //UnityEngine.Debug.LogWarning("Writing Id: " + image.Id);
-        bitPacker.Push(Encoders.EntityId, image.Id);
+        buffer.Push(Encoders.EntityId, image.Id);
       }
 
       // Write: [Count]
       //UnityEngine.Debug.LogWarning("Writing Count: " + count);
-      bitPacker.Push(Encoders.EntityCount, count);
+      buffer.Push(Encoders.EntityCount, count);
 
       // Write: [Frame]
       //UnityEngine.Debug.LogWarning("Writing Frame: " + snapshot.Frame);
-      bitPacker.Push(Encoders.Frame, snapshot.Frame);
+      buffer.Push(Encoders.Frame, snapshot.Frame);
     }
 
-    internal Snapshot Decode(BitPacker bitPacker)
+    internal Snapshot Decode(BitBuffer buffer)
     {
       //UnityEngine.Debug.LogWarning("[Decode Full]");
 
       // Read: [Frame]
-      int frame = bitPacker.Pop(Encoders.Frame);
+      int frame = buffer.Pop(Encoders.Frame);
       //UnityEngine.Debug.LogWarning("Reading Frame: " + frame);
 
       // Read: [Count]
-      int count = bitPacker.Pop(Encoders.EntityCount);
+      int count = buffer.Pop(Encoders.EntityCount);
       //UnityEngine.Debug.LogWarning("Reading Count: " + count);
 
       Snapshot snapshot = this.snapshotPool.Allocate();
@@ -155,26 +155,26 @@ namespace Railgun
       for (int i = 0; i < count; i++)
       {
         // Read: [Id]
-        int imageId = bitPacker.Pop(Encoders.EntityId);
+        int imageId = buffer.Pop(Encoders.EntityId);
         //UnityEngine.Debug.LogWarning("Reading Id: " + imageId);
 
         // Read: [Image Data]
-        snapshot.Add(this.DecodeImage(bitPacker, imageId));
+        snapshot.Add(this.DecodeImage(buffer, imageId));
       }
 
       return snapshot;
     }
 
-    internal Snapshot Decode(BitPacker bitPacker, Snapshot basis)
+    internal Snapshot Decode(BitBuffer buffer, Snapshot basis)
     {
       //UnityEngine.Debug.LogWarning("[Decode Delta]");
 
       // Read: [Frame]
-      int frame = bitPacker.Pop(Encoders.Frame);
+      int frame = buffer.Pop(Encoders.Frame);
       //UnityEngine.Debug.LogWarning("Reading Frame: " + frame);
 
       // Read: [Count]
-      int count = bitPacker.Pop(Encoders.EntityCount);
+      int count = buffer.Pop(Encoders.EntityCount);
       //UnityEngine.Debug.LogWarning("Reading Count: " + count);
 
       Snapshot snapshot = this.snapshotPool.Allocate();
@@ -183,52 +183,52 @@ namespace Railgun
       for (int i = 0; i < count; i++)
       {
         // Read: [Id]
-        int imageId = bitPacker.Pop(Encoders.EntityId);
+        int imageId = buffer.Pop(Encoders.EntityId);
         //UnityEngine.Debug.LogWarning("Reading Id: " + imageId);
 
         // Read: [Image Data]
         Image basisImage;
         if (basis.TryGet(imageId, out basisImage))
-          snapshot.Add(this.DecodeImage(bitPacker, imageId, basisImage));
+          snapshot.Add(this.DecodeImage(buffer, imageId, basisImage));
         else
-          snapshot.Add(this.DecodeImage(bitPacker, imageId));
+          snapshot.Add(this.DecodeImage(buffer, imageId));
       }
 
       Interpreter.ReconcileBasis(snapshot, basis);
       return snapshot;
     }
 
-    private void EncodeImage(BitPacker bitPacker, Image image)
+    private void EncodeImage(BitBuffer buffer, Image image)
     {
       // Write: [State Data]
       //UnityEngine.Debug.LogWarning("Writing State Data...");
-      image.State.Encode(bitPacker);
+      image.State.Encode(buffer);
 
       // Write: [Type]
       //UnityEngine.Debug.LogWarning("Writing Type: " + image.State.Type);
-      bitPacker.Push(Encoders.StateType, image.State.Type);
+      buffer.Push(Encoders.StateType, image.State.Type);
     }
 
-    private bool EncodeImage(BitPacker bitPacker, Image image, Image basis)
+    private bool EncodeImage(BitBuffer buffer, Image image, Image basis)
     {
       // Write: [State Data]
       //UnityEngine.Debug.LogWarning("Writing State Data...");
-      return image.State.Encode(bitPacker, basis.State);
+      return image.State.Encode(buffer, basis.State);
 
       // (No type identifier for delta images)
     }
 
-    private Image DecodeImage(BitPacker bitPacker, int imageId)
+    private Image DecodeImage(BitBuffer buffer, int imageId)
     {
       // Read: [Type]
-      int stateType = bitPacker.Pop(Encoders.StateType);
+      int stateType = buffer.Pop(Encoders.StateType);
       //UnityEngine.Debug.LogWarning("Reading Type: " + stateType);
 
       Image image = this.imagePool.Allocate();
       State state = this.stateFactories[stateType].Allocate();
 
       // Read: [State Data]
-      state.Decode(bitPacker);
+      state.Decode(buffer);
       //UnityEngine.Debug.LogWarning("Reading State Data...");
 
       image.Id = imageId;
@@ -236,7 +236,7 @@ namespace Railgun
       return image;
     }
 
-    private Image DecodeImage(BitPacker bitPacker, int imageId, Image basis)
+    private Image DecodeImage(BitBuffer buffer, int imageId, Image basis)
     {
       // (No type identifier for delta images)
 
@@ -244,7 +244,7 @@ namespace Railgun
       State state = this.stateFactories[basis.State.Type].Allocate();
 
       // Read: [State Data]
-      state.Decode(bitPacker, basis.State);
+      state.Decode(buffer, basis.State);
       //UnityEngine.Debug.LogWarning("Reading State Data...");
 
       image.Id = imageId;

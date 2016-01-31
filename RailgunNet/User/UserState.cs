@@ -107,75 +107,75 @@ namespace Railgun.User
     /// <summary>
     /// Write a fully populated encoding of this state.
     /// </summary>
-    protected internal override void Encode(BitPacker bitPacker)
+    protected internal override void Encode(BitBuffer buffer)
     {
       // Write in opposite order so we can read in SetData order
-      bitPacker.Push(UserEncoders.Status, this.Status);
-      bitPacker.Push(UserEncoders.Angle, this.Angle);
-      bitPacker.Push(UserEncoders.Coordinate, this.Y);
-      bitPacker.Push(UserEncoders.Coordinate, this.X);
-      bitPacker.Push(UserEncoders.UserId, this.UserId);
-      bitPacker.Push(UserEncoders.ArchetypeId, this.ArchetypeId);
+      buffer.Push(UserEncoders.Status, this.Status);
+      buffer.Push(UserEncoders.Angle, this.Angle);
+      buffer.Push(UserEncoders.Coordinate, this.Y);
+      buffer.Push(UserEncoders.Coordinate, this.X);
+      buffer.Push(UserEncoders.UserId, this.UserId);
+      buffer.Push(UserEncoders.ArchetypeId, this.ArchetypeId);
 
       // Add metadata
-      bitPacker.Push(UserEncoders.EntityDirty, UserState.FLAG_ALL);
+      buffer.Push(UserEncoders.EntityDirty, UserState.FLAG_ALL);
     }
 
     /// <summary>
     /// Delta-encode this state relative to the given basis state.
     /// Returns true iff the state was encoded (will bypass if no change).
     /// </summary>
-    protected internal override bool Encode(BitPacker bitPacker, UserState basis)
+    protected internal override bool Encode(BitBuffer buffer, UserState basis)
     {
       int dirty = UserState.GetDirtyFlags(this, basis);
       if (dirty == 0)
         return false;
 
       // Write in opposite order so we can read in SetData order
-      bitPacker.PushIf(dirty, FLAG_STATUS, UserEncoders.Status, this.Status);
-      bitPacker.PushIf(dirty, FLAG_ANGLE, UserEncoders.Angle, this.Angle);
-      bitPacker.PushIf(dirty, FLAG_Y, UserEncoders.Coordinate, this.Y);
-      bitPacker.PushIf(dirty, FLAG_X, UserEncoders.Coordinate, this.X);
-      bitPacker.PushIf(dirty, FLAG_USER_ID, UserEncoders.UserId, this.UserId);
-      bitPacker.PushIf(dirty, FLAG_ARCHETYPE_ID, UserEncoders.ArchetypeId, this.ArchetypeId);
+      buffer.PushIf(dirty, FLAG_STATUS, UserEncoders.Status, this.Status);
+      buffer.PushIf(dirty, FLAG_ANGLE, UserEncoders.Angle, this.Angle);
+      buffer.PushIf(dirty, FLAG_Y, UserEncoders.Coordinate, this.Y);
+      buffer.PushIf(dirty, FLAG_X, UserEncoders.Coordinate, this.X);
+      buffer.PushIf(dirty, FLAG_USER_ID, UserEncoders.UserId, this.UserId);
+      buffer.PushIf(dirty, FLAG_ARCHETYPE_ID, UserEncoders.ArchetypeId, this.ArchetypeId);
 
       // Add metadata
-      bitPacker.Push(UserEncoders.EntityDirty, dirty);
+      buffer.Push(UserEncoders.EntityDirty, dirty);
       return true;
     }
 
     /// <summary>
     /// Decode a fully populated data packet and set values to this object.
     /// </summary>
-    protected internal override void Decode(BitPacker bitPacker)
+    protected internal override void Decode(BitBuffer buffer)
     {
-      int dirty = bitPacker.Pop(UserEncoders.EntityDirty);
+      int dirty = buffer.Pop(UserEncoders.EntityDirty);
       RailgunUtil.Assert(dirty == UserState.FLAG_ALL);
 
       this.SetData(
-        bitPacker.Pop(UserEncoders.ArchetypeId),
-        bitPacker.Pop(UserEncoders.UserId),
-        bitPacker.Pop(UserEncoders.Coordinate),
-        bitPacker.Pop(UserEncoders.Coordinate),
-        bitPacker.Pop(UserEncoders.Angle),
-        bitPacker.Pop(UserEncoders.Status));
+        buffer.Pop(UserEncoders.ArchetypeId),
+        buffer.Pop(UserEncoders.UserId),
+        buffer.Pop(UserEncoders.Coordinate),
+        buffer.Pop(UserEncoders.Coordinate),
+        buffer.Pop(UserEncoders.Angle),
+        buffer.Pop(UserEncoders.Status));
     }
 
     /// <summary>
     /// Decode a delta-encoded packet against a given basis and set values
     /// to this object.
     /// </summary>
-    protected internal override void Decode(BitPacker bitPacker, UserState basis)
+    protected internal override void Decode(BitBuffer buffer, UserState basis)
     {
-      int dirty = bitPacker.Pop(UserEncoders.EntityDirty);
+      int dirty = buffer.Pop(UserEncoders.EntityDirty);
 
       this.SetData(
-        bitPacker.PopIf(dirty, FLAG_ARCHETYPE_ID, UserEncoders.ArchetypeId, basis.ArchetypeId),
-        bitPacker.PopIf(dirty, FLAG_USER_ID, UserEncoders.UserId, basis.UserId),
-        bitPacker.PopIf(dirty, FLAG_X, UserEncoders.Coordinate, basis.X),
-        bitPacker.PopIf(dirty, FLAG_Y, UserEncoders.Coordinate, basis.Y),
-        bitPacker.PopIf(dirty, FLAG_ANGLE, UserEncoders.Angle, basis.Angle),
-        bitPacker.PopIf(dirty, FLAG_STATUS, UserEncoders.Status, basis.Status));
+        buffer.PopIf(dirty, FLAG_ARCHETYPE_ID, UserEncoders.ArchetypeId, basis.ArchetypeId),
+        buffer.PopIf(dirty, FLAG_USER_ID, UserEncoders.UserId, basis.UserId),
+        buffer.PopIf(dirty, FLAG_X, UserEncoders.Coordinate, basis.X),
+        buffer.PopIf(dirty, FLAG_Y, UserEncoders.Coordinate, basis.Y),
+        buffer.PopIf(dirty, FLAG_ANGLE, UserEncoders.Angle, basis.Angle),
+        buffer.PopIf(dirty, FLAG_STATUS, UserEncoders.Status, basis.Status));
     }
   }
 }

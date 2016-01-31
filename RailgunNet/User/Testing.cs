@@ -35,18 +35,18 @@ namespace Railgun
       Railgun.Initialize();
       UserEncoders.Initialize();
 
-      Testing.TestBitPacker(50, 400);
-      Testing.TestIntEncoder(200, 200);
-      Testing.TestFloatEncoder(200, 200);
-      Testing.TestEntityState(100);
-      Testing.TestSnapshotTransmission(30, 10, 20);
+      Testing.TestBitBuffer(50, 400);
+      //Testing.TestIntEncoder(200, 200);
+      //Testing.TestFloatEncoder(200, 200);
+      //Testing.TestEntityState(100);
+      //Testing.TestSnapshotTransmission(30, 10, 20);
       Debug.Log("Done Tests");
     }
 
     #region EntityState
     public static void TestEntityState(int iterations)
     {
-      BitPacker bitPacker = new BitPacker();
+      BitBuffer buffer = new BitBuffer();
 
       // Normally these are pooled, but we'll just allocate some here
       UserState basis = new UserState();
@@ -64,18 +64,18 @@ namespace Railgun
         float probability = UnityEngine.Random.Range(0.0f, 1.0f);
         if (probability > 0.5f)
         {
-          current.Encode(bitPacker);
-          maxBitsUsed = bitPacker.BitsUsed;
-          sum += (float)bitPacker.BitsUsed;
-          decoded.Decode(bitPacker);
+          current.Encode(buffer);
+          maxBitsUsed = buffer.BitsUsed;
+          sum += (float)buffer.BitsUsed;
+          decoded.Decode(buffer);
           Testing.TestCompare(current, decoded);
         }
         else
         {
-          if (current.Encode(bitPacker, basis))
+          if (current.Encode(buffer, basis))
           {
-            sum += (float)bitPacker.BitsUsed;
-            decoded.Decode(bitPacker, basis);
+            sum += (float)buffer.BitsUsed;
+            decoded.Decode(buffer, basis);
             Testing.TestCompare(current, decoded);
           }
         }
@@ -132,7 +132,7 @@ namespace Railgun
         Interpreter interpreter =
           new Interpreter(new Factory<UserState>());
         Environment environment = Testing.CreateEnvironment(interpreter, numEntities - 5);
-        BitPacker bitPacker = new BitPacker();
+        BitBuffer buffer = new BitBuffer();
 
         Snapshot lastSent = null;
         Snapshot lastReceived = null;
@@ -143,14 +143,14 @@ namespace Railgun
         
           if (lastSent != null)
           {
-            interpreter.Encode(bitPacker, sending, lastSent);
-            deltaSum += bitPacker.BitsUsed;
+            interpreter.Encode(buffer, sending, lastSent);
+            deltaSum += buffer.BitsUsed;
             deltaCount++;
           }
           else
           {
-            interpreter.Encode(bitPacker, sending);
-            int bitsUsed = bitPacker.BitsUsed;
+            interpreter.Encode(buffer, sending);
+            int bitsUsed = buffer.BitsUsed;
             if (bitsUsed > complete)
               complete = bitsUsed;
           }
@@ -159,14 +159,14 @@ namespace Railgun
 
           if (lastReceived != null)
           {
-            receiving = interpreter.Decode(bitPacker, lastReceived);
+            receiving = interpreter.Decode(buffer, lastReceived);
           }
           else
           {
-            receiving = interpreter.Decode(bitPacker);
+            receiving = interpreter.Decode(buffer);
           }
 
-          RailgunUtil.Assert(bitPacker.BitsUsed == 0);
+          RailgunUtil.Assert(buffer.BitsUsed == 0);
           Testing.FakeUpdateState(environment);
           if (environment.Count < numEntities)
             if (UnityEngine.Random.Range(0.0f, 1.0f) > 0.8f)
@@ -315,9 +315,26 @@ namespace Railgun
     /// <summary>
     /// Unit test for functionality.
     /// </summary>
-    public static void TestBitPacker(int maxValues, int iterations)
+    public static void TestBitBuffer(int maxValues, int iterations)
     {
-      BitPacker buffer = new BitPacker(1);
+      byte[] testBytes = new byte[8];
+      uint testVal = 0xB99296AD;
+      BitBuffer.StoreValue(testBytes, 4, 3, testVal);
+      uint readVal = BitBuffer.ReadValue(testBytes, 4, 3);
+      RailgunUtil.Assert(readVal == 0x9296AD);
+
+      BitBuffer testByteArray = new BitBuffer();
+      testByteArray.Push(0xFFFFFFFF, 32);
+      testByteArray.Push(0xFF81, 8);
+      byte[] bytes = testByteArray.StoreBytes();
+      BitBuffer testReceive = new BitBuffer(bytes);
+      uint value1 = testReceive.Pop(8);
+      uint value2 = testReceive.Pop(32);
+      RailgunUtil.Assert(testReceive.BitsUsed == 0);
+      RailgunUtil.Assert(value1 == 0x81);
+      RailgunUtil.Assert(value2 == 0xFFFFFFFF);
+
+      BitBuffer buffer = new BitBuffer(1);
       Stack<uint> values = new Stack<uint>(maxValues);
       Stack<int> bits = new Stack<int>(maxValues);
 

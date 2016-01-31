@@ -52,7 +52,7 @@
     <Compile Include="User\UserEncoders.cs" />
     <Compile Include="World\State\State.cs" />
     <Compile Include="Railgun.cs" />
-    <Compile Include="Serialization\BitPacker.cs" />
+    <Compile Include="Serialization\BitBuffer.cs" />
     <Compile Include="User\UserState.cs" />
     <Compile Include="Serialization\Encoder\Encoder.cs" />
     <Compile Include="Serialization\Encoder\Typed\FloatEncoder.cs" />
