@@ -40,11 +40,6 @@ namespace Railgun
     /// </summary>
     public IConnection Connection { get; private set; }
 
-    /// <summary>
-    /// The last acknowledged frame update received by the peer.
-    /// </summary>
-    internal int LastAcked { get; set; }
-
     internal Queue<byte[]> Incoming { get; private set; }
     internal Queue<byte[]> Outgoing { get; private set; }
 
@@ -54,7 +49,6 @@ namespace Railgun
     {
       this.UserData = null;
       this.Connection = connection;
-      this.LastAcked = Clock.INVALID_FRAME;
 
       this.Incoming = new Queue<byte[]>();
       this.Outgoing = new Queue<byte[]>();

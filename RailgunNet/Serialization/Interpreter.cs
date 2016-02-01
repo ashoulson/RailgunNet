@@ -103,13 +103,12 @@ namespace Railgun
 
     public Snapshot Decode(
       byte[] data,
-      SnapshotBuffer basisBuffer,
-      out int basisFrame)
+      RingBuffer<Snapshot> basisBuffer)
     {
       this.bitBuffer.ReadBytes(data);
 
       // Read: [Basis Frame]
-      basisFrame = bitBuffer.Pop(Encoders.Frame);
+      int basisFrame = bitBuffer.Pop(Encoders.Frame);
 
       // Read: [Snapshot]
       Snapshot result;

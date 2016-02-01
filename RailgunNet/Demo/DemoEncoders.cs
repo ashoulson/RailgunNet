@@ -24,8 +24,26 @@ using System.Collections.Generic;
 
 namespace Railgun.User
 {
-  public static class UserTypes
+  internal static class DemoEncoders
   {
-    public const byte TYPE_USER_STATE = 1;
+    internal static IntEncoder EntityDirty = null;
+    internal static IntEncoder ArchetypeId = null;
+    internal static IntEncoder UserId = null;
+    internal static IntEncoder Status = null;
+
+    internal static FloatEncoder Coordinate = null;
+    internal static FloatEncoder Angle = null;
+
+    public static void Initialize()
+    {
+      DemoEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
+      DemoEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
+
+      // Used by EntityState
+      DemoEncoders.EntityDirty = new IntEncoder(0, (int)DemoState.FLAG_ALL);
+      DemoEncoders.ArchetypeId = new IntEncoder(0, 255);
+      DemoEncoders.UserId = new IntEncoder(0, 1023);
+      DemoEncoders.Status = new IntEncoder(0, 0x3F);
+    }
   }
 }
