@@ -10,8 +10,8 @@ namespace Railgun
     private const int PAYLOAD_CHOKE = 3;
     private const int BUFFER_SIZE = 60;
 
-    public event Action Connected;
-    public event Action Disconnected;
+    //public event Action Connected;
+    //public event Action Disconnected;
 
     public Peer Host { get; private set; }
     private Interpreter interpreter;
