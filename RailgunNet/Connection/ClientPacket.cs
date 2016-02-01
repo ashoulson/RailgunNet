@@ -24,20 +24,8 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  /// <summary>
-  /// Used for keeping track of the server frame on the client.
-  /// 
-  /// Host doesn't need one of these -- Host just always keeps track of
-  /// the latest input and makes it available.
-  /// </summary>
-  internal class Clock
+  public class ClientPacket
   {
-    public const int INVALID_FRAME = -1;
-
-    // TODO: See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
-    public void Tick(int latestFrame)
-    {
-
-    }
+    int LatestFrame { get; set; }
   }
 }

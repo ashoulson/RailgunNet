@@ -42,6 +42,7 @@
   <ItemGroup>
     <Compile Include="Clock.cs" />
     <Compile Include="Connection\Client.cs" />
+    <Compile Include="Connection\ClientPacket.cs" />
     <Compile Include="Connection\Peer\ClientPeer.cs" />
     <Compile Include="Connection\IConnection.cs" />
     <Compile Include="Connection\Host.cs" />

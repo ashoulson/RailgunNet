@@ -34,7 +34,7 @@ namespace Railgun
     private const int BUFFER_SIZE = 60;
 
     public event Action<ClientPeer> PeerAdded;
-    public event Action<ClientPeer> PeerRemoved;
+    //public event Action<ClientPeer> PeerRemoved;
 
     private Interpreter interpreter;
     private Dictionary<IConnection, ClientPeer> connectionToPeer;
