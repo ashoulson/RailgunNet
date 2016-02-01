@@ -33,7 +33,7 @@ namespace Railgun
     public static void RunTests()
     {
       Railgun.Initialize();
-      UserEncoders.Initialize();
+      DemoEncoders.Initialize();
 
       Testing.TestBitBuffer(50, 400);
       Testing.TestIntEncoder(200, 200);
@@ -49,9 +49,9 @@ namespace Railgun
       BitBuffer buffer = new BitBuffer();
 
       // Normally these are pooled, but we'll just allocate some here
-      UserState basis = new UserState();
-      UserState current = new UserState();
-      UserState decoded = new UserState();
+      DemoState basis = new DemoState();
+      DemoState current = new DemoState();
+      DemoState decoded = new DemoState();
       basis.SetData(0, 0, 0.0f, 0.0f, 0.0f, 0);
 
       int maxBitsUsed = 0;
@@ -86,36 +86,36 @@ namespace Railgun
       Debug.Log("EntityState Max: " + maxBitsUsed + "b, Avg: " + (int)((sum / (float)iterations) + 0.5f) + "b");
     }
 
-    internal static void TestCompare(UserState a, UserState b)
+    internal static void TestCompare(DemoState a, DemoState b)
     {
       RailgunUtil.Assert(a.ArchetypeId == b.ArchetypeId, "ArchetypeId mismatch: " + (a.ArchetypeId - b.ArchetypeId));
       RailgunUtil.Assert(a.UserId == b.UserId, "UserId mismatch: " + (a.UserId - b.UserId));
-      RailgunUtil.Assert(UserMath.CoordinatesEqual(a.X, b.X), "X mismatch: " + (a.X - b.X));
-      RailgunUtil.Assert(UserMath.CoordinatesEqual(a.Y, b.Y), "Y mismatch: " + (a.Y - b.Y));
-      RailgunUtil.Assert(UserMath.AnglesEqual(a.Angle, b.Angle), "Angle mismatch: " + (a.Angle - b.Angle));
+      RailgunUtil.Assert(DemoMath.CoordinatesEqual(a.X, b.X), "X mismatch: " + (a.X - b.X));
+      RailgunUtil.Assert(DemoMath.CoordinatesEqual(a.Y, b.Y), "Y mismatch: " + (a.Y - b.Y));
+      RailgunUtil.Assert(DemoMath.AnglesEqual(a.Angle, b.Angle), "Angle mismatch: " + (a.Angle - b.Angle));
       RailgunUtil.Assert(a.Status == b.Status, "Status mismatch: " + (a.Status - b.Status));
     }
 
-    internal static void PopulateState(UserState state)
+    internal static void PopulateState(DemoState state)
     {
       state.SetData(
-        UnityEngine.Random.Range(UserEncoders.ArchetypeId.MinValue, UserEncoders.ArchetypeId.MaxValue),
-        UnityEngine.Random.Range(UserEncoders.UserId.MinValue, UserEncoders.UserId.MaxValue),
-        UnityEngine.Random.Range(UserEncoders.Coordinate.MinValue, UserEncoders.Coordinate.MaxValue),
-        UnityEngine.Random.Range(UserEncoders.Coordinate.MinValue, UserEncoders.Coordinate.MaxValue),
-        UnityEngine.Random.Range(UserEncoders.Angle.MinValue, UserEncoders.Angle.MaxValue),
-        UnityEngine.Random.Range(UserEncoders.Status.MinValue, UserEncoders.Status.MaxValue));
+        UnityEngine.Random.Range(DemoEncoders.ArchetypeId.MinValue, DemoEncoders.ArchetypeId.MaxValue),
+        UnityEngine.Random.Range(DemoEncoders.UserId.MinValue, DemoEncoders.UserId.MaxValue),
+        UnityEngine.Random.Range(DemoEncoders.Coordinate.MinValue, DemoEncoders.Coordinate.MaxValue),
+        UnityEngine.Random.Range(DemoEncoders.Coordinate.MinValue, DemoEncoders.Coordinate.MaxValue),
+        UnityEngine.Random.Range(DemoEncoders.Angle.MinValue, DemoEncoders.Angle.MaxValue),
+        UnityEngine.Random.Range(DemoEncoders.Status.MinValue, DemoEncoders.Status.MaxValue));
     }
 
-    internal static void MutateState(UserState state, UserState basis)
+    internal static void MutateState(DemoState state, DemoState basis)
     {
       state.SetData(
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.ArchetypeId.MinValue, UserEncoders.ArchetypeId.MaxValue) : basis.ArchetypeId,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.UserId.MinValue, UserEncoders.UserId.MaxValue) : basis.UserId,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Coordinate.MinValue, UserEncoders.Coordinate.MaxValue) : basis.X,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Coordinate.MinValue, UserEncoders.Coordinate.MaxValue) : basis.Y,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Angle.MinValue, UserEncoders.Angle.MaxValue) : basis.Angle,
-        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Status.MinValue, UserEncoders.Status.MaxValue) : basis.Status);
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.ArchetypeId.MinValue, DemoEncoders.ArchetypeId.MaxValue) : basis.ArchetypeId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.UserId.MinValue, DemoEncoders.UserId.MaxValue) : basis.UserId,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Coordinate.MinValue, DemoEncoders.Coordinate.MaxValue) : basis.X,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Coordinate.MinValue, DemoEncoders.Coordinate.MaxValue) : basis.Y,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Angle.MinValue, DemoEncoders.Angle.MaxValue) : basis.Angle,
+        UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Status.MinValue, DemoEncoders.Status.MaxValue) : basis.Status);
     }
     #endregion
 
@@ -130,10 +130,10 @@ namespace Railgun
       for (int i = 0; i < outerIter; i++)
       {
         Interpreter interpreter =
-          new Interpreter(new Factory<UserState>());
+          new Interpreter(new Factory<DemoState>());
         Environment environment = Testing.CreateEnvironment(interpreter, numEntities - 5);
 
-        SnapshotBuffer receivedBuffer = new SnapshotBuffer();
+        RingBuffer<Snapshot> receivedBuffer = new RingBuffer<Snapshot>(60);
         Snapshot lastSent = null;
 
         for (int j = 0; j < innerIter; j++)
@@ -159,14 +159,11 @@ namespace Railgun
           }
 
           // RECEIVE
-          int basisFrame;
           Snapshot receiving =
             interpreter.Decode(
               payload, 
-              receivedBuffer, 
-              out basisFrame);
-          receivedBuffer.Drain(basisFrame);
-          receivedBuffer.Push(receiving);
+              receivedBuffer);
+          receivedBuffer.Store(receiving);
 
           Testing.FakeUpdateState(environment);
           if (environment.Count < numEntities)
@@ -186,8 +183,8 @@ namespace Railgun
       RailgunUtil.Assert(a.Count == b.Count);
       foreach (Image iA in a.GetImages())
       {
-        UserState stateA = (UserState)iA.State;
-        UserState stateB = (UserState)b.Get(iA.Id).State;
+        DemoState stateA = (DemoState)iA.State;
+        DemoState stateB = (DemoState)b.Get(iA.Id).State;
         Testing.TestCompare(stateA, stateB);
       }
     }
@@ -196,14 +193,14 @@ namespace Railgun
     {
       foreach (Image image in environment.GetImages())
       {
-        UserState state = (UserState)image.State;
+        DemoState state = (DemoState)image.State;
         state.SetData(
-          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.ArchetypeId.MinValue, UserEncoders.ArchetypeId.MaxValue) : state.ArchetypeId,
-          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.UserId.MinValue, UserEncoders.UserId.MaxValue) : state.UserId,
-          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Coordinate.MinValue, UserEncoders.Coordinate.MaxValue) : state.X,
-          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Coordinate.MinValue, UserEncoders.Coordinate.MaxValue) : state.Y,
-          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Angle.MinValue, UserEncoders.Angle.MaxValue) : state.Angle,
-          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(UserEncoders.Status.MinValue, UserEncoders.Status.MaxValue) : state.Status);
+          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.ArchetypeId.MinValue, DemoEncoders.ArchetypeId.MaxValue) : state.ArchetypeId,
+          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.UserId.MinValue, DemoEncoders.UserId.MaxValue) : state.UserId,
+          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Coordinate.MinValue, DemoEncoders.Coordinate.MaxValue) : state.X,
+          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Coordinate.MinValue, DemoEncoders.Coordinate.MaxValue) : state.Y,
+          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Angle.MinValue, DemoEncoders.Angle.MaxValue) : state.Angle,
+          UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.Status.MinValue, DemoEncoders.Status.MaxValue) : state.Status);
       }
     }
 
@@ -214,9 +211,9 @@ namespace Railgun
       Entity entity = new Entity();
       interpreter.Bind(entity);
 
-      UserState state =
-        (UserState)interpreter.CreateEmptyState(
-          UserTypes.TYPE_USER_STATE);
+      DemoState state =
+        (DemoState)interpreter.CreateEmptyState(
+          DemoTypes.TYPE_USER_STATE);
 
       entity.Id = environment.Count;
       entity.State = state;

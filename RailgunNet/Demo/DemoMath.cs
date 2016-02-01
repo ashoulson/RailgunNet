@@ -22,28 +22,20 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using UnityEngine;
+
 namespace Railgun.User
 {
-  internal static class UserEncoders
+  public static class DemoMath
   {
-    internal static IntEncoder EntityDirty = null;
-    internal static IntEncoder ArchetypeId = null;
-    internal static IntEncoder UserId = null;
-    internal static IntEncoder Status = null;
-
-    internal static FloatEncoder Coordinate = null;
-    internal static FloatEncoder Angle = null;
-
-    public static void Initialize()
+    internal static bool CoordinatesEqual(float a, float b)
     {
-      UserEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
-      UserEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
+      return Mathf.Abs(a - b) < Config.COORDINATE_EPSILON;
+    }
 
-      // Used by EntityState
-      UserEncoders.EntityDirty = new IntEncoder(0, (int)UserState.FLAG_ALL);
-      UserEncoders.ArchetypeId = new IntEncoder(0, 255);
-      UserEncoders.UserId = new IntEncoder(0, 1023);
-      UserEncoders.Status = new IntEncoder(0, 0x3F);
+    internal static bool AnglesEqual(float a, float b)
+    {
+      return Mathf.Abs(a - b) < Config.ANGLE_EPSILON;
     }
   }
 }

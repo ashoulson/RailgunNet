@@ -24,10 +24,11 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Snapshot : IPoolable
+  public class Snapshot : IPoolable, IRingValue
   {
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
+    int IRingValue.Key { get { return this.Frame; } }
 
     public int Frame { get; internal protected set; }
     private Dictionary<int, Image> idToImage;

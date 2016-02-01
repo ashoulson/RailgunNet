@@ -27,7 +27,7 @@ namespace Railgun.User
   /// <summary>
   /// Entities represent physical objects in the game world.
   /// </summary>
-  public class UserState : State<UserState>
+  public class DemoState : State<DemoState>
   {
     // TODO: This class is the sort of thing that would be great to code-
     // generate, but since there's only a couple of them at most the 
@@ -54,19 +54,19 @@ namespace Railgun.User
     /// which fields are dirty.
     /// </summary>
     public static int GetDirtyFlags(
-      UserState state,
-      UserState basis)
+      DemoState state,
+      DemoState basis)
     {
       return
         (state.ArchetypeId == basis.ArchetypeId ? 0 : FLAG_ARCHETYPE_ID) |
         (state.UserId == basis.UserId ? 0 : FLAG_USER_ID) |
-        (UserMath.CoordinatesEqual(state.X, basis.X) ? 0 : FLAG_X) |
-        (UserMath.CoordinatesEqual(state.Y, basis.Y) ? 0 : FLAG_Y) |
-        (UserMath.AnglesEqual(state.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
+        (DemoMath.CoordinatesEqual(state.X, basis.X) ? 0 : FLAG_X) |
+        (DemoMath.CoordinatesEqual(state.Y, basis.Y) ? 0 : FLAG_Y) |
+        (DemoMath.AnglesEqual(state.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
         (state.Status == basis.Status ? 0 : FLAG_STATUS);
     }
 
-    protected internal override int Type { get { return UserTypes.TYPE_USER_STATE; } }
+    protected internal override int Type { get { return DemoTypes.TYPE_USER_STATE; } }
 
     public int ArchetypeId { get; set; }
     public int UserId { get; set; }
@@ -94,7 +94,7 @@ namespace Railgun.User
     /// <summary>
     /// Writes the values from another PawnState to this one.
     /// </summary>
-    protected internal override void SetFrom(UserState other)
+    protected internal override void SetFrom(DemoState other)
     {
       this.ArchetypeId = other.ArchetypeId;
       this.UserId = other.UserId;
@@ -110,37 +110,37 @@ namespace Railgun.User
     protected internal override void Encode(BitBuffer buffer)
     {
       // Write in opposite order so we can read in SetData order
-      buffer.Push(UserEncoders.Status, this.Status);
-      buffer.Push(UserEncoders.Angle, this.Angle);
-      buffer.Push(UserEncoders.Coordinate, this.Y);
-      buffer.Push(UserEncoders.Coordinate, this.X);
-      buffer.Push(UserEncoders.UserId, this.UserId);
-      buffer.Push(UserEncoders.ArchetypeId, this.ArchetypeId);
+      buffer.Push(DemoEncoders.Status, this.Status);
+      buffer.Push(DemoEncoders.Angle, this.Angle);
+      buffer.Push(DemoEncoders.Coordinate, this.Y);
+      buffer.Push(DemoEncoders.Coordinate, this.X);
+      buffer.Push(DemoEncoders.UserId, this.UserId);
+      buffer.Push(DemoEncoders.ArchetypeId, this.ArchetypeId);
 
       // Add metadata
-      buffer.Push(UserEncoders.EntityDirty, UserState.FLAG_ALL);
+      buffer.Push(DemoEncoders.EntityDirty, DemoState.FLAG_ALL);
     }
 
     /// <summary>
     /// Delta-encode this state relative to the given basis state.
     /// Returns true iff the state was encoded (will bypass if no change).
     /// </summary>
-    protected internal override bool Encode(BitBuffer buffer, UserState basis)
+    protected internal override bool Encode(BitBuffer buffer, DemoState basis)
     {
-      int dirty = UserState.GetDirtyFlags(this, basis);
+      int dirty = DemoState.GetDirtyFlags(this, basis);
       if (dirty == 0)
         return false;
 
       // Write in opposite order so we can read in SetData order
-      buffer.PushIf(dirty, FLAG_STATUS, UserEncoders.Status, this.Status);
-      buffer.PushIf(dirty, FLAG_ANGLE, UserEncoders.Angle, this.Angle);
-      buffer.PushIf(dirty, FLAG_Y, UserEncoders.Coordinate, this.Y);
-      buffer.PushIf(dirty, FLAG_X, UserEncoders.Coordinate, this.X);
-      buffer.PushIf(dirty, FLAG_USER_ID, UserEncoders.UserId, this.UserId);
-      buffer.PushIf(dirty, FLAG_ARCHETYPE_ID, UserEncoders.ArchetypeId, this.ArchetypeId);
+      buffer.PushIf(dirty, FLAG_STATUS, DemoEncoders.Status, this.Status);
+      buffer.PushIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, this.Angle);
+      buffer.PushIf(dirty, FLAG_Y, DemoEncoders.Coordinate, this.Y);
+      buffer.PushIf(dirty, FLAG_X, DemoEncoders.Coordinate, this.X);
+      buffer.PushIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, this.UserId);
+      buffer.PushIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, this.ArchetypeId);
 
       // Add metadata
-      buffer.Push(UserEncoders.EntityDirty, dirty);
+      buffer.Push(DemoEncoders.EntityDirty, dirty);
       return true;
     }
 
@@ -149,33 +149,33 @@ namespace Railgun.User
     /// </summary>
     protected internal override void Decode(BitBuffer buffer)
     {
-      int dirty = buffer.Pop(UserEncoders.EntityDirty);
-      RailgunUtil.Assert(dirty == UserState.FLAG_ALL);
+      int dirty = buffer.Pop(DemoEncoders.EntityDirty);
+      RailgunUtil.Assert(dirty == DemoState.FLAG_ALL);
 
       this.SetData(
-        buffer.Pop(UserEncoders.ArchetypeId),
-        buffer.Pop(UserEncoders.UserId),
-        buffer.Pop(UserEncoders.Coordinate),
-        buffer.Pop(UserEncoders.Coordinate),
-        buffer.Pop(UserEncoders.Angle),
-        buffer.Pop(UserEncoders.Status));
+        buffer.Pop(DemoEncoders.ArchetypeId),
+        buffer.Pop(DemoEncoders.UserId),
+        buffer.Pop(DemoEncoders.Coordinate),
+        buffer.Pop(DemoEncoders.Coordinate),
+        buffer.Pop(DemoEncoders.Angle),
+        buffer.Pop(DemoEncoders.Status));
     }
 
     /// <summary>
     /// Decode a delta-encoded packet against a given basis and set values
     /// to this object.
     /// </summary>
-    protected internal override void Decode(BitBuffer buffer, UserState basis)
+    protected internal override void Decode(BitBuffer buffer, DemoState basis)
     {
-      int dirty = buffer.Pop(UserEncoders.EntityDirty);
+      int dirty = buffer.Pop(DemoEncoders.EntityDirty);
 
       this.SetData(
-        buffer.PopIf(dirty, FLAG_ARCHETYPE_ID, UserEncoders.ArchetypeId, basis.ArchetypeId),
-        buffer.PopIf(dirty, FLAG_USER_ID, UserEncoders.UserId, basis.UserId),
-        buffer.PopIf(dirty, FLAG_X, UserEncoders.Coordinate, basis.X),
-        buffer.PopIf(dirty, FLAG_Y, UserEncoders.Coordinate, basis.Y),
-        buffer.PopIf(dirty, FLAG_ANGLE, UserEncoders.Angle, basis.Angle),
-        buffer.PopIf(dirty, FLAG_STATUS, UserEncoders.Status, basis.Status));
+        buffer.PopIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, basis.ArchetypeId),
+        buffer.PopIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, basis.UserId),
+        buffer.PopIf(dirty, FLAG_X, DemoEncoders.Coordinate, basis.X),
+        buffer.PopIf(dirty, FLAG_Y, DemoEncoders.Coordinate, basis.Y),
+        buffer.PopIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, basis.Angle),
+        buffer.PopIf(dirty, FLAG_STATUS, DemoEncoders.Status, basis.Status));
     }
   }
 }

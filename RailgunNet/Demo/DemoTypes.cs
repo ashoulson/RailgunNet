@@ -22,20 +22,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 namespace Railgun.User
 {
-  public static class UserMath
+  public static class DemoTypes
   {
-    internal static bool CoordinatesEqual(float a, float b)
-    {
-      return Mathf.Abs(a - b) < Config.COORDINATE_EPSILON;
-    }
-
-    internal static bool AnglesEqual(float a, float b)
-    {
-      return Mathf.Abs(a - b) < Config.ANGLE_EPSILON;
-    }
+    public const byte TYPE_USER_STATE = 1;
   }
 }
