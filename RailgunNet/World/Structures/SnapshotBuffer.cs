@@ -22,6 +22,9 @@ namespace Railgun
     {
       this.snapshots = new Queue<Snapshot>(capacity);
       this.frameToSnapshot = new Dictionary<int, Snapshot>(capacity);
+
+      this.NewestFrame = Clock.INVALID_FRAME;
+      this.OldestFrame = Clock.INVALID_FRAME;
     }
 
     public void Push(Snapshot snapshot)
@@ -45,19 +48,6 @@ namespace Railgun
       return oldest;
     }
 
-    public Snapshot GetOrOlder(int frame)
-    {
-      Snapshot latest = null;
-      foreach (Snapshot snapshot in this.snapshots)
-      {
-        if (snapshot.Frame > frame)
-          break;
-        latest = snapshot;
-      }
-
-      return latest;
-    }
-
     public bool TryGetValue(int frame, out Snapshot snapshot)
     {
       return this.frameToSnapshot.TryGetValue(frame, out snapshot);
@@ -66,6 +56,12 @@ namespace Railgun
     public Snapshot Get(int frame)
     {
       return this.frameToSnapshot[frame];
+    }
+
+    public void Clear()
+    {
+      this.snapshots.Clear();
+      this.frameToSnapshot.Clear();
     }
 
     /// <summary>
