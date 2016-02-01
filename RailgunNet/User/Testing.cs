@@ -126,7 +126,6 @@ namespace Railgun
       int deltaCount = 0;
       int deltaSum = 0;
       int complete = 0;
-      List<Image> newEntities = new List<Image>();
 
       for (int i = 0; i < outerIter; i++)
       {
@@ -134,50 +133,48 @@ namespace Railgun
           new Interpreter(new Factory<UserState>());
         Environment environment = Testing.CreateEnvironment(interpreter, numEntities - 5);
 
-        HostPacket lastSent = null;
-        HostPacket lastReceived = null;
+        SnapshotBuffer receivedBuffer = new SnapshotBuffer();
+        Snapshot lastSent = null;
 
         for (int j = 0; j < innerIter; j++)
         {
-          HostPacket sending = new HostPacket();
-          sending.Snapshot = environment.Clone();
+          environment.Frame++;
+
+          Snapshot sending = environment.Clone();
           byte[] payload = null;
-          newEntities.Clear();
         
           // SEND
           if (lastSent != null)
           {
-            payload = interpreter.EncodeHostPacket(sending, lastSent);
+            payload = interpreter.Encode(sending, lastSent);
             deltaSum += payload.Length;
             deltaCount++;
           }
           else
           {
-            payload = interpreter.EncodeHostPacket(sending);
+            payload = interpreter.Encode(sending);
             int bitsUsed = payload.Length;
             if (bitsUsed > complete)
               complete = bitsUsed;
           }
 
           // RECEIVE
-          HostPacket receiving = null;
-          if (lastReceived != null)
-          {
-            receiving = interpreter.DecodeHostPacket(payload, lastReceived, newEntities);
-          }
-          else
-          {
-            receiving = interpreter.DecodeHostPacket(payload, newEntities);
-          }
+          int basisFrame;
+          Snapshot receiving =
+            interpreter.Decode(
+              payload, 
+              receivedBuffer, 
+              out basisFrame);
+          receivedBuffer.Drain(basisFrame);
+          receivedBuffer.Push(receiving);
 
           Testing.FakeUpdateState(environment);
           if (environment.Count < numEntities)
             if (UnityEngine.Random.Range(0.0f, 1.0f) > 0.8f)
               Testing.FakeAddEntity(interpreter, environment);
 
-          TestCompare(sending.Snapshot, receiving.Snapshot);
+          TestCompare(sending, receiving);
           lastSent = sending;
-          lastReceived = receiving;
         }
       }
 
@@ -327,8 +324,8 @@ namespace Railgun
       RailgunUtil.Assert(readVal == 0x9296AD);
 
       BitBuffer testByteArray = new BitBuffer();
-      testByteArray.Push(0xFFFFFFFF, 32);
-      testByteArray.Push(0xFF81, 8);
+      testByteArray.Push(32, 0xFFFFFFFF);
+      testByteArray.Push(8, 0xFF81);
       byte[] bytes = testByteArray.StoreBytes();
       BitBuffer testReceive = new BitBuffer(bytes);
       uint value1 = testReceive.Pop(8);
@@ -389,7 +386,7 @@ namespace Railgun
 
           values.Push(trimmedVal);
           bits.Push(randBits);
-          buffer.Push(trimmedVal, randBits);
+          buffer.Push(randBits, trimmedVal);
         }
         else
         {

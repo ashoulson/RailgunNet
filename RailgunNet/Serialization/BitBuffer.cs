@@ -85,7 +85,7 @@ namespace Railgun
     /// <summary>
     /// Takes the lower numBits from the value and stores them in the buffer.
     /// </summary>
-    public void Push(uint value, int numBits)
+    public void Push(int numBits, uint value)
     {
       numBits = BitBuffer.ClampBits(numBits);
 
@@ -122,7 +122,7 @@ namespace Railgun
     internal void Push<T>(Encoder<T> encoder, T value)
     {
       uint encoded = encoder.Pack(value);
-      this.Push(encoded, encoder.RequiredBits);
+      this.Push(encoder.RequiredBits, encoded);
     }
 
     /// <summary>

@@ -28,12 +28,16 @@ namespace Railgun
   /// <summary>
   /// Responsible for encoding and decoding snapshots.
   /// 
-  /// Snapshot Encoding order:
+  /// HostPacket encoding order:
+  /// | BASIS FRAME | ----- SNAPSHOT DATA ----- |
+  /// 
+  /// Snapshot encoding order:
   /// | FRAME | IMAGE COUNT | ----- IMAGE ----- | ----- IMAGE ----- | ...
   /// 
   /// Image encoding order:
   /// If new: | ID | TYPE | ----- STATE DATA ----- |
   /// If old: | ID | ----- STATE DATA ----- |
+  /// 
   /// </summary>
   internal class Interpreter
   {
@@ -48,7 +52,6 @@ namespace Railgun
           snapshot.Add(basisImage.Clone());
     }
 
-    private Pool<HostPacket> hostPacketPool;
     private Pool<Snapshot> snapshotPool;
     private Pool<Image> imagePool;
     private Dictionary<int, Factory> stateFactories;
@@ -58,7 +61,6 @@ namespace Railgun
 
     internal Interpreter(params Factory[] factories)
     {
-      this.hostPacketPool = new Pool<HostPacket>();
       this.snapshotPool = new Pool<Snapshot>();
       this.imagePool = new Pool<Image>();
 
@@ -70,57 +72,53 @@ namespace Railgun
         this.stateFactories[factory.Type] = factory;
     }
 
-    public byte[] EncodeHostPacket(
-      HostPacket packet)
+    public byte[] Encode(
+      Snapshot snapshot)
     {
       this.bitBuffer.Clear();
-      this.EncodeSnapshot(packet.Snapshot);
+
+      // Write: [Snapshot Data]
+      this.EncodeSnapshot(snapshot);
+
+      // Write: [Basis Frame]
+      this.bitBuffer.Push(Encoders.Frame, Clock.INVALID_FRAME);
+
       return this.bitBuffer.StoreBytes();
     }
 
-    public byte[] EncodeHostPacket(
-      HostPacket packet, 
-      HostPacket basis)
+    public byte[] Encode(
+      Snapshot snapshot, 
+      Snapshot basis)
     {
       this.bitBuffer.Clear();
-      this.EncodeSnapshot(packet.Snapshot, basis.Snapshot);
+      
+      // Write: [Snapshot Data]
+      this.EncodeSnapshot(snapshot, basis);
+
+      // Write: [Basis Frame]
+      this.bitBuffer.Push(Encoders.Frame, basis.Frame);
+
       return this.bitBuffer.StoreBytes();
     }
 
-    public HostPacket DecodeHostPacket(
-      byte[] data, 
-      List<Image> newEntities)
+    public Snapshot Decode(
+      byte[] data,
+      SnapshotBuffer basisBuffer,
+      out int basisFrame)
     {
       this.bitBuffer.ReadBytes(data);
 
-      HostPacket result = this.hostPacketPool.Allocate();
+      // Read: [Basis Frame]
+      basisFrame = bitBuffer.Pop(Encoders.Frame);
+
       // Read: [Snapshot]
-      result.Snapshot = this.DecodeSnapshot();
+      Snapshot result;
+      if (basisFrame != Clock.INVALID_FRAME)
+        result = this.DecodeSnapshot(basisBuffer.Get(basisFrame));
+      else
+        result = this.DecodeSnapshot();
 
       RailgunUtil.Assert(this.bitBuffer.BitsUsed == 0);
-
-      foreach (Image image in this.newImages)
-        newEntities.Add(image);
-
-      return result;
-    }
-
-    public HostPacket DecodeHostPacket(
-      byte[] data, 
-      HostPacket basis,
-      List<Image> newEntities)
-    {
-      this.bitBuffer.ReadBytes(data);
-
-      HostPacket result = this.hostPacketPool.Allocate();
-      // Read: [Snapshot]
-      result.Snapshot = this.DecodeSnapshot(basis.Snapshot);
-
-      RailgunUtil.Assert(this.bitBuffer.BitsUsed == 0);
-
-      foreach (Image image in this.newImages)
-        newEntities.Add(image);
-
       return result;
     }
 
