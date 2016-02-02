@@ -36,6 +36,7 @@ namespace Railgun
     public event Action<ClientPeer> PeerAdded;
     //public event Action<ClientPeer> PeerRemoved;
 
+    private PoolContext poolContext;
     private Interpreter interpreter;
     private Dictionary<IConnection, ClientPeer> connectionToPeer;
 
@@ -47,7 +48,8 @@ namespace Railgun
 
     public Host()
     {
-      this.interpreter = new Interpreter();
+      this.poolContext = new PoolContext();
+      this.interpreter = new Interpreter(poolContext);
       this.connectionToPeer = new Dictionary<IConnection, ClientPeer>();
       this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE);
     }

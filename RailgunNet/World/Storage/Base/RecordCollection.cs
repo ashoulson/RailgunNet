@@ -24,42 +24,46 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Environment : Snapshot
+  public abstract class RecordCollection<T>
+    where T : Record
   {
-    private Dictionary<int, Entity> idToEntity;
+    protected Dictionary<int, T> Entries { get; private set; }
 
-    public Environment()
+    public int Count { get { return this.Entries.Count; } }
+
+    public RecordCollection()
     {
-      this.idToEntity = new Dictionary<int, Entity>();
+      this.Entries = new Dictionary<int, T>();
     }
 
-    internal void SetFrame(int frame)
+    public void Add(T image)
     {
-      this.Frame = frame;
+      this.Entries.Add(image.Id, image);
     }
 
-    public void Update()
+    protected void Remove(T image)
     {
-      foreach (Entity entity in this.idToEntity.Values)
-        entity.Update();
+      this.Entries.Remove(image.Id);
     }
 
-    public void Add(Entity entity)
+    public bool TryGet(int id, out T image)
     {
-      base.Add(entity);
-      this.idToEntity.Add(entity.Id, entity);
+      return this.Entries.TryGetValue(id, out image);
     }
 
-    public void Remove(Entity entity)
+    public T Get(int id)
     {
-      base.Remove(entity);
-      this.idToEntity.Remove(entity.Id);
+      return this.Entries[id];
     }
 
-    protected override void Reset()
+    public bool Contains(int id)
     {
-      base.Reset();
-      this.idToEntity.Clear();
+      return this.Entries.ContainsKey(id);
+    }
+
+    public Dictionary<int, T>.ValueCollection GetValues()
+    {
+      return this.Entries.Values;
     }
   }
 }

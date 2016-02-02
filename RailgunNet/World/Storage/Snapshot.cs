@@ -24,21 +24,21 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Snapshot : IPoolable, IRingValue
+  /// <summary>
+  /// A snapshot is a collection of images representing a complete state
+  /// of the world at a given frame.
+  /// </summary>
+  public class Snapshot : RecordCollection<Image>, IPoolable, IRingValue
   {
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
     int IRingValue.Key { get { return this.Frame; } }
 
     public int Frame { get; internal protected set; }
-    private Dictionary<int, Image> idToImage;
-
-    public int Count { get { return this.idToImage.Count; } }
 
     public Snapshot()
     {
       this.Frame = Clock.INVALID_FRAME;
-      this.idToImage = new Dictionary<int, Image>();
     }
 
     /// <summary>
@@ -48,46 +48,16 @@ namespace Railgun
     {
       Snapshot clone = Pool.CloneEmpty(this);
       clone.Frame = this.Frame;
-      foreach (Image image in this.idToImage.Values)
+      foreach (Image image in this.Entries.Values)
         clone.Add(image.Clone());
       return clone;
     }
 
-    public void Add(Image image)
-    {
-      this.idToImage.Add(image.Id, image);
-    }
-
-    protected void Remove(Image image)
-    {
-      this.idToImage.Remove(image.Id);
-    }
-
-    public bool TryGet(int id, out Image image)
-    {
-      return this.idToImage.TryGetValue(id, out image);
-    }
-
-    public Image Get(int id)
-    {
-      return this.idToImage[id];
-    }
-
-    public bool Contains(int id)
-    {
-      return this.idToImage.ContainsKey(id);
-    }
-
-    public Dictionary<int, Image>.ValueCollection GetImages()
-    {
-      return this.idToImage.Values;
-    }
-
     protected virtual void Reset()
     {
-      foreach (Image image in this.idToImage.Values)
+      foreach (Image image in this.Entries.Values)
         Pool.Free(image);
-      this.idToImage.Clear();
+      this.Entries.Clear();
     }
   }
 }

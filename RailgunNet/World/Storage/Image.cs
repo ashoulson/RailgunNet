@@ -5,6 +5,13 @@
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
  *  arising from the use of this software.
+/*
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
+ *
+ *  This software is provided 'as-is', without any express or implied
+ *  warranty. In no event will the authors be held liable for any damages
+ *  arising from the use of this software.
  *  Permission is granted to anyone to use this software for any purpose,
  *  including commercial applications, and to alter it and redistribute it
  *  freely, subject to the following restrictions:
@@ -24,19 +31,31 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Entity : Image
+  /// <summary>
+  /// An image is the stored state of an entity at a given point in time.
+  /// </summary>
+  public class Image : Record, IPoolable
   {
-    public bool IsMaster { get; internal set; }
+    Pool IPoolable.Pool { get; set; }
+    void IPoolable.Reset() { this.Reset(); }
 
-    public void Update()
+    /// <summary>
+    /// Deep-copies this Image, allocating from the pool in the process.
+    /// </summary>
+    public Image Clone()
     {
-
+      Image clone = Pool.CloneEmpty(this);
+      clone.Id = this.Id;
+      clone.State = this.State.Clone();
+      return clone;
     }
 
-    public T GetState<T>()
-      where T : State<T>
+    protected void Reset()
     {
-      return (T)this.State;
+      this.Id = Record.INVALID_ID;
+      if (this.State != null)
+        Pool.Free(this.State);
+      this.State = null;
     }
   }
 }

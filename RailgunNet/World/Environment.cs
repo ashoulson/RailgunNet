@@ -5,13 +5,6 @@
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
  *  arising from the use of this software.
-/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
- *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
- *
- *  This software is provided 'as-is', without any express or implied
- *  warranty. In no event will the authors be held liable for any damages
- *  arising from the use of this software.
  *  Permission is granted to anyone to use this software for any purpose,
  *  including commercial applications, and to alter it and redistribute it
  *  freely, subject to the following restrictions:
@@ -31,41 +24,28 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  /// <summary>
-  /// An image is the state of an entity at a given point in time.
-  /// </summary>
-  public class Image : IPoolable
+  public class Environment : RecordCollection<Entity>
   {
-    public const int INVALID_ID = -1;
+    public int Frame { get; internal protected set; }
 
-    Pool IPoolable.Pool { get; set; }
-    void IPoolable.Reset() { this.Reset(); }
-
-    public int Id { get; internal set; }
-    public State State { get; internal set; }
-
-    public Image()
+    public Environment()
     {
-      this.Reset();
+      this.Frame = Clock.INVALID_FRAME;
+    }
+    
+    public void Update()
+    {
+      foreach (Entity entity in this.Entries.Values)
+        entity.Update();
     }
 
-    /// <summary>
-    /// Deep-copies this Image, allocating from the pool in the process.
-    /// </summary>
-    public Image Clone()
+    internal Snapshot CreateSnapshot(PoolContext poolContext)
     {
-      Image clone = Pool.CloneEmpty(this);
-      clone.Id = this.Id;
-      clone.State = this.State.Clone();
+      Snapshot clone = poolContext.AllocateSnapshot();
+      clone.Frame = this.Frame;
+      foreach (Entity entity in this.Entries.Values)
+        clone.Add(entity.CreateImage(poolContext));
       return clone;
-    }
-
-    protected void Reset()
-    {
-      this.Id = Image.INVALID_ID;
-      if (this.State != null)
-        Pool.Free(this.State);
-      this.State = null;
     }
   }
 }

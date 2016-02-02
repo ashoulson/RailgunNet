@@ -129,9 +129,13 @@ namespace Railgun
 
       for (int i = 0; i < outerIter; i++)
       {
-        Interpreter interpreter =
-          new Interpreter(new Factory<DemoState>());
-        Environment environment = Testing.CreateEnvironment(interpreter, numEntities - 5);
+        PoolContext poolContext = new PoolContext(new Factory<DemoState>());
+        Interpreter interpreter = new Interpreter(poolContext);
+        Environment environment = 
+          Testing.CreateEnvironment(
+            poolContext, 
+            interpreter, 
+            numEntities - 5);
 
         RingBuffer<Snapshot> receivedBuffer = new RingBuffer<Snapshot>(60);
         Snapshot lastSent = null;
@@ -140,7 +144,7 @@ namespace Railgun
         {
           environment.Frame++;
 
-          Snapshot sending = environment.Clone();
+          Snapshot sending = environment.CreateSnapshot(poolContext);
           byte[] payload = null;
         
           // SEND
@@ -168,7 +172,7 @@ namespace Railgun
           Testing.FakeUpdateState(environment);
           if (environment.Count < numEntities)
             if (UnityEngine.Random.Range(0.0f, 1.0f) > 0.8f)
-              Testing.FakeAddEntity(interpreter, environment);
+              Testing.FakeAddEntity(poolContext, interpreter, environment);
 
           TestCompare(sending, receiving);
           lastSent = sending;
@@ -181,7 +185,7 @@ namespace Railgun
     private static void TestCompare(Snapshot a, Snapshot b)
     {
       RailgunUtil.Assert(a.Count == b.Count);
-      foreach (Image iA in a.GetImages())
+      foreach (Image iA in a.GetValues())
       {
         DemoState stateA = (DemoState)iA.State;
         DemoState stateB = (DemoState)b.Get(iA.Id).State;
@@ -191,9 +195,9 @@ namespace Railgun
 
     private static void FakeUpdateState(Environment environment)
     {
-      foreach (Image image in environment.GetImages())
+      foreach (Entity entity in environment.GetValues())
       {
-        DemoState state = (DemoState)image.State;
+        DemoState state = (DemoState)entity.State;
         state.SetData(
           UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.ArchetypeId.MinValue, DemoEncoders.ArchetypeId.MaxValue) : state.ArchetypeId,
           UnityEngine.Random.Range(0.0f, 1.0f) > 0.7f ? UnityEngine.Random.Range(DemoEncoders.UserId.MinValue, DemoEncoders.UserId.MaxValue) : state.UserId,
@@ -205,14 +209,14 @@ namespace Railgun
     }
 
     private static void FakeAddEntity(
+      PoolContext poolContext,
       Interpreter interpreter, 
       Environment environment)
     {
       Entity entity = new Entity();
-      interpreter.Bind(entity);
 
       DemoState state =
-        (DemoState)interpreter.CreateEmptyState(
+        (DemoState)poolContext.AllocateState(
           DemoTypes.TYPE_USER_STATE);
 
       entity.Id = environment.Count;
@@ -223,14 +227,14 @@ namespace Railgun
     }
 
     private static Environment CreateEnvironment(
+      PoolContext poolContext,
       Interpreter interpreter, 
       int numEntities)
     {
       Environment environment = new Environment();
-      interpreter.Bind(environment);
      
       for (int i = 0; i < numEntities; i++)
-        Testing.FakeAddEntity(interpreter, environment);
+        Testing.FakeAddEntity(poolContext, interpreter, environment);
 
       return environment;
     }
