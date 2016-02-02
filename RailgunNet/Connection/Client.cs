@@ -35,6 +35,7 @@ namespace Railgun
     public Peer Host { get; private set; }
     private Interpreter interpreter;
     private int lastReceived;
+    private PoolContext poolContext;
 
     /// <summary>
     /// A complete snapshot history of all received snapshots. 
@@ -45,8 +46,9 @@ namespace Railgun
     public Client(Peer host)
     {
       this.Host = host;
+      this.poolContext = new PoolContext();
       this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE);
-      this.interpreter = new Interpreter();
+      this.interpreter = new Interpreter(this.poolContext);
       this.lastReceived = Clock.INVALID_FRAME;
     }
 

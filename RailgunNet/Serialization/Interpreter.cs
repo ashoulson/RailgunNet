@@ -47,29 +47,21 @@ namespace Railgun
     /// </summary>
     private static void ReconcileBasis(Snapshot snapshot, Snapshot basis)
     {
-      foreach (Image basisImage in basis.GetImages())
+      foreach (Image basisImage in basis.GetValues())
         if (snapshot.Contains(basisImage.Id) == false)
           snapshot.Add(basisImage.Clone());
     }
 
-    private Pool<Snapshot> snapshotPool;
-    private Pool<Image> imagePool;
-    private Dictionary<int, Factory> stateFactories;
-
     private BitBuffer bitBuffer;
     private List<Image> newImages;
+    private PoolContext poolContext;
 
-    internal Interpreter(params Factory[] factories)
+    internal Interpreter(PoolContext poolContext)
     {
-      this.snapshotPool = new Pool<Snapshot>();
-      this.imagePool = new Pool<Image>();
+      this.poolContext = poolContext;
 
       this.bitBuffer = new BitBuffer();
       this.newImages = new List<Image>();
-
-      this.stateFactories = new Dictionary<int, Factory>();
-      foreach (Factory factory in factories)
-        this.stateFactories[factory.Type] = factory;
     }
 
     public byte[] Encode(
@@ -125,7 +117,7 @@ namespace Railgun
     private void EncodeSnapshot(
       Snapshot snapshot)
     {
-      foreach (Image image in snapshot.GetImages())
+      foreach (Image image in snapshot.GetValues())
       {
         // Write: [Image Data]
         this.EncodeImage(image);
@@ -147,7 +139,7 @@ namespace Railgun
     {
       int count = 0;
 
-      foreach (Image image in snapshot.GetImages())
+      foreach (Image image in snapshot.GetValues())
       {
         // Write: [Image Data]
         Image basisImage;
@@ -185,7 +177,7 @@ namespace Railgun
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = this.snapshotPool.Allocate();
+      Snapshot snapshot = this.poolContext.AllocateSnapshot();
       snapshot.Frame = frame;
 
       for (int i = 0; i < count; i++)
@@ -211,7 +203,7 @@ namespace Railgun
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = this.snapshotPool.Allocate();
+      Snapshot snapshot = this.poolContext.AllocateSnapshot();
       snapshot.Frame = frame;
 
       for (int i = 0; i < count; i++)
@@ -259,8 +251,8 @@ namespace Railgun
       // Read: [Type]
       int stateType = this.bitBuffer.Pop(Encoders.StateType);
 
-      Image image = this.imagePool.Allocate();
-      State state = this.stateFactories[stateType].Allocate();
+      Image image = this.poolContext.AllocateImage();
+      State state = this.poolContext.AllocateState(stateType);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer);
@@ -278,8 +270,8 @@ namespace Railgun
     {
       // (No type identifier for delta images)
 
-      Image image = this.imagePool.Allocate();
-      State state = this.stateFactories[basis.State.Type].Allocate();
+      Image image = this.poolContext.AllocateImage();
+      State state = this.poolContext.AllocateState(basis.State.Type);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer, basis.State);
@@ -291,23 +283,6 @@ namespace Railgun
     #endregion
 
     #region Internals
-    // TODO: This is ugly
-    internal void Bind(Environment environment)
-    {
-      ((IPoolable)environment).Pool = this.snapshotPool;
-    }
-
-    // TODO: This is ugly
-    internal void Bind(Entity entity)
-    {
-      ((IPoolable)entity).Pool = this.imagePool;
-    }
-
-    internal State CreateEmptyState(int type)
-    {
-      return this.stateFactories[type].Allocate();
-    }
-
     /// <summary>
     /// Returns the new images created during a decode.
     /// Only valid immediately after a decode.

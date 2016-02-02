@@ -4,7 +4,8 @@ Alexander Shoulson, Ph.D. - http://ashoulson.com
 
 ---
 
-Based primarily on the Quake 3 networking model: https://github.com/id-Software/Quake-III-Arena
+Based loosely on the Quake 3 networking model: https://github.com/id-Software/Quake-III-Arena
+And the Valve/Source networking model: https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking
 
 ---
 
