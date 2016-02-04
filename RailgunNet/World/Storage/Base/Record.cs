@@ -39,6 +39,6 @@ namespace Railgun
     public const int INVALID_ID = -1;
 
     public int Id { get; internal set; }
-    public State State { get; internal set; }
+    internal State State { get; set; }
   }
 }

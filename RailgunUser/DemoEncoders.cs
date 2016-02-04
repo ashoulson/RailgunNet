@@ -22,28 +22,27 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Railgun.User
+using Railgun;
+
+public static class DemoEncoders
 {
-  internal static class DemoEncoders
+  public static IntEncoder EntityDirty = null;
+  public static IntEncoder ArchetypeId = null;
+  public static IntEncoder UserId = null;
+  public static IntEncoder Status = null;
+
+  public static FloatEncoder Coordinate = null;
+  public static FloatEncoder Angle = null;
+
+  public static void Initialize()
   {
-    internal static IntEncoder EntityDirty = null;
-    internal static IntEncoder ArchetypeId = null;
-    internal static IntEncoder UserId = null;
-    internal static IntEncoder Status = null;
+    DemoEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
+    DemoEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
 
-    internal static FloatEncoder Coordinate = null;
-    internal static FloatEncoder Angle = null;
-
-    public static void Initialize()
-    {
-      DemoEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
-      DemoEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
-
-      // Used by EntityState
-      DemoEncoders.EntityDirty = new IntEncoder(0, (int)DemoState.FLAG_ALL);
-      DemoEncoders.ArchetypeId = new IntEncoder(0, 255);
-      DemoEncoders.UserId = new IntEncoder(0, 1023);
-      DemoEncoders.Status = new IntEncoder(0, 0x3F);
-    }
+    // Used by EntityState
+    DemoEncoders.EntityDirty = new IntEncoder(0, (int)DemoState.FLAG_ALL);
+    DemoEncoders.ArchetypeId = new IntEncoder(0, 255);
+    DemoEncoders.UserId = new IntEncoder(0, 1023);
+    DemoEncoders.Status = new IntEncoder(0, 0x3F);
   }
 }

@@ -26,32 +26,23 @@ namespace Railgun
 {
   public abstract class Pool
   {
-    protected abstract object AllocateGeneric();
     protected abstract void DeallocateGeneric(object item);
 
     public static void Free(IPoolable item)
     {
       item.Pool.DeallocateGeneric(item);
     }
-
-    public static T CloneEmpty<T>(T item)
-      where T : IPoolable
-    {
-      return (T)item.Pool.AllocateGeneric();
-    }
   }
 
-  public abstract class AbstractPool<T> : Pool
-    where T : IPoolable
+  public abstract class Pool<T> : Pool
+  where T : IPoolable
   {
     protected Stack<T> freeList;
 
-    public AbstractPool()
+    public Pool()
     {
       this.freeList = new Stack<T>();
     }
-
-    public abstract T Allocate();
 
     public void Deallocate(T value)
     {
@@ -60,28 +51,9 @@ namespace Railgun
       this.freeList.Push(value);
     }
 
-    protected override object AllocateGeneric()
-    {
-      return this.Allocate();
-    }
-
     protected override void DeallocateGeneric(object item)
     {
       this.Deallocate((T)item);
-    }
-  }
-
-  public class Pool<T> : AbstractPool<T>
-    where T : IPoolable, new()
-  {
-    public override T Allocate()
-    {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
-
-      T state = new T();
-      state.Pool = this;
-      return state;
     }
   }
 }

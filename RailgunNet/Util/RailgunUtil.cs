@@ -46,7 +46,7 @@ namespace Railgun
 
     #region Debug
     [System.Diagnostics.Conditional("DEBUG")]
-    internal static void Assert(bool condition)
+    public static void Assert(bool condition)
     {
       System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
       if (condition == false)
@@ -54,7 +54,7 @@ namespace Railgun
     }
 
     [System.Diagnostics.Conditional("DEBUG")]
-    internal static void Assert(bool condition, object message)
+    public static void Assert(bool condition, object message)
     {
       System.Diagnostics.StackTrace t = new System.Diagnostics.StackTrace();
       if (condition == false)

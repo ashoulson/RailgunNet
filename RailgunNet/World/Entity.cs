@@ -24,27 +24,41 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Entity : Record
+  public abstract class Entity : Record
   {
     public bool IsMaster { get; internal set; }
 
-    public void Update()
-    {
-      // TODO: Event? Override?
-    }
+    protected internal abstract void Update();
 
-    public T GetState<T>()
-      where T : State<T>
+    internal Image CreateImage(Context context)
     {
-      return (T)this.State;
-    }
-
-    internal Image CreateImage(PoolContext pool)
-    {
-      Image image = pool.AllocateImage();
+      Image image = context.AllocateImage();
       image.Id = this.Id;
-      image.State = this.State.Clone();
+      image.State = this.State.Clone(context);
       return image;
+    }
+  }
+
+  /// <summary>
+  /// Handy shortcut class for auto-casting the internal state.
+  /// </summary>
+  public abstract class Entity<T> : Entity
+    where T : State
+  {
+    private T state = null;
+    public new T State 
+    { 
+      get 
+      { 
+        if (this.state == null)
+          this.state = (T)base.State;
+        return (T)base.State; 
+      }
+      set
+      {
+        this.state = null;
+        base.State = value;
+      }
     }
   }
 }

@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal class IntEncoder : Encoder<int>
+  public class IntEncoder : Encoder<int>
   {
     private readonly int minValue;
     private readonly int maxValue;
@@ -39,7 +39,7 @@ namespace Railgun
     /// <summary>
     /// Initializes a float serializer.
     /// </summary>
-    internal IntEncoder(int minValue, int maxValue)
+    public IntEncoder(int minValue, int maxValue)
     {
       this.minValue = minValue;
       this.maxValue = maxValue;

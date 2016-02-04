@@ -119,7 +119,7 @@ namespace Railgun
     /// <summary>
     /// Pushes an encodable value.
     /// </summary>
-    internal void Push<T>(Encoder<T> encoder, T value)
+    public void Push<T>(Encoder<T> encoder, T value)
     {
       uint encoded = encoder.Pack(value);
       this.Push(encoder.RequiredBits, encoded);
@@ -167,7 +167,7 @@ namespace Railgun
     /// <summary>
     /// Pops a value and decodes it.
     /// </summary>
-    internal T Pop<T>(Encoder<T> encoder)
+    public T Pop<T>(Encoder<T> encoder)
     {
       uint data = this.Pop(encoder.RequiredBits);
       return encoder.Unpack(data);
@@ -276,16 +276,9 @@ namespace Railgun
       this.Pop(1);
     }
 
-    private static int GetRemainingBytes(int index, int numBytes)
-    {
-      int maxBytes = index + BitBuffer.BYTES_PER_CHUNK;
-      int capacity = (maxBytes > numBytes) ? numBytes : maxBytes;
-      return capacity - index;
-    }
-
-    internal static void StoreValue(
-      byte[] array, 
-      int index, 
+    public static void StoreValue(
+      byte[] array,
+      int index,
       int numToWrite,
       uint value)
     {
@@ -293,15 +286,22 @@ namespace Railgun
         array[index + i] = (byte)(value >> (BitBuffer.SIZE_BYTE * i));
     }
 
-    internal static uint ReadValue(
-      byte[] array, 
-      int index, 
+    public static uint ReadValue(
+      byte[] array,
+      int index,
       int numToRead)
     {
       uint value = 0;
       for (int i = 0; i < numToRead; i++)
         value |= (uint)array[index + i] << (BitBuffer.SIZE_BYTE * i);
       return value;
+    }
+
+    private static int GetRemainingBytes(int index, int numBytes)
+    {
+      int maxBytes = index + BitBuffer.BYTES_PER_CHUNK;
+      int capacity = (maxBytes > numBytes) ? numBytes : maxBytes;
+      return capacity - index;
     }
 
     private static int FindPosition(byte[] data)
@@ -321,7 +321,7 @@ namespace Railgun
     }
 
     #region Conditional Serialization Helpers
-    internal void PushIf<T>(
+    public void PushIf<T>(
       int flags,
       int requiredFlag,
       Encoder<T> encoder,
@@ -331,7 +331,7 @@ namespace Railgun
         this.Push(encoder, value);
     }
 
-    internal T PopIf<T>(
+    public T PopIf<T>(
       int flags,
       int requiredFlag,
       Encoder<T> encoder,

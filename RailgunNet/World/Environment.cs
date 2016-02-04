@@ -24,13 +24,16 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Environment : RecordCollection<Entity>
+  internal class Environment : RecordCollection<Entity>
   {
     public int Frame { get; internal protected set; }
 
-    public Environment()
+    private Context context;
+
+    internal Environment(Context context)
     {
       this.Frame = Clock.INVALID_FRAME;
+      this.context = context;
     }
     
     public void Update()
@@ -39,13 +42,13 @@ namespace Railgun
         entity.Update();
     }
 
-    internal Snapshot CreateSnapshot(PoolContext poolContext)
+    internal Snapshot CreateSnapshot()
     {
-      Snapshot clone = poolContext.AllocateSnapshot();
-      clone.Frame = this.Frame;
+      Snapshot output = this.context.AllocateSnapshot();
+      output.Frame = this.Frame;
       foreach (Entity entity in this.Entries.Values)
-        clone.Add(entity.CreateImage(poolContext));
-      return clone;
+        output.Add(entity.CreateImage(this.context));
+      return output;
     }
   }
 }
