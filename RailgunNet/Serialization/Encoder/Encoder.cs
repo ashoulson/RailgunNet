@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal abstract class Encoder<T>
+  public abstract class Encoder<T>
   {
     internal abstract int RequiredBits { get; }
 

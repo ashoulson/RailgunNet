@@ -22,11 +22,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Railgun
+using Railgun;
+
+public static class DemoTypes
 {
-  internal static class Config
-  {
-    internal const float COORDINATE_EPSILON = 0.1f;
-    internal const float ANGLE_EPSILON      = 0.5f;
-  }
+  public const byte TYPE_DEMO = 1;
 }

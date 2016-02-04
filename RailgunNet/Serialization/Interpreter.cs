@@ -41,25 +41,13 @@ namespace Railgun
   /// </summary>
   internal class Interpreter
   {
-    /// <summary>
-    /// Incorporates any non-updated entities from the basis snapshot into
-    /// the newly-populated snapshot.
-    /// </summary>
-    private static void ReconcileBasis(Snapshot snapshot, Snapshot basis)
-    {
-      foreach (Image basisImage in basis.GetValues())
-        if (snapshot.Contains(basisImage.Id) == false)
-          snapshot.Add(basisImage.Clone());
-    }
-
     private BitBuffer bitBuffer;
     private List<Image> newImages;
-    private PoolContext poolContext;
+    private Context context;
 
-    internal Interpreter(PoolContext poolContext)
+    internal Interpreter(Context context)
     {
-      this.poolContext = poolContext;
-
+      this.context = context;
       this.bitBuffer = new BitBuffer();
       this.newImages = new List<Image>();
     }
@@ -177,7 +165,7 @@ namespace Railgun
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = this.poolContext.AllocateSnapshot();
+      Snapshot snapshot = this.context.AllocateSnapshot();
       snapshot.Frame = frame;
 
       for (int i = 0; i < count; i++)
@@ -203,7 +191,7 @@ namespace Railgun
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = this.poolContext.AllocateSnapshot();
+      Snapshot snapshot = this.context.AllocateSnapshot();
       snapshot.Frame = frame;
 
       for (int i = 0; i < count; i++)
@@ -219,7 +207,7 @@ namespace Railgun
           snapshot.Add(this.DecodeImage(imageId));
       }
 
-      Interpreter.ReconcileBasis(snapshot, basis);
+      this.ReconcileBasis(snapshot, basis);
       return snapshot;
     }
     #endregion
@@ -251,8 +239,8 @@ namespace Railgun
       // Read: [Type]
       int stateType = this.bitBuffer.Pop(Encoders.StateType);
 
-      Image image = this.poolContext.AllocateImage();
-      State state = this.poolContext.AllocateState(stateType);
+      Image image = this.context.AllocateImage();
+      State state = this.context.AllocateState(stateType);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer);
@@ -270,8 +258,8 @@ namespace Railgun
     {
       // (No type identifier for delta images)
 
-      Image image = this.poolContext.AllocateImage();
-      State state = this.poolContext.AllocateState(basis.State.Type);
+      Image image = this.context.AllocateImage();
+      State state = this.context.AllocateState(basis.State.Type);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer, basis.State);
@@ -290,6 +278,17 @@ namespace Railgun
     internal IList<Image> GetNewImages()
     {
       return this.newImages.AsReadOnly();
+    }
+
+    /// <summary>
+    /// Incorporates any non-updated entities from the basis snapshot into
+    /// the newly-populated snapshot.
+    /// </summary>
+    private void ReconcileBasis(Snapshot snapshot, Snapshot basis)
+    {
+      foreach (Image basisImage in basis.GetValues())
+        if (snapshot.Contains(basisImage.Id) == false)
+          snapshot.Add(basisImage.Clone(this.context));
     }
     #endregion
   }

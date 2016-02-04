@@ -44,12 +44,12 @@ namespace Railgun
     /// <summary>
     /// Deep-copies this Snapshot, allocating from the pool in the process.
     /// </summary>
-    public Snapshot Clone()
+    internal Snapshot Clone(Context context)
     {
-      Snapshot clone = Pool.CloneEmpty(this);
+      Snapshot clone = context.AllocateSnapshot();
       clone.Frame = this.Frame;
       foreach (Image image in this.Entries.Values)
-        clone.Add(image.Clone());
+        clone.Add(image.Clone(context));
       return clone;
     }
 

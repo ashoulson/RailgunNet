@@ -33,18 +33,23 @@ namespace Railgun
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
 
-    internal State Clone()
+    internal State Clone(Context context)
     {
-      State state = Pool.CloneEmpty(this);
-      state.SetFrom(this);
-      return state;
+      State clone = context.AllocateState(this.Type);
+      clone.SetFrom(this);
+      return clone;
     }
 
+    internal abstract Entity CreateEntity();
     internal abstract void SetFrom(State other);
     internal abstract bool Encode(BitBuffer buffer, State basis);
     internal abstract void Decode(BitBuffer buffer, State basis);
 
+    /// <summary>
+    /// Should return an int code for this type of state.
+    /// </summary>
     protected internal abstract int Type { get; }
+
     protected internal abstract void Encode(BitBuffer buffer);
     protected internal abstract void Decode(BitBuffer buffer);
 
@@ -54,8 +59,9 @@ namespace Railgun
   /// <summary>
   /// This is the class to override to attach user-defined data to an entity.
   /// </summary>
-  public abstract class State<T> : State
-    where T : State<T>
+  public abstract class State<T, TEntity> : State
+    where T : State<T, TEntity>
+    where TEntity : Entity<T>, new()
   {
     #region Casting Overrides
     internal override void SetFrom(State other)
@@ -73,6 +79,8 @@ namespace Railgun
       this.Decode(buffer, (T)basis);
     }
     #endregion
+
+    internal override Entity CreateEntity() { return new TEntity(); }
 
     protected internal abstract void SetFrom(T other);
     protected internal abstract bool Encode(BitBuffer buffer, T basis);

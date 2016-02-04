@@ -28,7 +28,7 @@ namespace Railgun
   /// Compresses floats to a given range with a given precision.
   /// http://stackoverflow.com/questions/8382629/compress-floating-point-numbers-with-specified-range-and-precision
   /// </summary>
-  internal class FloatEncoder : Encoder<float>
+  public class FloatEncoder : Encoder<float>
   {
     private readonly float precision;
     private readonly float invPrecision;
@@ -47,7 +47,7 @@ namespace Railgun
     /// Initializes a float serializer. We use shorts to retrieve the min and
     /// max values in order to avoid overflow errors during conversion.
     /// </summary>
-    internal FloatEncoder(float minValue, float maxValue, float precision)
+    public FloatEncoder(float minValue, float maxValue, float precision)
     {
       this.minValue = minValue;
       this.maxValue = maxValue;

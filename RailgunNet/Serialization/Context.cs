@@ -5,18 +5,18 @@ using System.Text;
 
 namespace Railgun
 {
-  internal class PoolContext
+  internal class Context
   {
-    private Pool<Snapshot> snapshotPool;
-    private Pool<Image> imagePool;
-    private Dictionary<int, Factory> factories;
+    private GenericPool<Snapshot> snapshotPool;
+    private GenericPool<Image> imagePool;
+    private Dictionary<int, StatePool> factories;
 
-    public PoolContext(params Factory[] factories)
+    public Context(params StatePool[] factories)
     {
-      this.snapshotPool = new Pool<Snapshot>();
-      this.imagePool = new Pool<Image>();
-      this.factories = new Dictionary<int, Factory>();
-      foreach (Factory factory in factories)
+      this.snapshotPool = new GenericPool<Snapshot>();
+      this.imagePool = new GenericPool<Image>();
+      this.factories = new Dictionary<int, StatePool>();
+      foreach (StatePool factory in factories)
         this.factories[factory.Type] = factory;
     }
 
