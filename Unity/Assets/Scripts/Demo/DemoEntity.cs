@@ -28,6 +28,6 @@ public class DemoEntity : Entity<DemoState>
 {
   protected override void Update()
   {
-      
+
   }
 }

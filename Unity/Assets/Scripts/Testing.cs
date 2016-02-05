@@ -145,7 +145,7 @@
 
 //  //      Snapshot sending = environment.CreateSnapshot(poolContext);
 //  //      byte[] payload = null;
-        
+
 //  //      // SEND
 //  //      if (lastSent != null)
 //  //      {
@@ -231,7 +231,7 @@
 //  //  int numEntities)
 //  //{
 //  //  Environment environment = new Environment();
-     
+
 //  //  for (int i = 0; i < numEntities; i++)
 //  //    Testing.FakeAddEntity(poolContext, interpreter, environment);
 
