@@ -27,10 +27,7 @@ using UnityEngine;
 
 public class DemoEntity : Entity<DemoState>
 {
-  public DemoEntity()
-  {
-
-  }
+  public DemoEntity() { }
 
   protected override void UpdateHost()
   {
