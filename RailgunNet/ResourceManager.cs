@@ -8,39 +8,39 @@ namespace Railgun
   internal class ResourceManager
   {
     // TODO: Make this thread-safe (like [ThreadStatic])
-    public static ResourceManager Instance { get; private set; }
+    internal static ResourceManager Instance { get; private set; }
 
-    public static void Initialize(params StatePool[] factories)
+    internal static void Initialize(params StatePool[] statePools)
     {
-      ResourceManager.Instance = new ResourceManager(factories);
+      ResourceManager.Instance = new ResourceManager(statePools);
     }
 
     private GenericPool<Snapshot> snapshotPool;
     private GenericPool<Image> imagePool;
-    private Dictionary<int, StatePool> factories;
+    private Dictionary<int, StatePool> statePools;
 
-    private ResourceManager(params StatePool[] factories)
+    private ResourceManager(params StatePool[] statePools)
     {
       this.snapshotPool = new GenericPool<Snapshot>();
       this.imagePool = new GenericPool<Image>();
-      this.factories = new Dictionary<int, StatePool>();
-      foreach (StatePool factory in factories)
-        this.factories[factory.Type] = factory;
+      this.statePools = new Dictionary<int, StatePool>();
+      foreach (StatePool statePool in statePools)
+        this.statePools[statePool.Type] = statePool;
     }
 
-    public Snapshot AllocateSnapshot()
+    internal Snapshot AllocateSnapshot()
     {
       return this.snapshotPool.Allocate();
     }
 
-    public Image AllocateImage()
+    internal Image AllocateImage()
     {
       return this.imagePool.Allocate();
     }
 
     internal State AllocateState(int type)
     {
-      return this.factories[type].Allocate();
+      return this.statePools[type].Allocate();
     }
   }
 }

@@ -50,6 +50,7 @@ namespace Railgun
       this.UserData = null;
       this.Connection = connection;
 
+      // TODO: Pool these byte arrays!
       this.Incoming = new Queue<byte[]>();
       this.Outgoing = new Queue<byte[]>();
 

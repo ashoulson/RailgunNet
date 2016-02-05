@@ -27,12 +27,12 @@ namespace Railgun
   public class Client
   {
     private const int PAYLOAD_CHOKE = 3;
-    private const int BUFFER_SIZE = 60;
+    private const int BUFFER_SIZE = 10;
 
     //public event Action Connected;
     //public event Action Disconnected;
 
-    public Peer Host { get; private set; }
+    public Peer HostPeer { get; private set; }
     private Interpreter interpreter;
     private int lastReceived;
 
@@ -42,10 +42,10 @@ namespace Railgun
     /// </summary>
     internal RingBuffer<Snapshot> Snapshots { get; private set; }
 
-    public Client(Peer host)
+    public Client(Peer hostPeer)
     {
-      this.Host = host;
-      this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE);
+      this.HostPeer = hostPeer;
+      this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE, Host.SEND_RATE);
       this.interpreter = new Interpreter();
       this.lastReceived = Clock.INVALID_TICK;
     }
@@ -53,8 +53,8 @@ namespace Railgun
     internal void Receive()
     {
       for (int i = 0; i < Client.PAYLOAD_CHOKE; i++)
-        if (this.Host.Incoming.Count > 0)
-          this.Process(this.Host.Incoming.Dequeue());
+        if (this.HostPeer.Incoming.Count > 0)
+          this.Process(this.HostPeer.Incoming.Dequeue());
     }
 
     private void Process(byte[] data)

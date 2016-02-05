@@ -26,24 +26,24 @@ namespace Railgun
 {
   internal class Environment : RecordCollection<Entity>
   {
-    public int Frame { get; internal protected set; }
+    public int Tick { get; internal protected set; }
 
     internal Environment()
     {
-      this.Frame = 0;
+      this.Tick = 0;
     }
     
-    internal void Update()
+    internal void UpdateHost()
     {
-      this.Frame++;
+      this.Tick++;
       foreach (Entity entity in this.Entries.Values)
-        entity.Update();
+        entity.UpdateHost();
     }
 
     internal Snapshot Snapshot()
     {
       Snapshot output = ResourceManager.Instance.AllocateSnapshot();
-      output.Tick = this.Frame;
+      output.Tick = this.Tick;
       foreach (Entity entity in this.Entries.Values)
         output.Add(entity.CreateImage());
       return output;

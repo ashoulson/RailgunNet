@@ -28,10 +28,11 @@ namespace Railgun
   /// Host is the core executing class on the server. It is responsible for
   /// managing connection contexts and payload I/O.
   /// </summary>
-  public abstract class Host
+  public class Host
   {
+    internal const int SEND_RATE = 2;
     private const int PAYLOAD_CHOKE = 3;
-    private const int BUFFER_SIZE = 60;
+    private const int BUFFER_SIZE = 10;
 
     public event Action<ClientPeer> PeerAdded;
     //public event Action<ClientPeer> PeerRemoved;
@@ -47,13 +48,15 @@ namespace Railgun
     /// </summary>
     internal RingBuffer<Snapshot> Snapshots { get; private set; }
 
-    public Host()
+    public Host(params StatePool[] statePools)
     {
+      ResourceManager.Initialize(statePools);
+
       this.nextEntityId = 1;
       this.environment = new Environment();
       this.interpreter = new Interpreter();
       this.connectionToPeer = new Dictionary<IConnection, ClientPeer>();
-      this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE);
+      this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE, Host.SEND_RATE);
     }
 
     /// <summary>
@@ -77,8 +80,28 @@ namespace Railgun
       Entity entity = state.CreateEntity();
       entity.Id = this.nextEntityId++;
       entity.State = state;
+
       this.environment.Add(entity);
+      entity.OnAddedToEnvironment();
       return entity;
+    }
+
+    /// <summary>
+    /// Updates all entites and dispatches a snapshot if applicable.
+    /// </summary>
+    public void Update()
+    {
+      this.ReceiveAll();
+      this.environment.UpdateHost();
+
+      if (this.ShouldSend(this.environment.Tick))
+      {
+        Snapshot snapshot = this.environment.Snapshot();
+        this.Snapshots.Store(snapshot);
+        this.Broadcast(snapshot);
+
+        this.TransmitAll();
+      }
     }
 
     /// <summary>
@@ -128,6 +151,11 @@ namespace Railgun
         if (this.Snapshots.TryGet(peer.LastAcked, out basis))
           return this.interpreter.Encode(snapshot, basis);
       return this.interpreter.Encode(snapshot);
+    }
+
+    private bool ShouldSend(int tick)
+    {
+      return (tick % Host.SEND_RATE) == 0;
     }
   }
 }

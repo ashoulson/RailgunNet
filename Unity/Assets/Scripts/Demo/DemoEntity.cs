@@ -23,11 +23,25 @@ using System.Collections;
 using System.Collections.Generic;
 
 using Railgun;
+using UnityEngine;
 
 public class DemoEntity : Entity<DemoState>
 {
-  protected override void Update()
+  public DemoEntity()
   {
 
+  }
+
+  protected override void UpdateHost()
+  {
+    DemoState state = this.State;
+    state.X += 1.0f * Time.fixedDeltaTime;
+  }
+
+  protected override void OnAddedToEnvironment()
+  {
+    DemoState state = this.State;
+    GameObject go = ArchetypeLibrary.Instance.Instantiate(state.ArchetypeId);
+    go.GetComponent<DemoObject>().Entity = this;
   }
 }

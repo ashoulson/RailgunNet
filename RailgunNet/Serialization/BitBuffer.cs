@@ -237,6 +237,7 @@ namespace Railgun
       int numChunks = (lastWritten / BitBuffer.SIZE_STORAGE) + 1;
       int numBytes = (lastWritten / BitBuffer.SIZE_BYTE) + 1;
 
+      // TODO: Pool these byte arrays!
       byte[] data = new byte[numBytes];
       for (int i = 0; i < numChunks; i++)
       {
