@@ -27,10 +27,16 @@ namespace Railgun
   public class RingBuffer<T>
     where T : class, IRingValue, IPoolable
   {
+    // Used for converting a key to an index. For example, the host may only
+    // send a snapshot every two tick, so we would divide the tick number
+    // key by 2 so as to avoid wasting space in the frame buffer
+    private int divisor;
+
     private T[] data;
 
-    public RingBuffer(int capacity)
+    public RingBuffer(int capacity, int divisor = 1)
     {
+      this.divisor = divisor;
       this.data = new T[capacity];
       for (int i = 0; i < capacity; i++)
         this.data[i] = null;
@@ -38,7 +44,7 @@ namespace Railgun
 
     public void Store(T value)
     {
-      int index = value.Key % this.data.Length;
+      int index = this.KeyToIndex(value.Key);
       if (this.data[index] != null)
         Pool.Free(this.data[index]);
       this.data[index] = value;
@@ -46,7 +52,7 @@ namespace Railgun
 
     public T Get(int key)
     {
-      T result = this.data[key % this.data.Length];
+      T result = this.data[this.KeyToIndex(key)];
       if ((result != null) && (result.Key == key))
         return result;
       return null;
@@ -54,7 +60,7 @@ namespace Railgun
 
     public bool Contains(int key)
     {
-      T result = this.data[key % this.data.Length];
+      T result = this.data[this.KeyToIndex(key)];
       if ((result != null) && (result.Key == key))
         return true;
       return false;
@@ -64,6 +70,11 @@ namespace Railgun
     {
       value = this.Get(key);
       return (value != null);
+    }
+
+    private int KeyToIndex(int key)
+    {
+      return (key / this.divisor) % this.data.Length;
     }
   }
 }

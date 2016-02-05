@@ -28,7 +28,8 @@ namespace Railgun
   {
     public bool IsMaster { get; internal set; }
 
-    protected internal abstract void Update();
+    protected internal virtual void UpdateHost() { }
+    protected internal virtual void OnAddedToEnvironment() { }
 
     internal Image CreateImage()
     {
