@@ -58,24 +58,24 @@ namespace Railgun
     /// <summary>
     /// The number of bits currently stored in the buffer.
     /// </summary>
-    public int BitsUsed { get { return this.position; } }
+    internal int BitsUsed { get { return this.position; } }
 
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
-    public BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
+    internal BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
     {
       this.chunks = new uint[capacity];
       this.Clear();
     }
 
-    public BitBuffer(byte[] data)
+    internal BitBuffer(byte[] data)
     {
       this.chunks = new uint[(data.Length / BitBuffer.BYTES_PER_CHUNK) + 1];
       this.ReadBytes(data);
     }
 
-    public void Clear()
+    internal void Clear()
     {
       for (int i = 0; i < this.chunks.Length; i++)
         this.chunks[i] = 0;
@@ -218,7 +218,7 @@ namespace Railgun
     /// <summary>
     /// Peeks at a value and decodes it.
     /// </summary>
-    internal T Peek<T>(Encoder<T> encoder)
+    public T Peek<T>(Encoder<T> encoder)
     {
       uint data = this.Peek(encoder.RequiredBits);
       return encoder.Unpack(data);
@@ -341,6 +341,98 @@ namespace Railgun
         return this.Pop(encoder);
       return basisVal;
     }
+    #endregion
+
+    #region Debug
+#if DEBUG
+    public static void Test(int maxValues, int iterations)
+    {
+      byte[] testBytes = new byte[8];
+      uint testVal = 0xB99296AD;
+      BitBuffer.StoreValue(testBytes, 4, 3, testVal);
+      uint readVal = BitBuffer.ReadValue(testBytes, 4, 3);
+      RailgunUtil.Assert(readVal == 0x9296AD);
+
+      BitBuffer testByteArray = new BitBuffer();
+      testByteArray.Push(32, 0xFFFFFFFF);
+      testByteArray.Push(8, 0xFF81);
+      byte[] bytes = testByteArray.StoreBytes();
+      BitBuffer testReceive = new BitBuffer(bytes);
+      uint value1 = testReceive.Pop(8);
+      uint value2 = testReceive.Pop(32);
+      RailgunUtil.Assert(testReceive.BitsUsed == 0);
+      RailgunUtil.Assert(value1 == 0x81);
+      RailgunUtil.Assert(value2 == 0xFFFFFFFF);
+
+      BitBuffer buffer = new BitBuffer(1);
+      Stack<uint> values = new Stack<uint>(maxValues);
+      Stack<int> bits = new Stack<int>(maxValues);
+
+      bool push = true;
+      for (int i = 0; i < iterations; i++)
+      {
+        if (values.Count <= 0)
+        {
+          push = true; // Must push
+        }
+        else if (values.Count >= maxValues)
+        {
+          push = false; // Must pop
+        }
+        else
+        {
+          float probability = UnityEngine.Random.Range(0.0f, 1.0f);
+          if (probability > 0.95f)
+          {
+            buffer.Clear();
+            values.Clear();
+            bits.Clear();
+            continue;
+          }
+          else if (probability > 0.4f)
+          {
+            push = true;
+          }
+          else
+          {
+            push = false;
+          }
+        }
+
+        if (values.Count > 0)
+          RailgunUtil.Assert(buffer.Peek(bits.Peek()) == values.Peek());
+
+        if (push)
+        {
+          uint randVal = 0;
+          unchecked
+          {
+            uint randNum =
+              (uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            randVal = randNum;
+          }
+          int randBits = UnityEngine.Random.Range(0, 32);
+          uint trimmedVal = randVal & (uint)((1 << randBits) - 1);
+
+          values.Push(trimmedVal);
+          bits.Push(randBits);
+          buffer.Push(randBits, trimmedVal);
+        }
+        else
+        {
+          uint expectedVal = values.Pop();
+          int expectedBits = bits.Pop();
+          uint retrievedVal = buffer.Pop(expectedBits);
+
+          RailgunUtil.Assert(expectedVal == retrievedVal,
+            "Expected: " +
+            expectedVal +
+            " Got: " +
+            retrievedVal);
+        }
+      }
+    }
+#endif
     #endregion
   }
 }

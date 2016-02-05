@@ -35,7 +35,6 @@ namespace Railgun
     public Peer Host { get; private set; }
     private Interpreter interpreter;
     private int lastReceived;
-    private Context context;
 
     /// <summary>
     /// A complete snapshot history of all received snapshots. 
@@ -46,10 +45,9 @@ namespace Railgun
     public Client(Peer host)
     {
       this.Host = host;
-      this.context = new Context();
       this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE);
-      this.interpreter = new Interpreter(this.context);
-      this.lastReceived = Clock.INVALID_FRAME;
+      this.interpreter = new Interpreter();
+      this.lastReceived = Clock.INVALID_TICK;
     }
 
     internal void Receive()
@@ -63,8 +61,8 @@ namespace Railgun
     {
       Snapshot snapshot = this.interpreter.Decode(data, this.Snapshots);
       this.Snapshots.Store(snapshot);
-      if (snapshot.Frame > this.lastReceived)
-        this.lastReceived = snapshot.Frame;
+      if (snapshot.Tick > this.lastReceived)
+        this.lastReceived = snapshot.Tick;
     }
   }
 }

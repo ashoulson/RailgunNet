@@ -36,9 +36,10 @@ namespace Railgun
     public event Action<ClientPeer> PeerAdded;
     //public event Action<ClientPeer> PeerRemoved;
 
-    private Context context;
+    private Environment environment;
     private Interpreter interpreter;
     private Dictionary<IConnection, ClientPeer> connectionToPeer;
+    private int nextEntityId;
 
     /// <summary>
     /// A complete snapshot history of all sent snapshots. Individual
@@ -48,8 +49,9 @@ namespace Railgun
 
     public Host()
     {
-      this.context = new Context();
-      this.interpreter = new Interpreter(context);
+      this.nextEntityId = 1;
+      this.environment = new Environment();
+      this.interpreter = new Interpreter();
       this.connectionToPeer = new Dictionary<IConnection, ClientPeer>();
       this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE);
     }
@@ -64,6 +66,19 @@ namespace Railgun
 
       if (this.PeerAdded != null)
         this.PeerAdded.Invoke(peer);
+    }
+
+    /// <summary>
+    /// Creates an entity and adds it to the environment.
+    /// </summary>
+    public Entity CreateEntity(int type)
+    {
+      State state = ResourceManager.Instance.AllocateState(type);
+      Entity entity = state.CreateEntity();
+      entity.Id = this.nextEntityId++;
+      entity.State = state;
+      this.environment.Add(entity);
+      return entity;
     }
 
     /// <summary>
@@ -109,7 +124,7 @@ namespace Railgun
     private byte[] PreparePayload(ClientPeer peer, Snapshot snapshot)
     {
       Snapshot basis;
-      if (peer.LastAcked != Clock.INVALID_FRAME)
+      if (peer.LastAcked != Clock.INVALID_TICK)
         if (this.Snapshots.TryGet(peer.LastAcked, out basis))
           return this.interpreter.Encode(snapshot, basis);
       return this.interpreter.Encode(snapshot);

@@ -42,11 +42,11 @@ namespace Railgun
     /// <summary>
     /// Deep-copies this Image, allocating from the pool in the process.
     /// </summary>
-    internal Image Clone(Context context)
+    internal Image Clone()
     {
-      Image clone = context.AllocateImage();
+      Image clone = ResourceManager.Instance.AllocateImage();
       clone.Id = this.Id;
-      clone.State = this.State.Clone(context);
+      clone.State = this.State.Clone();
       return clone;
     }
 
@@ -54,11 +54,11 @@ namespace Railgun
     /// Creates an entity out of this image. The entity type instantiation
     /// is handled by the State itself.
     /// </summary>
-    internal Entity CreateEntity(Context context)
+    internal Entity CreateEntity()
     {
       Entity entity = this.State.CreateEntity();
       entity.Id = this.Id;
-      entity.State = this.State.Clone(context);
+      entity.State = this.State.Clone();
       return entity;
     }
 

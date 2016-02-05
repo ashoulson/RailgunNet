@@ -30,11 +30,11 @@ namespace Railgun
 
     protected internal abstract void Update();
 
-    internal Image CreateImage(Context context)
+    internal Image CreateImage()
     {
-      Image image = context.AllocateImage();
+      Image image = ResourceManager.Instance.AllocateImage();
       image.Id = this.Id;
-      image.State = this.State.Clone(context);
+      image.State = this.State.Clone();
       return image;
     }
   }

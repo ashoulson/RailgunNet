@@ -28,26 +28,24 @@ namespace Railgun
   {
     public int Frame { get; internal protected set; }
 
-    private Context context;
-
-    internal Environment(Context context)
+    internal Environment()
     {
-      this.Frame = Clock.INVALID_FRAME;
-      this.context = context;
+      this.Frame = 0;
     }
     
-    public void Update()
+    internal void Update()
     {
+      this.Frame++;
       foreach (Entity entity in this.Entries.Values)
         entity.Update();
     }
 
-    internal Snapshot CreateSnapshot()
+    internal Snapshot Snapshot()
     {
-      Snapshot output = this.context.AllocateSnapshot();
-      output.Frame = this.Frame;
+      Snapshot output = ResourceManager.Instance.AllocateSnapshot();
+      output.Tick = this.Frame;
       foreach (Entity entity in this.Entries.Values)
-        output.Add(entity.CreateImage(this.context));
+        output.Add(entity.CreateImage());
       return output;
     }
   }
