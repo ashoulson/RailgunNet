@@ -53,6 +53,13 @@ namespace Railgun
       return a;
     }
 
+    internal static float Abs(float a)
+    {
+      if (a < 0)
+        return -a;
+      return a;
+    }
+
     internal static float Clamp(float val, float min, float max)
     {
       return Mathf.Clamp(val, min, max);

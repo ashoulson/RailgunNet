@@ -33,9 +33,9 @@ namespace Railgun
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
 
-    internal State Clone(Context context)
+    internal State Clone()
     {
-      State clone = context.AllocateState(this.Type);
+      State clone = ResourceManager.Instance.AllocateState(this.Type);
       clone.SetFrom(this);
       return clone;
     }

@@ -32,7 +32,7 @@ namespace Railgun
 
     internal static IntEncoder StateType = null;
 
-    internal static IntEncoder Frame = null;
+    internal static IntEncoder Tick = null;
 
     internal static IntEncoder Bit = null;
 
@@ -44,7 +44,7 @@ namespace Railgun
 
       Encoders.StateType = new IntEncoder(0, 31);
 
-      Encoders.Frame = new IntEncoder(-1, 4194301);
+      Encoders.Tick = new IntEncoder(-1, 4194301);
 
       Encoders.Bit = new IntEncoder(0, 1);
     }

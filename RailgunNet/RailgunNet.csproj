@@ -47,7 +47,7 @@
     <Compile Include="Connection\IConnection.cs" />
     <Compile Include="Connection\Host.cs" />
     <Compile Include="Connection\Peer\Peer.cs" />
-    <Compile Include="Serialization\Context.cs" />
+    <Compile Include="ResourceManager.cs" />
     <Compile Include="Util\Pooling\Factory\GenericPool.cs" />
     <Compile Include="Util\Pooling\Factory\StatePool.cs" />
     <Compile Include="Util\RingBuffer\IRingValue.cs" />

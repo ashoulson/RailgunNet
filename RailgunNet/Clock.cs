@@ -25,19 +25,74 @@ using System.Collections.Generic;
 namespace Railgun
 {
   /// <summary>
-  /// Used for keeping track of the server frame on the client.
-  /// 
-  /// Host doesn't need one of these -- Host just always keeps track of
-  /// the latest input and makes it available.
+  /// Used for keeping track of the remote peer's clock.
   /// </summary>
   internal class Clock
   {
-    public const int INVALID_FRAME = -1;
+    public const int INVALID_TICK = -1;
+    private int remoteRate;
+    private int tick;
+
+    internal Clock(int remoteSendRate)
+    {
+      this.remoteRate = remoteSendRate;
+      this.tick = 0;
+    }
 
     // TODO: See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
-    public void Tick(int latestFrame)
+    public void Tick(int latestTick, bool bufferActive)
     {
+      if (latestTick != Clock.INVALID_TICK)
+      {
+        this.tick += 1;
 
+        if (bufferActive == true)
+        {
+          // We want to stay (remoteRate * 2) behind the last received tick
+          // At 50Hz tick with 25Hz send, this is a delay of roughly 80ms
+          int diff = latestTick - this.tick;
+
+          if (diff >= (this.remoteRate * 3))
+          {
+            // If we are 3 or more packets behind, increment our local tick
+            // at most (remoteRate * 2) extra ticks
+            int incr = 
+              Math.Min(diff - (this.remoteRate * 2), (this.remoteRate * 2));
+            RailgunUtil.Log("Clock: T+" + incr + " (Behind) @ T" + this.tick);
+
+            this.tick += incr;
+          }
+          else if ((diff >= 0) && (diff < this.remoteRate))
+          {
+            // If we have drifted slightly closer to being ahead
+            // Stall one tick by decrementing the tick counter
+            RailgunUtil.Log("Clock: T-1 @ (Stall) T" + this.tick);
+
+            this.tick -= 1;
+          }
+          else if (diff < 0)
+          {
+            // If we are ahead of the remote tick, we need to step back
+            if (Math.Abs(diff) <= (this.remoteRate * 2))
+            {
+              // Slightly ahead (<= 2 packets) -- step one packet closer
+              RailgunUtil.Log(
+                "Clock: T-" + this.remoteRate + " (Ahead) @ T" + this.tick);
+
+              this.tick -= this.remoteRate;
+            }
+            else
+            {
+              // We're way off, just reset entirely and start over
+              int newTick = latestTick - (this.remoteRate * 2);
+              RailgunUtil.Log(
+                "Clock: T=" + latestTick + " (Reset) @ T" + this.tick);
+
+              this.tick = latestTick;
+            }
+          }
+        }
+      }
     }
   }
 }

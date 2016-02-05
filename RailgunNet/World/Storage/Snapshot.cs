@@ -32,24 +32,24 @@ namespace Railgun
   {
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
-    int IRingValue.Key { get { return this.Frame; } }
+    int IRingValue.Key { get { return this.Tick; } }
 
-    public int Frame { get; internal protected set; }
+    public int Tick { get; internal protected set; }
 
     public Snapshot()
     {
-      this.Frame = Clock.INVALID_FRAME;
+      this.Tick = Clock.INVALID_TICK;
     }
 
     /// <summary>
     /// Deep-copies this Snapshot, allocating from the pool in the process.
     /// </summary>
-    internal Snapshot Clone(Context context)
+    internal Snapshot Clone()
     {
-      Snapshot clone = context.AllocateSnapshot();
-      clone.Frame = this.Frame;
+      Snapshot clone = ResourceManager.Instance.AllocateSnapshot();
+      clone.Tick = this.Tick;
       foreach (Image image in this.Entries.Values)
-        clone.Add(image.Clone(context));
+        clone.Add(image.Clone());
       return clone;
     }
 

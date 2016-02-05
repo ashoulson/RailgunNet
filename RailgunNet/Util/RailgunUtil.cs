@@ -60,6 +60,11 @@ namespace Railgun
       if (condition == false)
         UnityEngine.Debug.LogError(message + "\n" + t);
     }
+
+    public static void Log(object message)
+    {
+      UnityEngine.Debug.Log(message);
+    }
     #endregion
   }
 }

@@ -28,10 +28,10 @@ namespace Railgun
   /// Responsible for encoding and decoding snapshots.
   /// 
   /// HostPacket encoding order:
-  /// | BASIS FRAME | ----- SNAPSHOT DATA ----- |
+  /// | BASIS TICK | ----- SNAPSHOT DATA ----- |
   /// 
   /// Snapshot encoding order:
-  /// | FRAME | IMAGE COUNT | ----- IMAGE ----- | ----- IMAGE ----- | ...
+  /// | TICK | IMAGE COUNT | ----- IMAGE ----- | ----- IMAGE ----- | ...
   /// 
   /// Image encoding order:
   /// If new: | ID | TYPE | ----- STATE DATA ----- |
@@ -42,11 +42,9 @@ namespace Railgun
   {
     private BitBuffer bitBuffer;
     private List<Image> newImages;
-    private Context context;
 
-    internal Interpreter(Context context)
+    internal Interpreter()
     {
-      this.context = context;
       this.bitBuffer = new BitBuffer();
       this.newImages = new List<Image>();
     }
@@ -59,8 +57,8 @@ namespace Railgun
       // Write: [Snapshot Data]
       this.EncodeSnapshot(snapshot);
 
-      // Write: [Basis Frame]
-      this.bitBuffer.Push(Encoders.Frame, Clock.INVALID_FRAME);
+      // Write: [Basis Tick]
+      this.bitBuffer.Push(Encoders.Tick, Clock.INVALID_TICK);
 
       return this.bitBuffer.StoreBytes();
     }
@@ -74,8 +72,8 @@ namespace Railgun
       // Write: [Snapshot Data]
       this.EncodeSnapshot(snapshot, basis);
 
-      // Write: [Basis Frame]
-      this.bitBuffer.Push(Encoders.Frame, basis.Frame);
+      // Write: [Basis Tick]
+      this.bitBuffer.Push(Encoders.Tick, basis.Tick);
 
       return this.bitBuffer.StoreBytes();
     }
@@ -86,13 +84,13 @@ namespace Railgun
     {
       this.bitBuffer.ReadBytes(data);
 
-      // Read: [Basis Frame]
-      int basisFrame = bitBuffer.Pop(Encoders.Frame);
+      // Read: [Basis Tick]
+      int basisTick = bitBuffer.Pop(Encoders.Tick);
 
       // Read: [Snapshot]
       Snapshot result;
-      if (basisFrame != Clock.INVALID_FRAME)
-        result = this.DecodeSnapshot(basisBuffer.Get(basisFrame));
+      if (basisTick != Clock.INVALID_TICK)
+        result = this.DecodeSnapshot(basisBuffer.Get(basisTick));
       else
         result = this.DecodeSnapshot();
 
@@ -116,8 +114,8 @@ namespace Railgun
       // Write: [Count]
       this.bitBuffer.Push(Encoders.EntityCount, snapshot.Count);
 
-      // Write: [Frame]
-      this.bitBuffer.Push(Encoders.Frame, snapshot.Frame);
+      // Write: [Tick]
+      this.bitBuffer.Push(Encoders.Tick, snapshot.Tick);
     }
 
     private void EncodeSnapshot(
@@ -150,22 +148,22 @@ namespace Railgun
       // Write: [Count]
       this.bitBuffer.Push(Encoders.EntityCount, count);
 
-      // Write: [Frame]
-      this.bitBuffer.Push(Encoders.Frame, snapshot.Frame);
+      // Write: [Tick]
+      this.bitBuffer.Push(Encoders.Tick, snapshot.Tick);
     }
 
     private Snapshot DecodeSnapshot()
     {
       this.newImages.Clear();
 
-      // Read: [Frame]
-      int frame = this.bitBuffer.Pop(Encoders.Frame);
+      // Read: [Tick]
+      int tick = this.bitBuffer.Pop(Encoders.Tick);
 
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = this.context.AllocateSnapshot();
-      snapshot.Frame = frame;
+      Snapshot snapshot = ResourceManager.Instance.AllocateSnapshot();
+      snapshot.Tick = tick;
 
       for (int i = 0; i < count; i++)
       {
@@ -184,14 +182,14 @@ namespace Railgun
     {
       this.newImages.Clear();
 
-      // Read: [Frame]
-      int frame = this.bitBuffer.Pop(Encoders.Frame);
+      // Read: [Tick]
+      int tick = this.bitBuffer.Pop(Encoders.Tick);
 
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = this.context.AllocateSnapshot();
-      snapshot.Frame = frame;
+      Snapshot snapshot = ResourceManager.Instance.AllocateSnapshot();
+      snapshot.Tick = tick;
 
       for (int i = 0; i < count; i++)
       {
@@ -238,8 +236,8 @@ namespace Railgun
       // Read: [Type]
       int stateType = this.bitBuffer.Pop(Encoders.StateType);
 
-      Image image = this.context.AllocateImage();
-      State state = this.context.AllocateState(stateType);
+      Image image = ResourceManager.Instance.AllocateImage();
+      State state = ResourceManager.Instance.AllocateState(stateType);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer);
@@ -257,8 +255,8 @@ namespace Railgun
     {
       // (No type identifier for delta images)
 
-      Image image = this.context.AllocateImage();
-      State state = this.context.AllocateState(basis.State.Type);
+      Image image = ResourceManager.Instance.AllocateImage();
+      State state = ResourceManager.Instance.AllocateState(basis.State.Type);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer, basis.State);
@@ -287,7 +285,7 @@ namespace Railgun
     {
       foreach (Image basisImage in basis.GetValues())
         if (snapshot.Contains(basisImage.Id) == false)
-          snapshot.Add(basisImage.Clone(this.context));
+          snapshot.Add(basisImage.Clone());
     }
     #endregion
   }

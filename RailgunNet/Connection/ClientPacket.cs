@@ -26,6 +26,6 @@ namespace Railgun
 {
   public class ClientPacket
   {
-    int LatestFrame { get; set; }
+    int LatestTick { get; set; }
   }
 }
