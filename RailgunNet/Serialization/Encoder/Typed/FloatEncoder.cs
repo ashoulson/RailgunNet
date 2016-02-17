@@ -22,6 +22,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+using UnityEngine;
+
 namespace Railgun
 {
   /// <summary>
@@ -60,7 +63,7 @@ namespace Railgun
 
     internal override uint Pack(float value)
     {
-      value = RailgunMath.Clamp(value, this.minValue, this.maxValue);
+      value = Mathf.Clamp(value, this.minValue, this.maxValue);
       float adjusted = (value - this.minValue) * this.invPrecision;
       return (uint)(adjusted + 0.5f) & this.mask;
     }
@@ -68,7 +71,7 @@ namespace Railgun
     internal override float Unpack(uint data)
     {
       float adjusted = ((float)data * this.precision) + this.minValue;
-      return RailgunMath.Clamp(adjusted, this.minValue, this.maxValue);
+      return Mathf.Clamp(adjusted, this.minValue, this.maxValue);
     }
 
     private int ComputeRequiredBits()
@@ -89,7 +92,7 @@ namespace Railgun
         float precision = UnityEngine.Random.Range(0.0001f, 1.0f);
 
         if (a < b)
-          RailgunUtil.Swap(ref a, ref b);
+          CommonUtil.Swap(ref a, ref b);
         FloatEncoder serializer = new FloatEncoder(a, b, precision);
 
         for (int j = 0; j < innerIter; j++)
@@ -98,12 +101,12 @@ namespace Railgun
           uint packed = serializer.Pack(random);
           float unpacked = serializer.Unpack(packed);
 
-          RailgunUtil.Assert(RailgunMath.Abs(random - unpacked) > precision,
+          Debug.Assert(Mathf.Abs(random - unpacked) > precision,
             random +
             " " +
             unpacked +
             " " +
-            RailgunMath.Abs(random - unpacked));
+            Mathf.Abs(random - unpacked));
         }
       }
     }

@@ -22,6 +22,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+using UnityEngine;
+
 namespace Railgun
 {
   public class BitBuffer
@@ -97,7 +100,7 @@ namespace Railgun
 
         // Increase our capacity if needed
         if (index >= this.chunks.Length)
-          RailgunUtil.ExpandArray(ref this.chunks);
+          CommonUtil.ExpandArray(ref this.chunks);
 
         // Create and apply the mask
         ulong mask = (1UL << numBits) - 1;
@@ -352,7 +355,7 @@ namespace Railgun
       uint testVal = 0xB99296AD;
       BitBuffer.StoreValue(testBytes, 4, 3, testVal);
       uint readVal = BitBuffer.ReadValue(testBytes, 4, 3);
-      RailgunUtil.Assert(readVal == 0x9296AD);
+      Debug.Assert(readVal == 0x9296AD);
 
       BitBuffer testByteArray = new BitBuffer();
       testByteArray.Push(32, 0xFFFFFFFF);
@@ -361,9 +364,9 @@ namespace Railgun
       BitBuffer testReceive = new BitBuffer(bytes);
       uint value1 = testReceive.Pop(8);
       uint value2 = testReceive.Pop(32);
-      RailgunUtil.Assert(testReceive.BitsUsed == 0);
-      RailgunUtil.Assert(value1 == 0x81);
-      RailgunUtil.Assert(value2 == 0xFFFFFFFF);
+      Debug.Assert(testReceive.BitsUsed == 0);
+      Debug.Assert(value1 == 0x81);
+      Debug.Assert(value2 == 0xFFFFFFFF);
 
       BitBuffer buffer = new BitBuffer(1);
       Stack<uint> values = new Stack<uint>(maxValues);
@@ -401,7 +404,7 @@ namespace Railgun
         }
 
         if (values.Count > 0)
-          RailgunUtil.Assert(buffer.Peek(bits.Peek()) == values.Peek());
+          Debug.Assert(buffer.Peek(bits.Peek()) == values.Peek());
 
         if (push)
         {
@@ -425,7 +428,7 @@ namespace Railgun
           int expectedBits = bits.Pop();
           uint retrievedVal = buffer.Pop(expectedBits);
 
-          RailgunUtil.Assert(expectedVal == retrievedVal,
+          Debug.Assert(expectedVal == retrievedVal,
             "Expected: " +
             expectedVal +
             " Got: " +

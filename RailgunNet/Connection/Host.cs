@@ -22,6 +22,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
   /// <summary>
@@ -72,22 +74,36 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Creates an entity and adds it to the environment.
+    /// Creates an entity of a given type. Note that this function does NOT
+    /// add the entity to the environment. You should configure the entity
+    /// and then call AddEntity().
     /// </summary>
-    public Entity CreateEntity(int type)
+    public T CreateEntity<T>(int type)
+      where T : Entity
     {
       State state = ResourceManager.Instance.AllocateState(type);
       Entity entity = state.CreateEntity();
+
+      entity.IsMaster = true;
       entity.Id = this.nextEntityId++;
       entity.State = state;
 
-      this.environment.Add(entity);
-      entity.OnAddedToEnvironment();
-      return entity;
+      return (T)entity;
     }
 
     /// <summary>
-    /// Updates all entites and dispatches a snapshot if applicable.
+    /// Adds an entity to the host's environment. This entity will be
+    /// replicated over the network to all client peers.
+    /// </summary>
+    public void AddEntity(Entity entity)
+    {
+      this.environment.Add(entity);
+    }
+
+    /// <summary>
+    /// Updates all entites and dispatches a snapshot if applicable. Should
+    /// be called once per game simulation tick (e.g. during Unity's 
+    /// FixedUpdate pass).
     /// </summary>
     public void Update()
     {
