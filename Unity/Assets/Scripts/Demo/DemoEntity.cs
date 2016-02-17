@@ -27,18 +27,53 @@ using UnityEngine;
 
 public class DemoEntity : Entity<DemoState>
 {
+  private DemoObject demoObject = null;
+
   public DemoEntity() { }
 
-  protected override void UpdateHost()
+  internal void InitializeHost(int archetypeId)
   {
-    DemoState state = this.State;
-    state.X += 1.0f * Time.fixedDeltaTime;
+    this.State.ArchetypeId = archetypeId;
+  }
+
+  protected override void OnUpdateHost()
+  {
+    this.UpdatePosition();
+    this.ApplyPosition();
   }
 
   protected override void OnAddedToEnvironment()
   {
-    DemoState state = this.State;
-    GameObject go = ArchetypeLibrary.Instance.Instantiate(state.ArchetypeId);
-    go.GetComponent<DemoObject>().Entity = this;
+    GameObject go = 
+      ArchetypeLibrary.Instance.Instantiate(
+        this.State.ArchetypeId);
+
+    this.demoObject = go.GetComponent<DemoObject>();
+    this.demoObject.Entity = this;
+
+    this.InitializeObject();
+  }
+
+  private void InitializeObject()
+  {
+    if (this.IsMaster)
+    {
+      Renderer renderer = this.demoObject.GetComponent<Renderer>();
+      renderer.material = new Material(renderer.material);
+      renderer.material.color = Color.red;
+    }
+  }
+
+  private void UpdatePosition()
+  {
+    this.State.X += 1.0f * Time.fixedDeltaTime;
+  }
+
+  private void ApplyPosition()
+  {
+    this.demoObject.transform.position = 
+      new Vector2(
+        this.State.X, 
+        this.State.Y);
   }
 }

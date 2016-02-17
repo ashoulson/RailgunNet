@@ -36,12 +36,12 @@ namespace Railgun
       this.Entries = new Dictionary<int, T>();
     }
 
-    public void Add(T image)
+    internal virtual void Add(T image)
     {
       this.Entries.Add(image.Id, image);
     }
 
-    protected void Remove(T image)
+    internal virtual void Remove(T image)
     {
       this.Entries.Remove(image.Id);
     }

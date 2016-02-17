@@ -22,6 +22,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+using UnityEngine;
+
 namespace Railgun
 {
   /// <summary>
@@ -58,7 +61,7 @@ namespace Railgun
             // at most (remoteRate * 2) extra ticks
             int incr = 
               Math.Min(diff - (this.remoteRate * 2), (this.remoteRate * 2));
-            RailgunUtil.Log("Clock: T+" + incr + " (Behind) @ T" + this.tick);
+            Debug.Log("Clock: T+" + incr + " (Behind) @ T" + this.tick);
 
             this.tick += incr;
           }
@@ -66,7 +69,7 @@ namespace Railgun
           {
             // If we have drifted slightly closer to being ahead
             // Stall one tick by decrementing the tick counter
-            RailgunUtil.Log("Clock: T-1 @ (Stall) T" + this.tick);
+            Debug.Log("Clock: T-1 @ (Stall) T" + this.tick);
 
             this.tick -= 1;
           }
@@ -76,7 +79,7 @@ namespace Railgun
             if (Math.Abs(diff) <= (this.remoteRate * 2))
             {
               // Slightly ahead (<= 2 packets) -- step one packet closer
-              RailgunUtil.Log(
+              Debug.Log(
                 "Clock: T-" + this.remoteRate + " (Ahead) @ T" + this.tick);
 
               this.tick -= this.remoteRate;
@@ -85,7 +88,7 @@ namespace Railgun
             {
               // We're way off, just reset entirely and start over
               int newTick = latestTick - (this.remoteRate * 2);
-              RailgunUtil.Log(
+              Debug.Log(
                 "Clock: T=" + latestTick + " (Reset) @ T" + this.tick);
 
               this.tick = latestTick;

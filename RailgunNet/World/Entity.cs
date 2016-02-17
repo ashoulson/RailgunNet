@@ -26,9 +26,10 @@ namespace Railgun
 {
   public abstract class Entity : Record
   {
-    public bool IsMaster { get; internal set; }
+    protected internal bool IsMaster { get; internal set; }
+    protected internal Environment Environment { get; internal set; }
 
-    protected internal virtual void UpdateHost() { }
+    protected internal virtual void OnUpdateHost() { }
     protected internal virtual void OnAddedToEnvironment() { }
 
     internal Image CreateImage()
@@ -46,18 +47,18 @@ namespace Railgun
   public abstract class Entity<T> : Entity
     where T : State
   {
-    private T state = null;
+    private T typedState = null;
     public new T State 
     { 
       get 
       { 
-        if (this.state == null)
-          this.state = (T)base.State;
+        if (this.typedState == null)
+          this.typedState = (T)base.State;
         return (T)base.State; 
       }
       set
       {
-        this.state = null;
+        this.typedState = null;
         base.State = value;
       }
     }

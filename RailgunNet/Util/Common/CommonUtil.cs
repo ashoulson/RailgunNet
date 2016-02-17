@@ -1,5 +1,5 @@
 ﻿/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Common Utilities for Working with C# and Unity
  *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
@@ -22,19 +22,26 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Railgun
-{
-  public class GenericPool<T> : Pool<T>
-    where T : IPoolable, new()
-  {
-    public T Allocate()
-    {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
+using UnityEngine;
 
-      T value = new T();
-      value.Pool = this;
-      return value;
+namespace CommonTools
+{
+  public static class CommonUtil
+  {
+    public static void Swap<T>(ref T a, ref T b)
+    {
+      T temp = b;
+      b = a;
+      a = temp;
+    }
+
+    internal static void ExpandArray<T>(ref T[] oldArray)
+    {
+      // TODO: Revisit this using next-largest primes like built-in lists do
+      int newCapacity = oldArray.Length * 2;
+      T[] newArray = new T[newCapacity];
+      Array.Copy(oldArray, newArray, oldArray.Length);
+      oldArray = newArray;
     }
   }
 }

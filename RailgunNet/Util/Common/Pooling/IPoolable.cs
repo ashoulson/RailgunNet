@@ -1,5 +1,5 @@
 ﻿/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Common Utilities for Working with C# and Unity
  *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
@@ -22,38 +22,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Railgun
+namespace CommonTools
 {
-  public abstract class Pool
+  public interface IPoolable
   {
-    protected abstract void DeallocateGeneric(object item);
+    Pool Pool { get; set; }
 
-    public static void Free(IPoolable item)
-    {
-      item.Pool.DeallocateGeneric(item);
-    }
-  }
-
-  public abstract class Pool<T> : Pool
-  where T : IPoolable
-  {
-    protected Stack<T> freeList;
-
-    public Pool()
-    {
-      this.freeList = new Stack<T>();
-    }
-
-    public void Deallocate(T value)
-    {
-      RailgunUtil.Assert(value.Pool == this);
-      value.Reset();
-      this.freeList.Push(value);
-    }
-
-    protected override void DeallocateGeneric(object item)
-    {
-      this.Deallocate((T)item);
-    }
+    /// <summary>
+    /// Called when this object is deallocated.
+    /// </summary>
+    void Reset();
   }
 }

@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal class Environment : RecordCollection<Entity>
+  public class Environment : RecordCollection<Entity>
   {
     public int Tick { get; internal protected set; }
 
@@ -32,12 +32,26 @@ namespace Railgun
     {
       this.Tick = 0;
     }
+
+    internal override void Add(Entity image)
+    {
+      base.Add(image);
+      image.Environment = this;
+      image.OnAddedToEnvironment();
+    }
+
+    internal override void Remove(Entity image)
+    {
+      base.Remove(image);
+      image.Environment = null;
+      image.OnAddedToEnvironment();
+    }
     
     internal void UpdateHost()
     {
       this.Tick++;
       foreach (Entity entity in this.Entries.Values)
-        entity.UpdateHost();
+        entity.OnUpdateHost();
     }
 
     internal Snapshot Snapshot()

@@ -48,10 +48,14 @@
     <Compile Include="Connection\Host.cs" />
     <Compile Include="Connection\Peer\Peer.cs" />
     <Compile Include="ResourceManager.cs" />
-    <Compile Include="Util\Pooling\Factory\GenericPool.cs" />
-    <Compile Include="Util\Pooling\Factory\StatePool.cs" />
-    <Compile Include="Util\RingBuffer\IRingValue.cs" />
-    <Compile Include="Util\RingBuffer\RingBuffer.cs" />
+    <Compile Include="Util\Common\CommonUtil.cs" />
+    <Compile Include="Util\Common\Pooling\GenericPool.cs" />
+    <Compile Include="Util\Common\Pooling\IPoolable.cs" />
+    <Compile Include="Util\Common\Pooling\Pool.cs" />
+    <Compile Include="Util\RailgunMath.cs" />
+    <Compile Include="Util\Common\RingBuffer\IRingValue.cs" />
+    <Compile Include="Util\Common\RingBuffer\RingBuffer.cs" />
+    <Compile Include="Util\StatePool.cs" />
     <Compile Include="World\Storage\Base\RecordCollection.cs" />
     <Compile Include="World\Storage\Base\Record.cs" />
     <Compile Include="World\Storage\Snapshot.cs" />
@@ -67,10 +71,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoder\Typed\IntEncoder.cs" />
     <Compile Include="Serialization\Encoders.cs" />
-    <Compile Include="Util\Pooling\IPoolable.cs" />
-    <Compile Include="Util\Pooling\Pool.cs" />
-    <Compile Include="Util\RailgunUtil.cs" />
-    <Compile Include="Util\RailgunMath.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

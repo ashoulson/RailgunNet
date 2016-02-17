@@ -1,5 +1,5 @@
 ﻿/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Common Utilities for Working with C# and Unity
  *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
@@ -22,34 +22,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Railgun
+namespace CommonTools
 {
-  public abstract class StatePool : Pool<State>
+  public interface IRingValue
   {
-    public int Type { get; private set; }
-
-    public StatePool()
-    {
-      // Allocate and deallocate a dummy state to read and store its type
-      State dummy = this.Allocate();
-      this.Type = dummy.Type;
-      this.Deallocate(dummy);
-    }
-
-    public abstract State Allocate();
-  }
-
-  public class StatePool<T> : StatePool
-    where T : State, IPoolable, new()
-  {
-    public override State Allocate()
-    {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
-
-      T value = new T();
-      value.Pool = this;
-      return value;
-    }
+    int Key { get; }
   }
 }
