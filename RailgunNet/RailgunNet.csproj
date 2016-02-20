@@ -12,14 +12,13 @@
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
-    <UnityPathWin>C:\Program Files\Unity</UnityPathWin>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;RAILGUN_UNITY</DefineConstants>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Debug\RailgunNet.XML</DocumentationFile>
@@ -35,9 +34,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="UnityEngine">
-      <HintPath>$(UnityPathWin)\Editor\Data\Managed\UnityEngine.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Clock.cs" />
@@ -48,11 +44,12 @@
     <Compile Include="Connection\Host.cs" />
     <Compile Include="Connection\Peer\Peer.cs" />
     <Compile Include="ResourceManager.cs" />
+    <Compile Include="Util\Common\CommonDebug.cs" />
     <Compile Include="Util\Common\CommonUtil.cs" />
     <Compile Include="Util\Common\Pooling\GenericPool.cs" />
     <Compile Include="Util\Common\Pooling\IPoolable.cs" />
     <Compile Include="Util\Common\Pooling\Pool.cs" />
-    <Compile Include="Util\RailgunMath.cs" />
+    <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\Common\RingBuffer\IRingValue.cs" />
     <Compile Include="Util\Common\RingBuffer\RingBuffer.cs" />
     <Compile Include="Util\StatePool.cs" />

@@ -23,7 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 
 using CommonTools;
-using UnityEngine;
 
 namespace Railgun
 {
@@ -69,7 +68,7 @@ namespace Railgun
       long minLong = (long)this.minValue;
       long maxLong = (long)this.maxValue;
       uint range = (uint)(maxLong - minLong);
-      return RailgunMath.Log2(range) + 1;
+      return RailMath.Log2(range) + 1;
     }
 
     #region Debug

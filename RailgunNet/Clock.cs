@@ -23,7 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 
 using CommonTools;
-using UnityEngine;
 
 namespace Railgun
 {
@@ -42,7 +41,7 @@ namespace Railgun
       this.tick = 0;
     }
 
-    // TODO: See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
+    // See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
     public void Tick(int latestTick, bool bufferActive)
     {
       if (latestTick != Clock.INVALID_TICK)
@@ -61,7 +60,7 @@ namespace Railgun
             // at most (remoteRate * 2) extra ticks
             int incr = 
               Math.Min(diff - (this.remoteRate * 2), (this.remoteRate * 2));
-            Debug.Log("Clock: T+" + incr + " (Behind) @ T" + this.tick);
+            CommonDebug.Log("Clock: T+" + incr + " (Behind) @ T" + this.tick);
 
             this.tick += incr;
           }
@@ -69,7 +68,7 @@ namespace Railgun
           {
             // If we have drifted slightly closer to being ahead
             // Stall one tick by decrementing the tick counter
-            Debug.Log("Clock: T-1 @ (Stall) T" + this.tick);
+            CommonDebug.Log("Clock: T-1 @ (Stall) T" + this.tick);
 
             this.tick -= 1;
           }
@@ -79,7 +78,7 @@ namespace Railgun
             if (Math.Abs(diff) <= (this.remoteRate * 2))
             {
               // Slightly ahead (<= 2 packets) -- step one packet closer
-              Debug.Log(
+              CommonDebug.Log(
                 "Clock: T-" + this.remoteRate + " (Ahead) @ T" + this.tick);
 
               this.tick -= this.remoteRate;
@@ -88,7 +87,7 @@ namespace Railgun
             {
               // We're way off, just reset entirely and start over
               int newTick = latestTick - (this.remoteRate * 2);
-              Debug.Log(
+              CommonDebug.Log(
                 "Clock: T=" + latestTick + " (Reset) @ T" + this.tick);
 
               this.tick = latestTick;
