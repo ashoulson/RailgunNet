@@ -79,37 +79,5 @@ namespace Railgun
       float maxVal = range * (1.0f / this.precision);
       return RailMath.Log2((uint)(maxVal + 0.5f)) + 1;
     }
-
-    #region Debug
-#if DEBUG
-    public static void Test(int outerIter, int innerIter)
-    {
-      for (int i = 0; i < outerIter; i++)
-      {
-        float a = UnityEngine.Random.Range(-10000000.0f, 10000000.0f);
-        float b = UnityEngine.Random.Range(-10000000.0f, 10000000.0f);
-        float precision = UnityEngine.Random.Range(0.0001f, 1.0f);
-
-        if (a < b)
-          CommonUtil.Swap(ref a, ref b);
-        FloatEncoder serializer = new FloatEncoder(a, b, precision);
-
-        for (int j = 0; j < innerIter; j++)
-        {
-          float random = UnityEngine.Random.Range(a, b);
-          uint packed = serializer.Pack(random);
-          float unpacked = serializer.Unpack(packed);
-
-          Debug.Assert(Mathf.Abs(random - unpacked) > precision,
-            random +
-            " " +
-            unpacked +
-            " " +
-            Mathf.Abs(random - unpacked));
-        }
-      }
-    }
-#endif
-    #endregion
   }
 }
