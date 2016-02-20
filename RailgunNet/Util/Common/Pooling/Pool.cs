@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 namespace CommonTools
 {
   public abstract class Pool
@@ -50,7 +48,7 @@ namespace CommonTools
 
     public void Deallocate(T value)
     {
-      Debug.Assert(value.Pool == this);
+      CommonDebug.Assert(value.Pool == this);
       value.Reset();
       this.freeList.Push(value);
     }

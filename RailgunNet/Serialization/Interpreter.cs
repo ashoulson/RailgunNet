@@ -23,7 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 
 using CommonTools;
-using UnityEngine;
 
 namespace Railgun
 {
@@ -97,7 +96,7 @@ namespace Railgun
       else
         result = this.DecodeSnapshot();
 
-      Debug.Assert(this.bitBuffer.BitsUsed == 0);
+      CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
       return result;
     }
 

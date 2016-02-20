@@ -22,11 +22,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 namespace Railgun
 {
-  internal static class RailgunMath
+  internal static class RailMath
   {
     // http://stackoverflow.com/questions/15967240/fastest-implementation-of-log2int-and-log2float
     private static readonly int[] DeBruijnLookup = new int[32]
@@ -51,6 +49,22 @@ namespace Railgun
       if (a < 0)
         return -a;
       return a;
+    }
+
+    public static float Clamp(float value, float min, float max)
+    {
+      if (value < min)
+      {
+        value = min;
+      }
+      else
+      {
+        if (value > max)
+        {
+          value = max;
+        }
+      }
+      return value;
     }
   }
 }

@@ -20,26 +20,43 @@
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace CommonTools
 {
-  public static class CommonUtil
+  public static class CommonDebug
   {
-    public static void Swap<T>(ref T a, ref T b)
+    // TODO: We may want some logging values outside of debug/diagnostics for
+    // release builds. Investigate this possibility.
+
+    [Conditional("DEBUG")]
+    public static void Log(object message)
     {
-      T temp = b;
-      b = a;
-      a = temp;
+      System.Diagnostics.Debug.Print("LOG: " + message.ToString());
     }
 
-    internal static void ExpandArray<T>(ref T[] oldArray)
+    [Conditional("DEBUG")]
+    public static void LogError(object message)
     {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = oldArray.Length * 2;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
+      System.Diagnostics.Debug.Print("ERROR: " + message.ToString());
+    }
+
+    [Conditional("DEBUG")]
+    public static void LogWarning(object message)
+    {
+      System.Diagnostics.Debug.Print("WARNING: " + message.ToString());
+    }
+
+    [Conditional("DEBUG")]
+    public static void Assert(bool condition)
+    {
+      System.Diagnostics.Debug.Assert(condition);
+    }
+
+    [Conditional("DEBUG")]
+    public static void Assert(bool condition, string message)
+    {
+      System.Diagnostics.Debug.Assert(condition, message);
     }
   }
 }

@@ -23,7 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 
 using CommonTools;
-using UnityEngine;
 
 namespace Railgun
 {
@@ -63,7 +62,7 @@ namespace Railgun
 
     internal override uint Pack(float value)
     {
-      value = Mathf.Clamp(value, this.minValue, this.maxValue);
+      value = RailMath.Clamp(value, this.minValue, this.maxValue);
       float adjusted = (value - this.minValue) * this.invPrecision;
       return (uint)(adjusted + 0.5f) & this.mask;
     }
@@ -71,14 +70,14 @@ namespace Railgun
     internal override float Unpack(uint data)
     {
       float adjusted = ((float)data * this.precision) + this.minValue;
-      return Mathf.Clamp(adjusted, this.minValue, this.maxValue);
+      return RailMath.Clamp(adjusted, this.minValue, this.maxValue);
     }
 
     private int ComputeRequiredBits()
     {
       float range = this.maxValue - this.minValue;
       float maxVal = range * (1.0f / this.precision);
-      return RailgunMath.Log2((uint)(maxVal + 0.5f)) + 1;
+      return RailMath.Log2((uint)(maxVal + 0.5f)) + 1;
     }
 
     #region Debug
