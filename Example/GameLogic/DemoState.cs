@@ -148,7 +148,7 @@ public class DemoState : State<DemoState, DemoEntity>
   protected override void Decode(BitBuffer buffer)
   {
     int dirty = buffer.Pop(DemoEncoders.EntityDirty);
-    RailgunUtil.Assert(dirty == DemoState.FLAG_ALL);
+    //RailgunUtil.Assert(dirty == DemoState.FLAG_ALL);
 
     this.SetData(
       buffer.Pop(DemoEncoders.ArchetypeId),

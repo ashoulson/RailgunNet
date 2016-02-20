@@ -27,11 +27,11 @@ using UnityEngine;
 
 public class DemoEntity : Entity<DemoState>
 {
-  private DemoObject demoObject = null;
+  //private DemoObject demoObject = null;
 
   public DemoEntity() { }
 
-  internal void InitializeHost(int archetypeId)
+  public void InitializeHost(int archetypeId)
   {
     this.State.ArchetypeId = archetypeId;
   }
@@ -39,41 +39,41 @@ public class DemoEntity : Entity<DemoState>
   protected override void OnUpdateHost()
   {
     this.UpdatePosition();
-    this.ApplyPosition();
+    //this.ApplyPosition();
   }
 
   protected override void OnAddedToEnvironment()
   {
-    GameObject go = 
-      ArchetypeLibrary.Instance.Instantiate(
-        this.State.ArchetypeId);
+    //GameObject go = 
+    //  ArchetypeLibrary.Instance.Instantiate(
+    //    this.State.ArchetypeId);
 
-    this.demoObject = go.GetComponent<DemoObject>();
-    this.demoObject.Entity = this;
+    //this.demoObject = go.GetComponent<DemoObject>();
+    //this.demoObject.Entity = this;
 
-    this.InitializeObject();
+    //this.InitializeObject();
   }
 
   private void InitializeObject()
   {
-    if (this.IsMaster)
-    {
-      Renderer renderer = this.demoObject.GetComponent<Renderer>();
-      renderer.material = new Material(renderer.material);
-      renderer.material.color = Color.red;
-    }
+    //if (this.IsMaster)
+    //{
+    //  Renderer renderer = this.demoObject.GetComponent<Renderer>();
+    //  renderer.material = new Material(renderer.material);
+    //  renderer.material.color = Color.red;
+    //}
   }
 
   private void UpdatePosition()
   {
-    this.State.X += 1.0f * Time.fixedDeltaTime;
+    //this.State.X += 1.0f * Time.fixedDeltaTime;
   }
 
-  private void ApplyPosition()
-  {
-    this.demoObject.transform.position = 
-      new Vector2(
-        this.State.X, 
-        this.State.Y);
-  }
+  //private void ApplyPosition()
+  //{
+  //  this.demoObject.transform.position = 
+  //    new Vector2(
+  //      this.State.X, 
+  //      this.State.Y);
+  //}
 }

@@ -20,14 +20,18 @@
 sysinfo.txt
 
 # UnityVS files
-Unity/Assets/UnityVS.meta
-Unity/Assets/UnityVS/*
-Unity/UnityVS.*
+Example/Unity/Assets/UnityVS.meta
+Example/Unity/Assets/UnityVS/*
+Example/Unity/UnityVS.*
 
 # Build Files
 RailgunNet/bin/*
 RailgunNet/obj/*
-RailgunUser/bin/*
-RailgunUser/obj/*
+Example/GameLogic/bin/*
+Example/GameLogic/obj/*
+Example/Server/obj/*
+Example/Server/bin/*
+Example/UnityEngineStandalone/obj/*
+Example/UnityEngineStandalone/bin/*
 
 
