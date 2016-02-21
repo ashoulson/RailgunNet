@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace CommonTools
 {
-  public class RingBuffer<T>
+  internal class RingBuffer<T>
     where T : class, IRingValue, IPoolable
   {
     // Used for converting a key to an index. For example, the host may only

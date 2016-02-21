@@ -29,13 +29,13 @@ namespace Railgun
   /// <summary>
   /// Used for keeping track of the remote peer's clock.
   /// </summary>
-  internal class Clock
+  internal class RailClock
   {
     public const int INVALID_TICK = -1;
     private int remoteRate;
     private int tick;
 
-    internal Clock(int remoteSendRate)
+    internal RailClock(int remoteSendRate)
     {
       this.remoteRate = remoteSendRate;
       this.tick = 0;
@@ -44,7 +44,7 @@ namespace Railgun
     // See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
     public void Tick(int latestTick, bool bufferActive)
     {
-      if (latestTick != Clock.INVALID_TICK)
+      if (latestTick != RailClock.INVALID_TICK)
       {
         this.tick += 1;
 

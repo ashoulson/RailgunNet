@@ -24,43 +24,20 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public abstract class Entity : Record
+  public abstract class RailFactory
   {
-    protected internal bool IsMaster { get; internal set; }
-    protected internal Environment Environment { get; internal set; }
+    internal RailStatePool StatePool { get { return this.statePool;} }
+    private readonly RailStatePool statePool;
 
-    protected internal virtual void OnUpdateHost() { }
-    protected internal virtual void OnAddedToEnvironment() { }
-
-    internal Image CreateImage()
+    internal RailFactory(RailStatePool statePool)
     {
-      Image image = ResourceManager.Instance.AllocateImage();
-      image.Id = this.Id;
-      image.State = this.State.Clone();
-      return image;
+      this.statePool = statePool;
     }
   }
 
-  /// <summary>
-  /// Handy shortcut class for auto-casting the internal state.
-  /// </summary>
-  public abstract class Entity<T> : Entity
-    where T : State
+  public class RailFactory<T> : RailFactory
+    where T : RailState, new()
   {
-    private T typedState = null;
-    public new T State 
-    { 
-      get 
-      { 
-        if (this.typedState == null)
-          this.typedState = (T)base.State;
-        return (T)base.State; 
-      }
-      set
-      {
-        this.typedState = null;
-        base.State = value;
-      }
-    }
+    public RailFactory() : base(new RailStatePool<T>()) { }
   }
 }

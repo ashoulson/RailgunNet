@@ -24,9 +24,9 @@ using System.Collections.Generic;
 
 namespace CommonTools
 {
-  public static class CommonUtil
+  internal static class CommonUtil
   {
-    public static void Swap<T>(ref T a, ref T b)
+    internal static void Swap<T>(ref T a, ref T b)
     {
       T temp = b;
       b = a;

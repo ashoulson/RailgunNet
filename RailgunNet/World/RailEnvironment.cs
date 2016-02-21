@@ -24,46 +24,43 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public abstract class RecordCollection<T>
-    where T : Record
+  public class RailEnvironment : RailRecordCollection<RailEntity>
   {
-    protected Dictionary<int, T> Entries { get; private set; }
+    public int Tick { get; internal protected set; }
 
-    public int Count { get { return this.Entries.Count; } }
-
-    public RecordCollection()
+    internal RailEnvironment()
     {
-      this.Entries = new Dictionary<int, T>();
+      this.Tick = 0;
     }
 
-    internal virtual void Add(T image)
+    internal override void Add(RailEntity image)
     {
-      this.Entries.Add(image.Id, image);
+      base.Add(image);
+      image.Environment = this;
+      image.OnAddedToEnvironment();
     }
 
-    internal virtual void Remove(T image)
+    internal override void Remove(RailEntity image)
     {
-      this.Entries.Remove(image.Id);
+      base.Remove(image);
+      image.Environment = null;
+      image.OnAddedToEnvironment();
+    }
+    
+    internal void UpdateHost()
+    {
+      this.Tick++;
+      foreach (RailEntity entity in this.Entries.Values)
+        entity.OnUpdateHost();
     }
 
-    public bool TryGet(int id, out T image)
+    internal RailSnapshot Snapshot()
     {
-      return this.Entries.TryGetValue(id, out image);
-    }
-
-    public T Get(int id)
-    {
-      return this.Entries[id];
-    }
-
-    public bool Contains(int id)
-    {
-      return this.Entries.ContainsKey(id);
-    }
-
-    public Dictionary<int, T>.ValueCollection GetValues()
-    {
-      return this.Entries.Values;
+      RailSnapshot output = RailResource.Instance.AllocateSnapshot();
+      output.Tick = this.Tick;
+      foreach (RailEntity entity in this.Entries.Values)
+        output.Add(entity.CreateImage());
+      return output;
     }
   }
 }

@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace CommonTools
 {
-  public interface IRingValue
+  internal interface IRingValue
   {
     int Key { get; }
   }

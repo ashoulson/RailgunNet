@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace CommonTools
 {
-  public interface IPoolable
+  internal interface IPoolable
   {
     Pool Pool { get; set; }
 

@@ -26,45 +26,43 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class Client
+  /// <summary>
+  /// An image is the stored state of an entity at a given point in time.
+  /// </summary>
+  public class RailImage : RailRecord, IPoolable
   {
-    private const int PAYLOAD_CHOKE = 3;
-    private const int BUFFER_SIZE = 10;
-
-    //public event Action Connected;
-    //public event Action Disconnected;
-
-    public Peer HostPeer { get; private set; }
-    private Interpreter interpreter;
-    private int lastReceived;
+    Pool IPoolable.Pool { get; set; }
+    void IPoolable.Reset() { this.Reset(); }
 
     /// <summary>
-    /// A complete snapshot history of all received snapshots. 
-    /// New incoming snapshots from the host will be reconstructed from these.
+    /// Deep-copies this Image, allocating from the pool in the process.
     /// </summary>
-    internal RingBuffer<Snapshot> Snapshots { get; private set; }
-
-    public Client(Peer hostPeer)
+    internal RailImage Clone()
     {
-      this.HostPeer = hostPeer;
-      this.Snapshots = new RingBuffer<Snapshot>(BUFFER_SIZE, Host.SEND_RATE);
-      this.interpreter = new Interpreter();
-      this.lastReceived = Clock.INVALID_TICK;
+      RailImage clone = RailResource.Instance.AllocateImage();
+      clone.Id = this.Id;
+      clone.State = this.State.Clone();
+      return clone;
     }
 
-    internal void Receive()
+    /// <summary>
+    /// Creates an entity out of this image. The entity type instantiation
+    /// is handled by the State itself.
+    /// </summary>
+    internal RailEntity CreateEntity()
     {
-      for (int i = 0; i < Client.PAYLOAD_CHOKE; i++)
-        if (this.HostPeer.Incoming.Count > 0)
-          this.Process(this.HostPeer.Incoming.Dequeue());
+      RailEntity entity = this.State.CreateEntity();
+      entity.Id = this.Id;
+      entity.State = this.State.Clone();
+      return entity;
     }
 
-    private void Process(byte[] data)
+    protected void Reset()
     {
-      Snapshot snapshot = this.interpreter.Decode(data, this.Snapshots);
-      this.Snapshots.Store(snapshot);
-      if (snapshot.Tick > this.lastReceived)
-        this.lastReceived = snapshot.Tick;
+      this.Id = RailRecord.INVALID_ID;
+      if (this.State != null)
+        Pool.Free(this.State);
+      this.State = null;
     }
   }
 }

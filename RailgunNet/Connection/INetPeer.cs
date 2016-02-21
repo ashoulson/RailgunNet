@@ -24,9 +24,13 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public interface IConnection
+  public delegate void NetPeerEvent(INetPeer peer);
+
+  public interface INetPeer
   {
-    event Action<byte[]> Receive;
-    void Send(byte[] payload);
+    event NetPeerEvent MessagesReady;
+
+    IEnumerable<int> ReadReceived(byte[] buffer);
+    void EnqueueSend(byte[] buffer, int length);
   }
 }
