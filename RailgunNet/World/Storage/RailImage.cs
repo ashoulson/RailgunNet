@@ -66,5 +66,86 @@ namespace Railgun
         Pool.Free(this.State);
       this.State = null;
     }
+
+    #region Encode/Decode
+    /// Image encoding order:
+    /// If new: | ID | TYPE | ----- STATE DATA ----- |
+    /// If old: | ID | ----- STATE DATA ----- |
+
+    internal static int PeekId(
+      BitBuffer buffer)
+    {
+      return buffer.Peek(Encoders.EntityId);
+    }
+
+    internal void Encode(
+      BitBuffer buffer)
+    {
+      // Write: [State Data]
+      this.State.Encode(buffer);
+
+      // Write: [Type]
+      buffer.Push(Encoders.StateType, this.State.Type);
+
+      // Write: [Id]
+      buffer.Push(Encoders.EntityId, this.Id);
+    }
+
+    internal bool Encode(
+      BitBuffer buffer,
+      RailImage basis)
+    {
+      // Write: [State Data] -- May not write anything if no change
+      if (this.State.Encode(buffer, basis.State) == false)
+        return false;
+
+      // (No [Type] for delta images)
+
+      // Write: [Id]
+      buffer.Push(Encoders.EntityId, this.Id);
+      return true;
+    }
+
+    internal static RailImage Decode(
+      BitBuffer buffer)
+    {
+      // Read: [Id]
+      int imageId = buffer.Pop(Encoders.EntityId);
+
+      // Read: [Type]
+      int stateType = buffer.Pop(Encoders.StateType);
+
+      RailImage image = RailResource.Instance.AllocateImage();
+      RailState state = RailResource.Instance.AllocateState(stateType);
+
+      // Read: [State Data]
+      state.Decode(buffer);
+
+      image.Id = imageId;
+      image.State = state;
+
+      return image;
+    }
+
+    internal static RailImage Decode(
+      BitBuffer buffer,
+      RailImage basis)
+    {
+      // Read: [Id]
+      int imageId = buffer.Pop(Encoders.EntityId);
+
+      // (No [Type] for delta images)
+
+      RailImage image = RailResource.Instance.AllocateImage();
+      RailState state = RailResource.Instance.AllocateState(basis.State.Type);
+
+      // Read: [State Data]
+      state.Decode(buffer, basis.State);
+
+      image.Id = imageId;
+      image.State = state;
+      return image;
+    }
+    #endregion
   }
 }

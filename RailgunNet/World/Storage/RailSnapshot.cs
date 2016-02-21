@@ -62,5 +62,138 @@ namespace Railgun
         Pool.Free(image);
       this.Entries.Clear();
     }
+
+    #region Encode/Decode
+    /// Snapshot encoding order:
+    /// | BASISTICK | TICK | IMAGE COUNT | IMAGE | IMAGE | IMAGE | ...
+
+    internal static int PeekBasisTick(
+      BitBuffer buffer)
+    {
+      return buffer.Peek(Encoders.Tick);
+    }
+
+    internal void Encode(
+      BitBuffer buffer)
+    {
+      foreach (RailImage image in this.GetValues())
+      {
+        // Write: [Image Data]
+        image.Encode(buffer);
+      }
+
+      // Write: [Count]
+      buffer.Push(Encoders.EntityCount, this.Count);
+
+      // Write: [Tick]
+      buffer.Push(Encoders.Tick, this.Tick);
+
+      // Write: [BasisTick]
+      buffer.Push(Encoders.Tick, RailClock.INVALID_TICK);
+    }
+
+    internal void Encode(
+      BitBuffer buffer,
+      RailSnapshot basis)
+    {
+      int count = 0;
+
+      foreach (RailImage image in this.GetValues())
+      {
+        // Write: [Image]
+        RailImage basisImage;
+        if (basis.TryGet(image.Id, out basisImage))
+        {
+          // We may not write an image if nothing changed
+          if (image.Encode(buffer, basisImage))
+            count++;
+        }
+        else
+        {
+          image.Encode(buffer);
+          count++;
+        }
+      }
+
+      // Write: [Count]
+      buffer.Push(Encoders.EntityCount, count);
+
+      // Write: [Tick]
+      buffer.Push(Encoders.Tick, this.Tick);
+
+      // Write: [BasisTick]
+      buffer.Push(Encoders.Tick, basis.Tick);
+    }
+
+    internal static RailSnapshot Decode(
+      BitBuffer buffer)
+    {
+      // Read: [Basis Tick] (discarded)
+      buffer.Pop(Encoders.Tick);
+
+      // Read: [Tick]
+      int tick = buffer.Pop(Encoders.Tick);
+
+      // Read: [Count]
+      int count = buffer.Pop(Encoders.EntityCount);
+
+      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
+      snapshot.Tick = tick;
+
+      for (int i = 0; i < count; i++)
+      {
+        // Read: [Image] (full)
+        snapshot.Add(RailImage.Decode(buffer));
+      }
+
+      return snapshot;
+    }
+
+    internal static RailSnapshot Decode(
+      BitBuffer buffer,
+      RailSnapshot basis)
+    {
+      // Read: [BasisTick] (discarded)
+      buffer.Pop(Encoders.Tick);
+
+      // Read: [Tick]
+      int tick = buffer.Pop(Encoders.Tick);
+
+      // Read: [Count]
+      int count = buffer.Pop(Encoders.EntityCount);
+
+      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
+      snapshot.Tick = tick;
+
+      for (int i = 0; i < count; i++)
+      {
+        // Peek: [Image.Id]
+        int imageId = RailImage.PeekId(buffer);
+
+        // Read: [Image] (either full or delta)
+        RailImage basisImage;
+        if (basis.TryGet(imageId, out basisImage))
+          snapshot.Add(RailImage.Decode(buffer, basisImage));
+        else
+          snapshot.Add(RailImage.Decode(buffer));
+      }
+
+      RailSnapshot.ReconcileBasis(snapshot, basis);
+      return snapshot;
+    }
+
+    /// <summary>
+    /// Incorporates any non-updated entities from the basis snapshot into
+    /// the newly-populated snapshot.
+    /// </summary>
+    internal static void ReconcileBasis(
+      RailSnapshot snapshot, 
+      RailSnapshot basis)
+    {
+      foreach (RailImage basisImage in basis.GetValues())
+        if (snapshot.Contains(basisImage.Id) == false)
+          snapshot.Add(basisImage.Clone());
+    }
+    #endregion
   }
 }

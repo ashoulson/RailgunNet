@@ -27,18 +27,7 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// Responsible for encoding and decoding snapshots.
-  /// 
-  /// HostPacket encoding order:
-  /// | BASIS TICK | ----- SNAPSHOT DATA ----- |
-  /// 
-  /// Snapshot encoding order:
-  /// | TICK | IMAGE COUNT | ----- IMAGE ----- | ----- IMAGE ----- | ...
-  /// 
-  /// Image encoding order:
-  /// If new: | ID | TYPE | ----- STATE DATA ----- |
-  /// If old: | ID | ----- STATE DATA ----- |
-  /// 
+  /// Responsible for encoding and decoding packet information.
   /// </summary>
   internal class Interpreter
   {
@@ -51,18 +40,14 @@ namespace Railgun
       this.bitBuffer = new BitBuffer();
     }
 
-    #region Snapshot I/O
     internal void EncodeSendSnapshot(
       RailPeer peer,
       RailSnapshot snapshot)
     {
       this.bitBuffer.Clear();
 
-      // Write: [Snapshot Data]
-      this.EncodeSnapshot(snapshot);
-
-      // Write: [Basis Tick]
-      this.bitBuffer.Push(Encoders.Tick, RailClock.INVALID_TICK);
+      // Write: [Snapshot]
+      snapshot.Encode(this.bitBuffer);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
       peer.EnqueueSend(this.byteBuffer, length);
@@ -75,11 +60,8 @@ namespace Railgun
     {
       this.bitBuffer.Clear();
       
-      // Write: [Snapshot Data]
-      this.EncodeSnapshot(snapshot, basis);
-
-      // Write: [Basis Tick]
-      this.bitBuffer.Push(Encoders.Tick, basis.Tick);
+      // Write: [Snapshot]
+      snapshot.Encode(this.bitBuffer, basis);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
       peer.EnqueueSend(this.byteBuffer, length);
@@ -104,8 +86,8 @@ namespace Railgun
     {
       this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
-      // Read: [Basis Tick]
-      int basisTick = bitBuffer.Pop(Encoders.Tick);
+      // Peek: [Snapshot.BasisTick]
+      int basisTick = RailSnapshot.PeekBasisTick(this.bitBuffer);
 
       // Read: [Snapshot]
       RailSnapshot result = null;
@@ -115,193 +97,15 @@ namespace Railgun
         // if packets arrived out of order, in which case we can't decode
         RailSnapshot basis = basisBuffer.Get(basisTick); 
         if (basis != null)
-          result = this.DecodeSnapshot(basis);
+          result = RailSnapshot.Decode(this.bitBuffer, basis);
       }
       else
       {
-        result = this.DecodeSnapshot();
+        result = RailSnapshot.Decode(this.bitBuffer);
       }
 
       CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
       return result;
     }
-
-    #region Snapshot Encode/Decode
-    private void EncodeSnapshot(
-      RailSnapshot snapshot)
-    {
-      foreach (RailImage image in snapshot.GetValues())
-      {
-        // Write: [Image Data]
-        this.EncodeImage(image);
-
-        // Write: [Id]
-        this.bitBuffer.Push(Encoders.EntityId, image.Id);
-      }
-
-      // Write: [Count]
-      this.bitBuffer.Push(Encoders.EntityCount, snapshot.Count);
-
-      // Write: [Tick]
-      this.bitBuffer.Push(Encoders.Tick, snapshot.Tick);
-    }
-
-    private void EncodeSnapshot(
-      RailSnapshot snapshot, 
-      RailSnapshot basis)
-    {
-      int count = 0;
-
-      foreach (RailImage image in snapshot.GetValues())
-      {
-        // Write: [Image Data]
-        RailImage basisImage;
-        if (basis.TryGet(image.Id, out basisImage))
-        {
-          if (this.EncodeImage(image, basisImage) == false)
-            continue;
-        }
-        else
-        {
-          this.EncodeImage(image);
-        }
-
-        // We may not write every state
-        count++;
-
-        // Write: [Id]
-        this.bitBuffer.Push(Encoders.EntityId, image.Id);
-      }
-
-      // Write: [Count]
-      this.bitBuffer.Push(Encoders.EntityCount, count);
-
-      // Write: [Tick]
-      this.bitBuffer.Push(Encoders.Tick, snapshot.Tick);
-    }
-
-    private RailSnapshot DecodeSnapshot()
-    {
-      // Read: [Tick]
-      int tick = this.bitBuffer.Pop(Encoders.Tick);
-
-      // Read: [Count]
-      int count = this.bitBuffer.Pop(Encoders.EntityCount);
-
-      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
-      snapshot.Tick = tick;
-
-      for (int i = 0; i < count; i++)
-      {
-        // Read: [Id]
-        int imageId = this.bitBuffer.Pop(Encoders.EntityId);
-
-        // Read: [Image Data]
-        snapshot.Add(this.DecodeImage(imageId));
-      }
-
-      return snapshot;
-    }
-
-    private RailSnapshot DecodeSnapshot(
-      RailSnapshot basis)
-    {
-      // Read: [Tick]
-      int tick = this.bitBuffer.Pop(Encoders.Tick);
-
-      // Read: [Count]
-      int count = this.bitBuffer.Pop(Encoders.EntityCount);
-
-      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
-      snapshot.Tick = tick;
-
-      for (int i = 0; i < count; i++)
-      {
-        // Read: [Id]
-        int imageId = this.bitBuffer.Pop(Encoders.EntityId);
-
-        // Read: [Image Data]
-        RailImage basisImage;
-        if (basis.TryGet(imageId, out basisImage))
-          snapshot.Add(this.DecodeImage(imageId, basisImage));
-        else
-          snapshot.Add(this.DecodeImage(imageId));
-      }
-
-      this.ReconcileBasis(snapshot, basis);
-      return snapshot;
-    }
-    #endregion
-
-    #region Image Encode/Decode
-    private void EncodeImage(
-      RailImage image)
-    {
-      // Write: [State Data]
-      image.State.Encode(this.bitBuffer);
-
-      // Write: [Type]
-      this.bitBuffer.Push(Encoders.StateType, image.State.Type);
-    }
-
-    private bool EncodeImage(
-      RailImage image, 
-      RailImage basis)
-    {
-      // Write: [State Data]
-      return image.State.Encode(this.bitBuffer, basis.State);
-
-      // (No type identifier for delta images)
-    }
-
-    private RailImage DecodeImage(
-      int imageId)
-    {
-      // Read: [Type]
-      int stateType = this.bitBuffer.Pop(Encoders.StateType);
-
-      RailImage image = RailResource.Instance.AllocateImage();
-      RailState state = RailResource.Instance.AllocateState(stateType);
-
-      // Read: [State Data]
-      state.Decode(this.bitBuffer);
-
-      image.Id = imageId;
-      image.State = state;
-
-      return image;
-    }
-
-    private RailImage DecodeImage(
-      int imageId, 
-      RailImage basis)
-    {
-      // (No type identifier for delta images)
-
-      RailImage image = RailResource.Instance.AllocateImage();
-      RailState state = RailResource.Instance.AllocateState(basis.State.Type);
-
-      // Read: [State Data]
-      state.Decode(this.bitBuffer, basis.State);
-
-      image.Id = imageId;
-      image.State = state;
-      return image;
-    }
-    #endregion
-
-    #region Internals
-    /// <summary>
-    /// Incorporates any non-updated entities from the basis snapshot into
-    /// the newly-populated snapshot.
-    /// </summary>
-    private void ReconcileBasis(RailSnapshot snapshot, RailSnapshot basis)
-    {
-      foreach (RailImage basisImage in basis.GetValues())
-        if (snapshot.Contains(basisImage.Id) == false)
-          snapshot.Add(basisImage.Clone());
-    }
-    #endregion
-    #endregion
   }
 }
