@@ -92,8 +92,8 @@ namespace Railgun
 
     private void OnMessagesReady(RailPeer peer)
     {
-      IEnumerable<RailSnapshot> decode = 
-        this.interpreter.DecodeReceivedSnapshots(
+      IEnumerable<RailSnapshot> decode =
+        this.interpreter.ReceiveSnapshots(
           this.hostPeer, 
           this.snapshots);
 

@@ -40,72 +40,49 @@ namespace Railgun
       this.bitBuffer = new BitBuffer();
     }
 
-    internal void EncodeSendSnapshot(
+    internal void SendSnapshot(
       RailPeer peer,
-      RailSnapshot snapshot)
-    {
-      this.bitBuffer.Clear();
-
-      // Write: [Snapshot]
-      snapshot.Encode(this.bitBuffer);
-
-      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
-      peer.EnqueueSend(this.byteBuffer, length);
-    }
-
-    internal void EncodeSendSnapshot(
-      RailPeer peer,
-      RailSnapshot snapshot, 
-      RailSnapshot basis)
-    {
-      this.bitBuffer.Clear();
-      
-      // Write: [Snapshot]
-      snapshot.Encode(this.bitBuffer, basis);
-
-      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
-      peer.EnqueueSend(this.byteBuffer, length);
-    }
-
-    internal IEnumerable<RailSnapshot> DecodeReceivedSnapshots(
-      RailPeer peer,
+      RailSnapshot snapshot,
       RingBuffer<RailSnapshot> basisBuffer)
+    {
+      this.bitBuffer.Clear();
+
+      // Write: [Snapshot] (full or delta)
+      RailSnapshot basis = 
+        RailSnapshot.GetBasis(peer.LastAckedTick, basisBuffer);
+      if (basis != null)
+        snapshot.Encode(this.bitBuffer, basis);
+      else
+        snapshot.Encode(this.bitBuffer);
+
+      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
+      peer.EnqueueSend(this.byteBuffer, length);
+    }
+
+    internal IEnumerable<RailSnapshot> ReceiveSnapshots(
+      RailPeer peer,
+      RingBuffer<RailSnapshot> basisBuffer) // TODO: Move this into peer
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
       {
-        RailSnapshot snapshot = 
-          this.DecodeBufferSnapshot(length, basisBuffer);
-        if (snapshot != null)
-          yield return snapshot;
-      }
-    }
+        this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
-    private RailSnapshot DecodeBufferSnapshot(
-      int length,
-      RingBuffer<RailSnapshot> basisBuffer)
-    {
-      this.bitBuffer.ReadBytes(this.byteBuffer, length);
+        // Peek: [Snapshot.BasisTick]
+        int basisTick = RailSnapshot.PeekBasisTick(this.bitBuffer);
 
-      // Peek: [Snapshot.BasisTick]
-      int basisTick = RailSnapshot.PeekBasisTick(this.bitBuffer);
-
-      // Read: [Snapshot]
-      RailSnapshot result = null;
-      if (basisTick != RailClock.INVALID_TICK)
-      {
-        // There's a slim chance the basis could have been overwritten
-        // if packets arrived out of order, in which case we can't decode
-        RailSnapshot basis = basisBuffer.Get(basisTick); 
+        // Read: [Snapshot]
+        RailSnapshot result = null;
+        RailSnapshot basis = RailSnapshot.GetBasis(basisTick, basisBuffer);
         if (basis != null)
           result = RailSnapshot.Decode(this.bitBuffer, basis);
-      }
-      else
-      {
-        result = RailSnapshot.Decode(this.bitBuffer);
-      }
+        else if (basisTick == RailClock.INVALID_TICK)
+          result = RailSnapshot.Decode(this.bitBuffer);
+        else
+          CommonDebug.LogWarning("Missing basis for delta snapshot decode");
 
-      CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
-      return result;
+        CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
+        yield return result;
+      }
     }
   }
 }
