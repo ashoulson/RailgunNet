@@ -98,7 +98,7 @@ namespace Railgun
 
       if (this.ShouldSend(this.world.Tick))
       {
-        RailSnapshot snapshot = this.world.Snapshot();
+        RailSnapshot snapshot = this.world.CreateSnapshot();
         this.snapshots.Store(snapshot);
         this.Broadcast(snapshot);
       }

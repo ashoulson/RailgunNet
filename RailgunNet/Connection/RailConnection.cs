@@ -32,9 +32,6 @@ namespace Railgun
   /// </summary>
   public abstract class RailConnection
   {
-    internal const int SEND_RATE = 2;
-    internal const int BUFFER_SIZE = 10;
-
     public RailWorld World { get { return this.world; } }
     protected RailWorld world;
     internal Interpreter interpreter;
@@ -55,13 +52,13 @@ namespace Railgun
       this.interpreter = new Interpreter();
       this.snapshots = 
         new RingBuffer<RailSnapshot>(
-          RailConnection.BUFFER_SIZE,
-          RailConnection.SEND_RATE);
+          RailConfig.DEJITTER_BUFFER_LENGTH,
+          RailConfig.NETWORK_SEND_RATE);
     }
 
     protected bool ShouldSend(int tick)
     {
-      return (tick % RailConnection.SEND_RATE) == 0;
+      return (tick % RailConfig.NETWORK_SEND_RATE) == 0;
     }
   }
 }

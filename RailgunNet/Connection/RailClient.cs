@@ -35,6 +35,7 @@ namespace Railgun
 
     private RailPeer hostPeer;
     private int lastReceived;
+    private int lastApplied;
     private byte[] dataBuffer;
 
     private RailClock serverClock;
@@ -45,9 +46,10 @@ namespace Railgun
     {
       this.hostPeer = null;
       this.lastReceived = RailClock.INVALID_TICK;
+      this.lastApplied = RailClock.INVALID_TICK;
       this.dataBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
 
-      this.serverClock = new RailClock(RailConnection.SEND_RATE);
+      this.serverClock = new RailClock(RailConfig.NETWORK_SEND_RATE);
       this.shouldUpdate = false;
       this.shouldUpdateClock = false;
     }
@@ -66,11 +68,26 @@ namespace Railgun
           this.serverClock.Tick(this.lastReceived);
         else
           this.serverClock.Tick();
+
+        this.SelectAndApplySnapshot();
       }
 
       // TEMP:
       if (this.hostPeer != null)
         this.hostPeer.EnqueueSend(new byte[] {}, 0);
+    }
+
+    private void SelectAndApplySnapshot()
+    {
+      RailSnapshot snapshot =
+        this.snapshots.GetOrFirstBefore(
+          this.serverClock.RemoteTick);
+
+      if ((snapshot != null) && (snapshot.Tick > this.lastApplied))
+      {
+        this.world.ApplySnapshot(snapshot);
+        this.lastApplied = snapshot.Tick;
+      }
     }
 
     private void OnMessagesReady(RailPeer peer)
@@ -80,23 +97,18 @@ namespace Railgun
           this.hostPeer, 
           this.snapshots);
 
-      RailSnapshot latest = null;
       foreach (RailSnapshot snapshot in decode)
       {
         this.snapshots.Store(snapshot);
 
+        // See if we should update the clock with a new received tick
         if (snapshot.Tick > this.lastReceived)
         {
           this.lastReceived = snapshot.Tick;
-          latest = snapshot;
           this.shouldUpdateClock = true;
           this.shouldUpdate = true;
         }
       }
-
-      // Naive: Apply the latest snapshot received, if any
-      if (latest != null)
-        this.World.ApplySnapshot(latest);
     }
   }
 }
