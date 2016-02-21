@@ -58,6 +58,25 @@ namespace CommonTools
       return null;
     }
 
+    public T GetOrFirstBefore(int key)
+    {
+      T result = null;
+      for (int i = 0; i < this.data.Length; i++)
+      {
+        T value = this.data[i];
+        if (value != null)
+        {
+          if (value.Key == key)
+            return value;
+
+          if (value.Key < key)
+            if ((result == null) || (result.Key < value.Key))
+              result = value;
+        }
+      }
+      return result;
+    }
+
     public bool Contains(int key)
     {
       T result = this.data[this.KeyToIndex(key)];

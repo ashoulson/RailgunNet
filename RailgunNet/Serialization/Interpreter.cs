@@ -44,13 +44,11 @@ namespace Railgun
   {
     private byte[] byteBuffer;
     private BitBuffer bitBuffer;
-    private List<RailImage> newImages;
 
     internal Interpreter()
     {
       this.byteBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
       this.bitBuffer = new BitBuffer();
-      this.newImages = new List<RailImage>();
     }
 
     #region Snapshot I/O
@@ -184,8 +182,6 @@ namespace Railgun
 
     private RailSnapshot DecodeSnapshot()
     {
-      this.newImages.Clear();
-
       // Read: [Tick]
       int tick = this.bitBuffer.Pop(Encoders.Tick);
 
@@ -210,8 +206,6 @@ namespace Railgun
     private RailSnapshot DecodeSnapshot(
       RailSnapshot basis)
     {
-      this.newImages.Clear();
-
       // Read: [Tick]
       int tick = this.bitBuffer.Pop(Encoders.Tick);
 
@@ -275,7 +269,6 @@ namespace Railgun
       image.Id = imageId;
       image.State = state;
 
-      this.newImages.Add(image);
       return image;
     }
 
@@ -298,15 +291,6 @@ namespace Railgun
     #endregion
 
     #region Internals
-    /// <summary>
-    /// Returns the new images created during a decode.
-    /// Only valid immediately after a decode.
-    /// </summary>
-    internal IList<RailImage> GetNewImages()
-    {
-      return this.newImages.AsReadOnly();
-    }
-
     /// <summary>
     /// Incorporates any non-updated entities from the basis snapshot into
     /// the newly-populated snapshot.

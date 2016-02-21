@@ -24,14 +24,16 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailWorld : RailRecordCollection<RailEntity>
+  public class RailWorld
   {
     public int Tick { get; internal protected set; }
 
     private int nextEntityId;
+    private Dictionary<int, RailEntity> entities;
 
     internal RailWorld()
     {
+      this.entities = new Dictionary<int, RailEntity>();
       this.nextEntityId = 1;
       this.Tick = 0;
     }
@@ -60,7 +62,7 @@ namespace Railgun
     /// </summary>
     public void AddEntity(RailEntity entity)
     {
-      base.Add(entity);
+      this.entities.Add(entity.Id, entity);
       entity.World = this;
       entity.OnAddedToWorld();
     }
@@ -96,7 +98,7 @@ namespace Railgun
       foreach (RailImage image in snapshot.GetValues())
       {
         RailEntity entity;
-        if (this.TryGet(image.Id, out entity))
+        if (this.entities.TryGetValue(image.Id, out entity))
         {
           entity.State.SetFrom(image.State);
           entity.NotifyStateUpdated(snapshot.Tick);
@@ -113,15 +115,15 @@ namespace Railgun
     internal void UpdateHost()
     {
       this.Tick++;
-      foreach (RailEntity entity in this.Entries.Values)
+      foreach (RailEntity entity in this.entities.Values)
         entity.OnUpdateHost();
     }
 
-    internal RailSnapshot Snapshot()
+    internal RailSnapshot CreateSnapshot()
     {
       RailSnapshot output = RailResource.Instance.AllocateSnapshot();
       output.Tick = this.Tick;
-      foreach (RailEntity entity in this.Entries.Values)
+      foreach (RailEntity entity in this.entities.Values)
         output.Add(entity.CreateImage());
       return output;
     }

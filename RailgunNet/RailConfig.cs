@@ -26,6 +26,16 @@ namespace Railgun
   public class RailConfig
   {
     /// <summary>
+    /// Network send rate in frames/packet.
+    /// </summary>
+    internal const int NETWORK_SEND_RATE = 2;
+
+    /// <summary>
+    /// Number of entries to store in a dejitter buffer.
+    /// </summary>
+    internal const int DEJITTER_BUFFER_LENGTH = 20;
+
+    /// <summary>
     /// Data buffer size used for packet I/O. 
     /// Don't change this without a good reason.
     /// </summary>
