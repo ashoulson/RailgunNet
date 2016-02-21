@@ -26,23 +26,11 @@ using Railgun;
 
 public static class DemoEncoders
 {
-  public static IntEncoder EntityDirty = null;
-  public static IntEncoder ArchetypeId = null;
-  public static IntEncoder UserId = null;
-  public static IntEncoder Status = null;
+  public static readonly IntEncoder EntityDirty = new IntEncoder(0, (int)DemoState.FLAG_ALL);
+  public static readonly IntEncoder ArchetypeId = new IntEncoder(0, 255);
+  public static readonly IntEncoder UserId = new IntEncoder(0, 1023);
+  public static readonly IntEncoder Status = new IntEncoder(0, 0x3F);
 
-  public static FloatEncoder Coordinate = null;
-  public static FloatEncoder Angle = null;
-
-  public static void Initialize()
-  {
-    DemoEncoders.Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
-    DemoEncoders.Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
-
-    // Used by EntityState
-    DemoEncoders.EntityDirty = new IntEncoder(0, (int)DemoState.FLAG_ALL);
-    DemoEncoders.ArchetypeId = new IntEncoder(0, 255);
-    DemoEncoders.UserId = new IntEncoder(0, 1023);
-    DemoEncoders.Status = new IntEncoder(0, 0x3F);
-  }
+  public static readonly FloatEncoder Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
+  public static readonly FloatEncoder Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
 }

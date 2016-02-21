@@ -31,8 +31,10 @@ namespace Railgun
   /// </summary>
   public class RailImage : RailRecord, IPoolable
   {
+    #region IPoolable Members
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
+    #endregion
 
     /// <summary>
     /// Deep-copies this Image, allocating from the pool in the process.

@@ -19,7 +19,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="DemoEncoders.cs" />
     <Compile Include="DemoEntity.cs" />
+    <Compile Include="DemoEvents.cs" />
     <Compile Include="DemoMath.cs" />
     <Compile Include="DemoState.cs" />
     <Compile Include="DemoTypes.cs" />

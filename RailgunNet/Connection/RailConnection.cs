@@ -22,45 +22,44 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
-  public class RailEnvironment : RailRecordCollection<RailEntity>
+  /// <summary>
+  /// Host is the core executing class on the server. It is responsible for
+  /// managing connection contexts and payload I/O.
+  /// </summary>
+  public class RailConnection
   {
-    public int Tick { get; internal protected set; }
+    internal const int SEND_RATE = 2;
+    internal const int BUFFER_SIZE = 10;
 
-    internal RailEnvironment()
+    public RailWorld World { get { return this.world; } }
+    protected RailWorld world;
+    internal Interpreter interpreter;
+
+    /// <summary>
+    /// A complete snapshot history of all sent/received snapshots. Used for
+    /// delta encoding either on send or on receive.
+    /// </summary>
+    internal readonly RingBuffer<RailSnapshot> snapshots;
+
+    public RailConnection(params RailFactory[] factories)
     {
-      this.Tick = 0;
+      RailResource.Initialize(factories);
+
+      this.world = new RailWorld();
+      this.interpreter = new Interpreter();
+      this.snapshots = 
+        new RingBuffer<RailSnapshot>(
+          RailConnection.BUFFER_SIZE,
+          RailConnection.SEND_RATE);
     }
 
-    internal override void Add(RailEntity image)
+    protected bool ShouldSend(int tick)
     {
-      base.Add(image);
-      image.Environment = this;
-      image.OnAddedToEnvironment();
-    }
-
-    internal override void Remove(RailEntity image)
-    {
-      base.Remove(image);
-      image.Environment = null;
-      image.OnAddedToEnvironment();
-    }
-    
-    internal void UpdateHost()
-    {
-      this.Tick++;
-      foreach (RailEntity entity in this.Entries.Values)
-        entity.OnUpdateHost();
-    }
-
-    internal RailSnapshot Snapshot()
-    {
-      RailSnapshot output = RailResource.Instance.AllocateSnapshot();
-      output.Tick = this.Tick;
-      foreach (RailEntity entity in this.Entries.Values)
-        output.Add(entity.CreateImage());
-      return output;
+      return (tick % RailConnection.SEND_RATE) == 0;
     }
   }
 }
