@@ -12,21 +12,25 @@ namespace Railgun
     // TODO: Make this thread-safe (like [ThreadStatic])
     internal static RailResource Instance { get; private set; }
 
-    internal static void Initialize(params RailFactory[] factories)
+    internal static void Initialize(params RailStateFactory[] factories)
     {
       RailResource.Instance = new RailResource(factories);
     }
 
     private GenericPool<RailSnapshot> snapshotPool;
     private GenericPool<RailImage> imagePool;
+    private GenericPool<RailInput> inputPool;
+
     private Dictionary<int, RailStatePool> statePools;
 
-    private RailResource(params RailFactory[] factories)
+    private RailResource(params RailStateFactory[] factories)
     {
       this.snapshotPool = new GenericPool<RailSnapshot>();
       this.imagePool = new GenericPool<RailImage>();
+      this.inputPool = new GenericPool<RailInput>();
+
       this.statePools = new Dictionary<int, RailStatePool>();
-      foreach (RailFactory factory in factories)
+      foreach (RailStateFactory factory in factories)
         this.statePools[factory.StatePool.Type] = factory.StatePool;
     }
 
@@ -38,6 +42,11 @@ namespace Railgun
     internal RailImage AllocateImage()
     {
       return this.imagePool.Allocate();
+    }
+
+    internal RailInput AllocateInput()
+    {
+      return this.inputPool.Allocate();
     }
 
     internal RailState AllocateState(int type)

@@ -30,7 +30,7 @@ namespace Railgun
   /// Host is the core executing class on the server. It is responsible for
   /// managing connection contexts and payload I/O.
   /// </summary>
-  public class RailConnection
+  public abstract class RailConnection
   {
     internal const int SEND_RATE = 2;
     internal const int BUFFER_SIZE = 10;
@@ -45,7 +45,9 @@ namespace Railgun
     /// </summary>
     internal readonly RingBuffer<RailSnapshot> snapshots;
 
-    public RailConnection(params RailFactory[] factories)
+    public abstract void Update();
+
+    public RailConnection(params RailStateFactory[] factories)
     {
       RailResource.Initialize(factories);
 

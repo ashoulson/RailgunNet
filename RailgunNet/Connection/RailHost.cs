@@ -49,7 +49,7 @@ namespace Railgun
 
     private Dictionary<INetPeer, RailPeer> peers;
 
-    public RailHost(params RailFactory[] factories) : base(factories)
+    public RailHost(params RailStateFactory[] factories) : base(factories)
     {
       this.peers = new Dictionary<INetPeer, RailPeer>();
     }
@@ -89,7 +89,7 @@ namespace Railgun
     /// be called once per game simulation tick (e.g. during Unity's 
     /// FixedUpdate pass).
     /// </summary>
-    public void Update()
+    public override void Update()
     {
       this.world.UpdateHost();
 
@@ -116,12 +116,12 @@ namespace Railgun
         {
           if (this.snapshots.TryGet(peer.LastAckedTick, out basis))
           {
-            this.interpreter.EncodeSend(peer, snapshot, basis);
+            this.interpreter.EncodeSendSnapshot(peer, snapshot, basis);
             return;
           }
         }
 
-        this.interpreter.EncodeSend(peer, snapshot);
+        this.interpreter.EncodeSendSnapshot(peer, snapshot);
       }
     }
 

@@ -61,8 +61,8 @@ namespace Railgun
     public void AddEntity(RailEntity entity)
     {
       base.Add(entity);
-      entity.Environment = this;
-      entity.OnAddedToEnvironment();
+      entity.World = this;
+      entity.OnAddedToWorld();
     }
 
     public void RemoveEntity(RailEntity entity)
@@ -97,9 +97,14 @@ namespace Railgun
       {
         RailEntity entity;
         if (this.TryGet(image.Id, out entity))
+        {
           entity.State.SetFrom(image.State);
+          entity.OnStateUpdated(snapshot.Tick);
+        }
         else
+        {
           this.ReplicateEntity(image);
+        }
       }
 
       // TODO: Entity removal
