@@ -67,6 +67,17 @@ namespace Railgun
     /// Snapshot encoding order:
     /// | BASISTICK | TICK | IMAGE COUNT | IMAGE | IMAGE | IMAGE | ...
 
+    internal static RailSnapshot GetBasis(
+      int tick,
+      RingBuffer<RailSnapshot> basisBuffer)
+    {
+      RailSnapshot basis = null;
+      if (tick != RailClock.INVALID_TICK)
+        if (basisBuffer.TryGet(tick, out basis))
+          return basis;
+      return null;
+    }
+
     internal static int PeekBasisTick(
       BitBuffer buffer)
     {

@@ -110,19 +110,7 @@ namespace Railgun
     internal void Broadcast(RailSnapshot snapshot)
     {
       foreach (RailPeer peer in this.peers.Values)
-      {
-        RailSnapshot basis;
-        if (peer.LastAckedTick != RailClock.INVALID_TICK)
-        {
-          if (this.snapshots.TryGet(peer.LastAckedTick, out basis))
-          {
-            this.interpreter.EncodeSendSnapshot(peer, snapshot, basis);
-            return;
-          }
-        }
-
-        this.interpreter.EncodeSendSnapshot(peer, snapshot);
-      }
+        this.interpreter.SendSnapshot(peer, snapshot, this.snapshots);
     }
 
     /// <summary>
