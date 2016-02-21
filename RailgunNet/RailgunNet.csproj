@@ -54,8 +54,7 @@
     <Compile Include="Util\Common\RingBuffer\RingBuffer.cs" />
     <Compile Include="World\Factory\Pool\RailStatePool.cs" />
     <Compile Include="World\Factory\RailStateFactory.cs" />
-    <Compile Include="World\Storage\Base\RailRecordCollection.cs" />
-    <Compile Include="World\Storage\Base\RailRecord.cs" />
+    <Compile Include="World\RailCommand.cs" />
     <Compile Include="World\Storage\RailInput.cs" />
     <Compile Include="World\Storage\RailSnapshot.cs" />
     <Compile Include="World\RailEntity.cs" />

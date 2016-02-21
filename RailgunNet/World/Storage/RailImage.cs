@@ -29,12 +29,16 @@ namespace Railgun
   /// <summary>
   /// An image is the stored state of an entity at a given point in time.
   /// </summary>
-  public class RailImage : RailRecord, IPoolable
+  internal class RailImage : IPoolable
   {
     #region IPoolable Members
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
     #endregion
+
+    internal int Type { get { return this.State.Type; } }
+    internal int Id { get; set; }
+    internal RailState State { get; set; }
 
     /// <summary>
     /// Deep-copies this Image, allocating from the pool in the process.
@@ -61,7 +65,7 @@ namespace Railgun
 
     protected void Reset()
     {
-      this.Id = RailRecord.INVALID_ID;
+      this.Id = RailWorld.INVALID_ID;
       if (this.State != null)
         Pool.Free(this.State);
       this.State = null;

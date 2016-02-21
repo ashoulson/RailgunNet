@@ -48,8 +48,8 @@ namespace Railgun
       this.bitBuffer.Clear();
 
       // Write: [Snapshot] (full or delta)
-      RailSnapshot basis = 
-        RailSnapshot.GetBasis(peer.LastAckedTick, basisBuffer);
+      RailSnapshot basis =
+        Interpreter.GetBasis(peer.LastAckedTick, basisBuffer);
       if (basis != null)
         snapshot.Encode(this.bitBuffer, basis);
       else
@@ -72,7 +72,7 @@ namespace Railgun
 
         // Read: [Snapshot]
         RailSnapshot result = null;
-        RailSnapshot basis = RailSnapshot.GetBasis(basisTick, basisBuffer);
+        RailSnapshot basis = Interpreter.GetBasis(basisTick, basisBuffer);
         if (basis != null)
           result = RailSnapshot.Decode(this.bitBuffer, basis);
         else if (basisTick == RailClock.INVALID_TICK)
@@ -83,6 +83,17 @@ namespace Railgun
         CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
         yield return result;
       }
+    }
+
+    private static RailSnapshot GetBasis(
+      int basisTick,
+      RingBuffer<RailSnapshot> basisBuffer)
+    {
+      RailSnapshot basis = null;
+      if (basisTick != RailClock.INVALID_TICK)
+        if (basisBuffer.TryGet(basisTick, out basis))
+          return basis;
+      return null;
     }
   }
 }

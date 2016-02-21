@@ -30,8 +30,7 @@ namespace Railgun
   /// A snapshot is a collection of images representing a complete state
   /// of the world at a given frame.
   /// </summary>
-  public class RailSnapshot 
-    : RailRecordCollection<RailImage>, IPoolable, IRingValue
+  public class RailSnapshot : IPoolable, IRingValue
   {
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
@@ -39,8 +38,11 @@ namespace Railgun
 
     public int Tick { get; internal protected set; }
 
+    private Dictionary<int, RailImage> images;
+
     public RailSnapshot()
     {
+      this.images = new Dictionary<int, RailImage>();
       this.Tick = RailClock.INVALID_TICK;
     }
 
@@ -51,32 +53,43 @@ namespace Railgun
     {
       RailSnapshot clone = RailResource.Instance.AllocateSnapshot();
       clone.Tick = this.Tick;
-      foreach (RailImage image in this.Entries.Values)
+      foreach (RailImage image in this.Values)
         clone.Add(image.Clone());
       return clone;
     }
 
     protected virtual void Reset()
     {
-      foreach (RailImage image in this.Entries.Values)
+      foreach (RailImage image in this.Values)
         Pool.Free(image);
-      this.Entries.Clear();
+      this.images.Clear();
     }
+
+    #region Image Access
+    internal virtual void Add(RailImage image)
+    {
+      this.images.Add(image.Id, image);
+    }
+
+    internal bool TryGet(int id, out RailImage image)
+    {
+      return this.images.TryGetValue(id, out image);
+    }
+
+    internal bool Contains(int id)
+    {
+      return this.images.ContainsKey(id);
+    }
+
+    internal Dictionary<int, RailImage>.ValueCollection Values
+    {
+      get { return this.images.Values; }
+    }
+    #endregion
 
     #region Encode/Decode
     /// Snapshot encoding order:
     /// | BASISTICK | TICK | IMAGE COUNT | IMAGE | IMAGE | IMAGE | ...
-
-    internal static RailSnapshot GetBasis(
-      int tick,
-      RingBuffer<RailSnapshot> basisBuffer)
-    {
-      RailSnapshot basis = null;
-      if (tick != RailClock.INVALID_TICK)
-        if (basisBuffer.TryGet(tick, out basis))
-          return basis;
-      return null;
-    }
 
     internal static int PeekBasisTick(
       BitBuffer buffer)
@@ -87,14 +100,14 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer)
     {
-      foreach (RailImage image in this.GetValues())
+      foreach (RailImage image in this.Values)
       {
         // Write: [Image Data]
         image.Encode(buffer);
       }
 
       // Write: [Count]
-      buffer.Push(Encoders.EntityCount, this.Count);
+      buffer.Push(Encoders.EntityCount, this.images.Count);
 
       // Write: [Tick]
       buffer.Push(Encoders.Tick, this.Tick);
@@ -109,7 +122,7 @@ namespace Railgun
     {
       int count = 0;
 
-      foreach (RailImage image in this.GetValues())
+      foreach (RailImage image in this.Values)
       {
         // Write: [Image]
         RailImage basisImage;
@@ -201,7 +214,7 @@ namespace Railgun
       RailSnapshot snapshot, 
       RailSnapshot basis)
     {
-      foreach (RailImage basisImage in basis.GetValues())
+      foreach (RailImage basisImage in basis.Values)
         if (snapshot.Contains(basisImage.Id) == false)
           snapshot.Add(basisImage.Clone());
     }

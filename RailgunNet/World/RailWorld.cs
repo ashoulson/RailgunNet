@@ -26,6 +26,8 @@ namespace Railgun
 {
   public class RailWorld
   {
+    public const int INVALID_ID = -1;
+
     public int Tick { get; internal protected set; }
 
     private int nextEntityId;
@@ -95,7 +97,7 @@ namespace Railgun
     /// </summary>
     internal void ApplySnapshot(RailSnapshot snapshot)
     {
-      foreach (RailImage image in snapshot.GetValues())
+      foreach (RailImage image in snapshot.Values)
       {
         RailEntity entity;
         if (this.entities.TryGetValue(image.Id, out entity))
