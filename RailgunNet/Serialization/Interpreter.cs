@@ -53,7 +53,8 @@ namespace Railgun
       this.newImages = new List<RailImage>();
     }
 
-    internal void EncodeSend(
+    #region Snapshot I/O
+    internal void EncodeSendSnapshot(
       RailPeer peer,
       RailSnapshot snapshot)
     {
@@ -69,7 +70,7 @@ namespace Railgun
       peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal void EncodeSend(
+    internal void EncodeSendSnapshot(
       RailPeer peer,
       RailSnapshot snapshot, 
       RailSnapshot basis)
@@ -86,19 +87,20 @@ namespace Railgun
       peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailSnapshot> DecodeReceived(
+    internal IEnumerable<RailSnapshot> DecodeReceivedSnapshots(
       RailPeer peer,
       RingBuffer<RailSnapshot> basisBuffer)
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
       {
-        RailSnapshot snapshot = this.DecodeBuffer(length, basisBuffer);
+        RailSnapshot snapshot = 
+          this.DecodeBufferSnapshot(length, basisBuffer);
         if (snapshot != null)
           yield return snapshot;
       }
     }
 
-    private RailSnapshot DecodeBuffer(
+    private RailSnapshot DecodeBufferSnapshot(
       int length,
       RingBuffer<RailSnapshot> basisBuffer)
     {
@@ -315,6 +317,7 @@ namespace Railgun
         if (snapshot.Contains(basisImage.Id) == false)
           snapshot.Add(basisImage.Clone());
     }
+    #endregion
     #endregion
   }
 }

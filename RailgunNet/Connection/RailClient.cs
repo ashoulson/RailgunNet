@@ -28,9 +28,6 @@ namespace Railgun
 {
   public class RailClient : RailConnection
   {
-    private const int PAYLOAD_CHOKE = 3;
-    private const int SNAPSHOT_BUFFER_LENGTH = 10;
-
     //public event Action Connected;
     //public event Action Disconnected;
 
@@ -38,11 +35,19 @@ namespace Railgun
     private int lastReceived;
     private byte[] dataBuffer;
 
-    public RailClient(params RailFactory[] factories) : base(factories)
+    private RailClock serverClock;
+    private bool shouldUpdateClock = false;
+    private bool shouldUpdate = false;
+
+    public RailClient(params RailStateFactory[] factories) : base(factories)
     {
       this.hostPeer = null;
       this.lastReceived = RailClock.INVALID_TICK;
       this.dataBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
+
+      this.serverClock = new RailClock(RailConnection.SEND_RATE);
+      this.shouldUpdate = false;
+      this.shouldUpdateClock = false;
     }
 
     public void SetPeer(INetPeer netPeer)
@@ -51,10 +56,25 @@ namespace Railgun
       this.hostPeer.MessagesReady += this.OnMessagesReady;
     }
 
+    public override void Update()
+    {
+      if (this.shouldUpdate)
+      {
+        if (this.shouldUpdateClock)
+          this.serverClock.Tick(this.lastReceived);
+        else
+          this.serverClock.Tick();
+      }
+
+      // TEMP:
+      if (this.hostPeer != null)
+        this.hostPeer.EnqueueSend(new byte[] {}, 0);
+    }
+
     private void OnMessagesReady(RailPeer peer)
     {
       IEnumerable<RailSnapshot> decode = 
-        this.interpreter.DecodeReceived(
+        this.interpreter.DecodeReceivedSnapshots(
           this.hostPeer, 
           this.snapshots);
 
@@ -62,7 +82,12 @@ namespace Railgun
       {
         this.snapshots.Store(snapshot);
         if (snapshot.Tick > this.lastReceived)
+        {
           this.lastReceived = snapshot.Tick;
+          this.shouldUpdateClock = true;
+        }
+
+        this.shouldUpdate = true;
 
         // Naive: Apply every snapshot in received order
         this.World.ApplySnapshot(snapshot);

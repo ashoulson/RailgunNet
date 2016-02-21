@@ -24,18 +24,18 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public abstract class RailFactory
+  public abstract class RailStateFactory
   {
     internal RailStatePool StatePool { get { return this.statePool;} }
     private readonly RailStatePool statePool;
 
-    internal RailFactory(RailStatePool statePool)
+    internal RailStateFactory(RailStatePool statePool)
     {
       this.statePool = statePool;
     }
   }
 
-  public class RailFactory<T> : RailFactory
+  public class RailFactory<T> : RailStateFactory
     where T : RailState, new()
   {
     public RailFactory() : base(new RailStatePool<T>()) { }

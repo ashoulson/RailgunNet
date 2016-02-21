@@ -6,13 +6,13 @@ using UnityEngine;
 using MiniUDP;
 using Railgun;
 
-public class Client : MonoBehaviour 
+public class Client : MonoBehaviour
 {
   public string address;
   private NetSocket netSocket;
   private RailClient client;
 
-  void Awake() 
+  void Awake()
   {
     this.netSocket = new NetSocket();
     this.netSocket.Connected += this.OnConnected;
@@ -32,10 +32,11 @@ public class Client : MonoBehaviour
     this.netSocket.Shutdown();
     this.netSocket.Transmit();
   }
-  
-  void FixedUpdate() 
+
+  void FixedUpdate()
   {
     this.netSocket.Poll();
+    this.client.Update();
     this.netSocket.Transmit();
   }
 
@@ -59,8 +60,8 @@ public class Client : MonoBehaviour
 
   private void OnPeerMessagesReady(NetPeer source)
   {
-    byte[] buffer = new byte[2048];
-    foreach (int length in source.ReadReceived(buffer))
-      Debug.Log("Received " + length + " bytes");
+    //byte[] buffer = new byte[2048];
+    //foreach (int length in source.ReadReceived(buffer))
+    //  Debug.Log("Received " + length + " bytes");
   }
 }

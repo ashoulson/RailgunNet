@@ -31,70 +31,79 @@ namespace Railgun
   /// </summary>
   internal class RailClock
   {
-    public const int INVALID_TICK = -1;
-    private int remoteRate;
-    private int tick;
+    private const int DELAY_MIN = 2;
+    private const int DELAY_MAX = 8;
 
-    internal RailClock(int remoteSendRate)
+    public const int INVALID_TICK = -1;
+
+    private int remoteRate;
+    private int delayDesired;
+    private int delayMin;
+    private int delayMax;
+
+    private int remoteTickLatest;
+    private int remoteTickEstimated;
+
+    internal RailClock(
+      int remoteSendRate,
+      int delayMin = RailClock.DELAY_MIN,
+      int delayMax = RailClock.DELAY_MAX)
     {
       this.remoteRate = remoteSendRate;
-      this.tick = 0;
+      this.remoteTickEstimated = 0;
+
+      this.delayMin = delayMin;
+      this.delayMax = delayMax;
+      this.delayDesired = ((delayMax - delayMin) / 2) + delayMin;
     }
 
     // See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
-    public void Tick(int latestTick, bool bufferActive)
+    public int Tick()
     {
-      if (latestTick != RailClock.INVALID_TICK)
+      this.remoteTickEstimated++;
+      return 1;
+    }
+
+    public int Tick(int remoteTick)
+    {
+      this.remoteTickEstimated++;
+      this.remoteTickLatest = remoteTick;
+
+      int delta = this.remoteTickLatest - this.remoteTickEstimated;
+
+      if (this.ShouldSnapTick(delta))
       {
-        this.tick += 1;
-
-        if (bufferActive == true)
-        {
-          // We want to stay (remoteRate * 2) behind the last received tick
-          // At 50Hz tick with 25Hz send, this is a delay of roughly 80ms
-          int diff = latestTick - this.tick;
-
-          if (diff >= (this.remoteRate * 3))
-          {
-            // If we are 3 or more packets behind, increment our local tick
-            // at most (remoteRate * 2) extra ticks
-            int incr = 
-              Math.Min(diff - (this.remoteRate * 2), (this.remoteRate * 2));
-            CommonDebug.Log("Clock: T+" + incr + " (Behind) @ T" + this.tick);
-
-            this.tick += incr;
-          }
-          else if ((diff >= 0) && (diff < this.remoteRate))
-          {
-            // If we have drifted slightly closer to being ahead
-            // Stall one tick by decrementing the tick counter
-            CommonDebug.Log("Clock: T-1 @ (Stall) T" + this.tick);
-
-            this.tick -= 1;
-          }
-          else if (diff < 0)
-          {
-            // If we are ahead of the remote tick, we need to step back
-            if (Math.Abs(diff) <= (this.remoteRate * 2))
-            {
-              // Slightly ahead (<= 2 packets) -- step one packet closer
-              CommonDebug.Log(
-                "Clock: T-" + this.remoteRate + " (Ahead) @ T" + this.tick);
-
-              this.tick -= this.remoteRate;
-            }
-            else
-            {
-              // We're way off, just reset entirely and start over
-              int newTick = latestTick - (this.remoteRate * 2);
-              CommonDebug.Log(
-                "Clock: T=" + latestTick + " (Reset) @ T" + this.tick);
-
-              this.tick = latestTick;
-            }
-          }
-        }
+        // We're way off, reset our calculation of the tick
+        this.remoteTickEstimated = remoteTick - this.delayDesired;
+        CommonDebug.Log(
+          "Clock: T=" + this.remoteTickEstimated + " (Reset) D:" + delta);
+        return 0;
       }
+      else if (delta > this.delayMax)
+      {
+        this.remoteTickEstimated++;
+        CommonDebug.Log(
+          "Clock: T+2 (Jump) @ T" + this.remoteTickEstimated + " D:" + delta);
+        return 2;
+      }
+      else if (delta < this.delayMin)
+      {
+        this.remoteTickEstimated--;
+        CommonDebug.Log(
+          "Clock: T+0 (Wait) @ T" + this.remoteTickEstimated + " D:" + delta);
+        return 0;
+      }
+
+      return 1;
+    }
+      
+    private bool ShouldSnapTick(float delta)
+    {
+      if (delta < (this.delayMin - this.remoteRate))
+        return true;
+      if (delta > (this.delayMax + this.remoteRate))
+        return true;
+      return false;
     }
   }
 }
