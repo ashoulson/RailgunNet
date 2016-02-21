@@ -27,8 +27,6 @@ using UnityEngine;
 
 public class DemoEntity : RailEntity<DemoState>
 {
-  //private DemoObject demoObject = null;
-
   public DemoEntity() { }
 
   private float modifier;
@@ -42,22 +40,11 @@ public class DemoEntity : RailEntity<DemoState>
   protected override void OnUpdateHost()
   {
     this.UpdatePosition();
-    //this.ApplyPosition();
   }
 
   protected override void OnAddedToEnvironment()
   {
     DemoEvents.OnEntityAdded(this);
-  }
-
-  private void InitializeObject()
-  {
-    //if (this.IsMaster)
-    //{
-    //  Renderer renderer = this.demoObject.GetComponent<Renderer>();
-    //  renderer.material = new Material(renderer.material);
-    //  renderer.material.color = Color.red;
-    //}
   }
 
   private void UpdatePosition()
@@ -69,12 +56,4 @@ public class DemoEntity : RailEntity<DemoState>
     if (this.State.X < -5.0f)
       this.modifier *= -1.0f;
   }
-
-  //private void ApplyPosition()
-  //{
-  //  this.demoObject.transform.position = 
-  //    new Vector2(
-  //      this.State.X, 
-  //      this.State.Y);
-  //}
 }
