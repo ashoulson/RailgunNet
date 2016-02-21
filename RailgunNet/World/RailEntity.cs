@@ -26,12 +26,23 @@ namespace Railgun
 {
   public abstract class RailEntity : RailRecord
   {
+    public delegate void UpdateEvent(int tick);
+
+    public event UpdateEvent StateUpdated;
+
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
 
     protected internal virtual void OnUpdateHost() { }
     protected internal virtual void OnAddedToWorld() { }
     protected internal virtual void OnStateUpdated(int tick) { }
+
+    internal void NotifyStateUpdated(int tick)
+    {
+      this.OnStateUpdated(tick);
+      if (this.StateUpdated != null)
+        this.StateUpdated.Invoke(tick);
+    }
 
     internal RailImage CreateImage()
     {

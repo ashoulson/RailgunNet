@@ -99,7 +99,7 @@ namespace Railgun
         if (this.TryGet(image.Id, out entity))
         {
           entity.State.SetFrom(image.State);
-          entity.OnStateUpdated(snapshot.Tick);
+          entity.NotifyStateUpdated(snapshot.Tick);
         }
         else
         {

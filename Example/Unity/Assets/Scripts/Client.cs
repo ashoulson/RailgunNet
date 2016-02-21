@@ -8,12 +8,18 @@ using Railgun;
 
 public class Client : MonoBehaviour
 {
+  public static Client Instance { get; private set; }
+
+  public int RemoteTick { get { return this.client.RemoteTick; } }
+
   public string address;
   private NetSocket netSocket;
   private RailClient client;
 
   void Awake()
   {
+    Client.Instance = this;
+
     this.netSocket = new NetSocket();
     this.netSocket.Connected += this.OnConnected;
     this.netSocket.Disconnected += this.OnDisconnected;
