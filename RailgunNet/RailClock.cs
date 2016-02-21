@@ -44,6 +44,8 @@ namespace Railgun
     private int remoteTickLatest;
     private int remoteTickEstimated;
 
+    public int RemoteTick { get { return this.remoteTickEstimated; } }
+
     internal RailClock(
       int remoteSendRate,
       int delayMin = RailClock.DELAY_MIN,

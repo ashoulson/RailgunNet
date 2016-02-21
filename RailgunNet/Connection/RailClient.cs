@@ -31,6 +31,8 @@ namespace Railgun
     //public event Action Connected;
     //public event Action Disconnected;
 
+    public int RemoteTick { get { return this.serverClock.RemoteTick; } }
+
     private RailPeer hostPeer;
     private int lastReceived;
     private byte[] dataBuffer;
@@ -78,20 +80,23 @@ namespace Railgun
           this.hostPeer, 
           this.snapshots);
 
+      RailSnapshot latest = null;
       foreach (RailSnapshot snapshot in decode)
       {
         this.snapshots.Store(snapshot);
+
         if (snapshot.Tick > this.lastReceived)
         {
           this.lastReceived = snapshot.Tick;
+          latest = snapshot;
           this.shouldUpdateClock = true;
+          this.shouldUpdate = true;
         }
-
-        this.shouldUpdate = true;
-
-        // Naive: Apply every snapshot in received order
-        this.World.ApplySnapshot(snapshot);
       }
+
+      // Naive: Apply the latest snapshot received, if any
+      if (latest != null)
+        this.World.ApplySnapshot(latest);
     }
   }
 }
