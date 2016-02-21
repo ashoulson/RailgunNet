@@ -27,7 +27,7 @@ namespace Railgun
   public abstract class RailEntity : RailRecord
   {
     protected internal bool IsMaster { get; internal set; }
-    protected internal RailEnvironment Environment { get; internal set; }
+    protected internal RailWorld Environment { get; internal set; }
 
     protected internal virtual void OnUpdateHost() { }
     protected internal virtual void OnAddedToEnvironment() { }

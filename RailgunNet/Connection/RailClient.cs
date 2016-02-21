@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class RailClient
+  public class RailClient : RailConnection
   {
     private const int PAYLOAD_CHOKE = 3;
     private const int SNAPSHOT_BUFFER_LENGTH = 10;
@@ -35,29 +35,20 @@ namespace Railgun
     //public event Action Disconnected;
 
     private RailPeer hostPeer;
-    private Interpreter interpreter;
     private int lastReceived;
     private byte[] dataBuffer;
 
-    /// <summary>
-    /// A complete snapshot history of all received snapshots. 
-    /// New incoming snapshots from the host will be reconstructed from these.
-    /// </summary>
-    internal RingBuffer<RailSnapshot> Snapshots { get; private set; }
+    public RailClient(params RailFactory[] factories) : base(factories)
+    {
+      this.hostPeer = null;
+      this.lastReceived = RailClock.INVALID_TICK;
+      this.dataBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
+    }
 
-    public RailClient(INetPeer netPeer)
+    public void SetPeer(INetPeer netPeer)
     {
       this.hostPeer = new RailPeer(netPeer);
       this.hostPeer.MessagesReady += this.OnMessagesReady;
-
-      this.Snapshots = 
-        new RingBuffer<RailSnapshot>(
-          RailClient.SNAPSHOT_BUFFER_LENGTH, 
-          RailHost.SEND_RATE);
-
-      this.interpreter = new Interpreter();
-      this.lastReceived = RailClock.INVALID_TICK;
-      this.dataBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
     }
 
     private void OnMessagesReady(RailPeer peer)
@@ -65,13 +56,16 @@ namespace Railgun
       IEnumerable<RailSnapshot> decode = 
         this.interpreter.DecodeReceived(
           this.hostPeer, 
-          this.Snapshots);
+          this.snapshots);
 
       foreach (RailSnapshot snapshot in decode)
       {
-        this.Snapshots.Store(snapshot);
+        this.snapshots.Store(snapshot);
         if (snapshot.Tick > this.lastReceived)
           this.lastReceived = snapshot.Tick;
+
+        // Naive: Apply every snapshot in received order
+        this.World.ApplySnapshot(snapshot);
       }
     }
   }

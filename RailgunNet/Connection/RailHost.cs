@@ -30,35 +30,28 @@ namespace Railgun
   /// Host is the core executing class on the server. It is responsible for
   /// managing connection contexts and payload I/O.
   /// </summary>
-  public class RailHost
+  public class RailHost : RailConnection
   {
-    internal const int SEND_RATE = 2;
-    private const int PAYLOAD_CHOKE = 3;
-    private const int BUFFER_SIZE = 10;
-
-    public event RailPeerEvent PeerAdded;
-    //public event Action<ClientPeer> PeerRemoved;
-
-    private RailEnvironment environment;
-    private Interpreter interpreter;
-    private HashSet<RailPeer> peers;
-    private int nextEntityId;
+    /// <summary>
+    /// Fired after the host has been ticked normally.
+    /// </summary>
+    public event Action Updated;
 
     /// <summary>
-    /// A complete snapshot history of all sent snapshots. Individual
-    /// peers will all delta against these and can select for scope.
+    /// Fired when a new peer has been added to the host.
     /// </summary>
-    internal RingBuffer<RailSnapshot> Snapshots { get; private set; }
+    public event RailPeerEvent PeerAdded;
 
-    public RailHost(params RailFactory[] factories)
+    /// <summary>
+    /// Fired when a peer has been removed from the host.
+    /// </summary>
+    public event RailPeerEvent PeerRemoved;
+
+    private Dictionary<INetPeer, RailPeer> peers;
+
+    public RailHost(params RailFactory[] factories) : base(factories)
     {
-      RailResource.Initialize(factories);
-
-      this.nextEntityId = 1;
-      this.environment = new RailEnvironment();
-      this.interpreter = new Interpreter();
-      this.peers = new HashSet<RailPeer>();
-      this.Snapshots = new RingBuffer<RailSnapshot>(BUFFER_SIZE, RailHost.SEND_RATE);
+      this.peers = new Dictionary<INetPeer, RailPeer>();
     }
 
     /// <summary>
@@ -66,38 +59,29 @@ namespace Railgun
     /// </summary>
     public void AddPeer(INetPeer peer)
     {
-      RailPeer railPeer = new RailPeer(peer);
+      if (this.peers.ContainsKey(peer) == false)
+      {
+        RailPeer railPeer = new RailPeer(peer);
+        this.peers.Add(peer, railPeer);
 
-      this.peers.Add(railPeer);
-      if (this.PeerAdded != null)
-        this.PeerAdded.Invoke(railPeer);
+        if (this.PeerAdded != null)
+          this.PeerAdded.Invoke(railPeer);
+      }
     }
 
     /// <summary>
-    /// Creates an entity of a given type. Note that this function does NOT
-    /// add the entity to the environment. You should configure the entity
-    /// and then call AddEntity().
+    /// Wraps an incoming connection in a peer and stores it.
     /// </summary>
-    public T CreateEntity<T>(int type)
-      where T : RailEntity
+    public void RemovePeer(INetPeer peer)
     {
-      RailState state = RailResource.Instance.AllocateState(type);
-      RailEntity entity = state.CreateEntity();
+      if (this.peers.ContainsKey(peer))
+      {
+        RailPeer railPeer = this.peers[peer];
+        this.peers.Remove(peer);
 
-      entity.IsMaster = true;
-      entity.Id = this.nextEntityId++;
-      entity.State = state;
-
-      return (T)entity;
-    }
-
-    /// <summary>
-    /// Adds an entity to the host's environment. This entity will be
-    /// replicated over the network to all client peers.
-    /// </summary>
-    public void AddEntity(RailEntity entity)
-    {
-      this.environment.Add(entity);
+        if (this.PeerRemoved != null)
+          this.PeerAdded.Invoke(railPeer);
+      }
     }
 
     /// <summary>
@@ -107,12 +91,15 @@ namespace Railgun
     /// </summary>
     public void Update()
     {
-      this.environment.UpdateHost();
+      this.world.UpdateHost();
 
-      if (this.ShouldSend(this.environment.Tick))
+      if (this.Updated != null)
+        this.Updated.Invoke();
+
+      if (this.ShouldSend(this.world.Tick))
       {
-        RailSnapshot snapshot = this.environment.Snapshot();
-        this.Snapshots.Store(snapshot);
+        RailSnapshot snapshot = this.world.Snapshot();
+        this.snapshots.Store(snapshot);
         this.Broadcast(snapshot);
       }
     }
@@ -122,12 +109,12 @@ namespace Railgun
     /// </summary>
     internal void Broadcast(RailSnapshot snapshot)
     {
-      foreach (RailPeer peer in this.peers)
+      foreach (RailPeer peer in this.peers.Values)
       {
         RailSnapshot basis;
         if (peer.LastAckedTick != RailClock.INVALID_TICK)
         {
-          if (this.Snapshots.TryGet(peer.LastAckedTick, out basis))
+          if (this.snapshots.TryGet(peer.LastAckedTick, out basis))
           {
             this.interpreter.EncodeSend(peer, snapshot, basis);
             return;
@@ -144,11 +131,6 @@ namespace Railgun
     private void Process(INetPeer peer, byte[] data)
     {
       // TODO
-    }
-
-    private bool ShouldSend(int tick)
-    {
-      return (tick % RailHost.SEND_RATE) == 0;
     }
   }
 }

@@ -25,14 +25,17 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
-public class DemoEntity : Entity<DemoState>
+public class DemoEntity : RailEntity<DemoState>
 {
   //private DemoObject demoObject = null;
 
   public DemoEntity() { }
 
+  private float modifier;
+
   public void InitializeHost(int archetypeId)
   {
+    this.modifier = 1.0f;
     this.State.ArchetypeId = archetypeId;
   }
 
@@ -44,14 +47,7 @@ public class DemoEntity : Entity<DemoState>
 
   protected override void OnAddedToEnvironment()
   {
-    //GameObject go = 
-    //  ArchetypeLibrary.Instance.Instantiate(
-    //    this.State.ArchetypeId);
-
-    //this.demoObject = go.GetComponent<DemoObject>();
-    //this.demoObject.Entity = this;
-
-    //this.InitializeObject();
+    DemoEvents.OnEntityAdded(this);
   }
 
   private void InitializeObject()
@@ -66,7 +62,12 @@ public class DemoEntity : Entity<DemoState>
 
   private void UpdatePosition()
   {
-    //this.State.X += 1.0f * Time.fixedDeltaTime;
+    this.State.X += 1.0f * Time.fixedDeltaTime * this.modifier;
+
+    if (this.State.X > 5.0f)
+      this.modifier *= -1.0f;
+    if (this.State.X < -5.0f)
+      this.modifier *= -1.0f;
   }
 
   //private void ApplyPosition()

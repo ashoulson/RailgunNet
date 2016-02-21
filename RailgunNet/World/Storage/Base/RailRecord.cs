@@ -38,6 +38,7 @@ namespace Railgun
   {
     public const int INVALID_ID = -1;
 
+    public int Type { get { return this.State.Type; } }
     public int Id { get; internal set; }
     internal RailState State { get; set; }
   }

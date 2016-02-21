@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 using Railgun;
 
-public class DemoState : State<DemoState, DemoEntity>
+public class DemoState : RailState<DemoState, DemoEntity>
 {
   // TODO: This class is the sort of thing that would be great to code-
   // generate, but since there's only a couple of them at most the 

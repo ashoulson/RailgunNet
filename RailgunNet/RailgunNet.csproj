@@ -36,6 +36,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\RailClient.cs" />
@@ -58,9 +59,9 @@
     <Compile Include="World\Storage\RailSnapshot.cs" />
     <Compile Include="World\RailEntity.cs" />
     <Compile Include="Serialization\Interpreter.cs" />
-    <Compile Include="World\RailEnvironment.cs" />
+    <Compile Include="World\RailWorld.cs" />
     <Compile Include="World\Storage\RailImage.cs" />
-    <Compile Include="World\Storage\RailState.cs" />
+    <Compile Include="World\RailState.cs" />
     <Compile Include="Serialization\BitBuffer.cs" />
     <Compile Include="Serialization\Encoder\Encoder.cs" />
     <Compile Include="Serialization\Encoder\Typed\FloatEncoder.cs" />
