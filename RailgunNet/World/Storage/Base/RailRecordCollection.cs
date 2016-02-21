@@ -24,43 +24,46 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class Environment : RecordCollection<Entity>
+  public abstract class RailRecordCollection<T>
+    where T : RailRecord
   {
-    public int Tick { get; internal protected set; }
+    protected Dictionary<int, T> Entries { get; private set; }
 
-    internal Environment()
+    public int Count { get { return this.Entries.Count; } }
+
+    public RailRecordCollection()
     {
-      this.Tick = 0;
+      this.Entries = new Dictionary<int, T>();
     }
 
-    internal override void Add(Entity image)
+    internal virtual void Add(T image)
     {
-      base.Add(image);
-      image.Environment = this;
-      image.OnAddedToEnvironment();
+      this.Entries.Add(image.Id, image);
     }
 
-    internal override void Remove(Entity image)
+    internal virtual void Remove(T image)
     {
-      base.Remove(image);
-      image.Environment = null;
-      image.OnAddedToEnvironment();
-    }
-    
-    internal void UpdateHost()
-    {
-      this.Tick++;
-      foreach (Entity entity in this.Entries.Values)
-        entity.OnUpdateHost();
+      this.Entries.Remove(image.Id);
     }
 
-    internal Snapshot Snapshot()
+    public bool TryGet(int id, out T image)
     {
-      Snapshot output = ResourceManager.Instance.AllocateSnapshot();
-      output.Tick = this.Tick;
-      foreach (Entity entity in this.Entries.Values)
-        output.Add(entity.CreateImage());
-      return output;
+      return this.Entries.TryGetValue(id, out image);
+    }
+
+    public T Get(int id)
+    {
+      return this.Entries[id];
+    }
+
+    public bool Contains(int id)
+    {
+      return this.Entries.ContainsKey(id);
+    }
+
+    public Dictionary<int, T>.ValueCollection GetValues()
+    {
+      return this.Entries.Values;
     }
   }
 }

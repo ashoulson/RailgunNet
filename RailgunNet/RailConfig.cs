@@ -19,39 +19,23 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-
-using CommonTools;
 
 namespace Railgun
 {
-  public abstract class StatePool : Pool<State>
+  public class RailConfig
   {
-    public int Type { get; private set; }
+    /// <summary>
+    /// Data buffer size used for packet I/O. 
+    /// Don't change this without a good reason.
+    /// </summary>
+    internal const int DATA_BUFFER_SIZE = 2048;
 
-    public StatePool()
-    {
-      // Allocate and deallocate a dummy state to read and store its type
-      State dummy = this.Allocate();
-      this.Type = dummy.Type;
-      this.Deallocate(dummy);
-    }
+    /// <summary>
+    /// The maximum message size that a packet can contain, based on known
+    /// MTUs for internet traffic. Don't change this without a good reason.
+    /// </summary>
+    internal const int MAX_MESSAGE_SIZE = 1400;
 
-    public abstract override State Allocate();
-  }
-
-  public class StatePool<T> : StatePool
-    where T : State, IPoolable, new()
-  {
-    public override State Allocate()
-    {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
-
-      T value = new T();
-      value.Pool = this;
-      return value;
-    }
   }
 }

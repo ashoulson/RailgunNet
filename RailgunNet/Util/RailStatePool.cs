@@ -5,13 +5,6 @@
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
  *  arising from the use of this software.
-/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
- *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
- *
- *  This software is provided 'as-is', without any express or implied
- *  warranty. In no event will the authors be held liable for any damages
- *  arising from the use of this software.
  *  Permission is granted to anyone to use this software for any purpose,
  *  including commercial applications, and to alter it and redistribute it
  *  freely, subject to the following restrictions:
@@ -29,16 +22,36 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
-  /// <summary>
-  /// A record is a binding of a state to an Id. Can be either past or present.
-  /// </summary>
-  public abstract class Record
+  internal abstract class RailStatePool : Pool<RailState>
   {
-    public const int INVALID_ID = -1;
+    public int Type { get; private set; }
 
-    public int Id { get; internal set; }
-    internal State State { get; set; }
+    public RailStatePool()
+    {
+      // Allocate and deallocate a dummy state to read and store its type
+      RailState dummy = this.Allocate();
+      this.Type = dummy.Type;
+      this.Deallocate(dummy);
+    }
+
+    public abstract override RailState Allocate();
+  }
+
+  internal class RailStatePool<T> : RailStatePool
+    where T : RailState, IPoolable, new()
+  {
+    public override RailState Allocate()
+    {
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
+
+      T value = new T();
+      value.Pool = this;
+      return value;
+    }
   }
 }

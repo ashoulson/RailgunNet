@@ -30,22 +30,13 @@ namespace Railgun
   {
     // This class works with both uint-based and byte-based storage,
     // so you can adjust these constants accordingly with data type
-    private const int  SIZE_BYTE       = 8;
-    private const int  SIZE_INPUT      = sizeof(uint) * SIZE_BYTE;
-    private const int  SIZE_STORAGE    = sizeof(uint) * SIZE_BYTE;
-    private const int  BYTES_PER_CHUNK = SIZE_STORAGE / SIZE_BYTE;
-    private const uint STORAGE_MASK    = (uint)((1L << SIZE_STORAGE) - 1);
+    private const int SIZE_BYTE = 8;
+    private const int SIZE_INPUT = sizeof(uint) * SIZE_BYTE;
+    private const int SIZE_STORAGE = sizeof(uint) * SIZE_BYTE;
+    private const int BYTES_PER_CHUNK = SIZE_STORAGE / SIZE_BYTE;
+    private const uint STORAGE_MASK = (uint)((1L << SIZE_STORAGE) - 1);
 
-    private const int  DEFAULT_CAPACITY = 8;
-
-    private static int ClampBits(int bits)
-    {
-      if (bits < 0)
-        return 0;
-      if (bits > BitBuffer.SIZE_INPUT)
-        return BitBuffer.SIZE_INPUT;
-      return bits;
-    }
+    private const int DEFAULT_CAPACITY = 8;
 
     /// <summary>
     /// The position of the next-to-be-written bit.
@@ -65,16 +56,10 @@ namespace Railgun
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
-    internal BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
+    public BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
     {
       this.chunks = new uint[capacity];
       this.Clear();
-    }
-
-    internal BitBuffer(byte[] data)
-    {
-      this.chunks = new uint[(data.Length / BitBuffer.BYTES_PER_CHUNK) + 1];
-      this.ReadBytes(data);
     }
 
     internal void Clear()
@@ -89,7 +74,10 @@ namespace Railgun
     /// </summary>
     public void Push(int numBits, uint value)
     {
-      numBits = BitBuffer.ClampBits(numBits);
+      if (numBits < 0)
+        throw new ArgumentOutOfRangeException("Pushing negatve bits");
+      if (numBits > BitBuffer.SIZE_INPUT)
+        throw new ArgumentOutOfRangeException("Pushing too many bits");
 
       while (numBits > 0)
       {
@@ -119,23 +107,17 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Pushes an encodable value.
-    /// </summary>
-    public void Push<T>(Encoder<T> encoder, T value)
-    {
-      uint encoded = encoder.Pack(value);
-      this.Push(encoder.RequiredBits, encoded);
-    }
-
-    /// <summary>
     /// Pops the top numBits from the buffer and returns them as the lowest
     /// order bits in the return value.
     /// </summary>
     public uint Pop(int numBits)
     {
-      numBits = BitBuffer.ClampBits(numBits);
+      if (numBits < 0)
+        throw new ArgumentOutOfRangeException("Popping negatve bits");
+      if (numBits > BitBuffer.SIZE_INPUT)
+        throw new ArgumentOutOfRangeException("Popping too many bits");
       if (numBits > this.position)
-        throw new AccessViolationException("BitBuffer access underrun");
+        throw new AccessViolationException("BitBuffer pop underrun");
 
       uint output = 0;
       while (numBits > 0)
@@ -167,23 +149,17 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Pops a value and decodes it.
-    /// </summary>
-    public T Pop<T>(Encoder<T> encoder)
-    {
-      uint data = this.Pop(encoder.RequiredBits);
-      return encoder.Unpack(data);
-    }
-
-    /// <summary>
     /// Pops the top numBits from the buffer and returns them as the lowest
     /// order bits in the return value.
     /// </summary>
     public uint Peek(int numBits)
     {
-      numBits = BitBuffer.ClampBits(numBits);
+      if (numBits < 0)
+        throw new ArgumentOutOfRangeException("Peeking negatve bits");
+      if (numBits > BitBuffer.SIZE_INPUT)
+        throw new ArgumentOutOfRangeException("Peeking too many bits");
       if (numBits > this.position)
-        throw new AccessViolationException("BitBuffer access underrun");
+        throw new AccessViolationException("BitBuffer peek underrun");
 
       int startingPosition = this.position;
       uint output = 0;
@@ -218,18 +194,9 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Peeks at a value and decodes it.
-    /// </summary>
-    public T Peek<T>(Encoder<T> encoder)
-    {
-      uint data = this.Peek(encoder.RequiredBits);
-      return encoder.Unpack(data);
-    }
-
-    /// <summary>
     /// Converts the buffer to a byte array.
     /// </summary>
-    public byte[] StoreBytes()
+    public int StoreBytes(byte[] buffer)
     {
       // Push a sentinel bit for finding position
       this.Push(1, 1);
@@ -239,30 +206,33 @@ namespace Railgun
       int numChunks = (lastWritten / BitBuffer.SIZE_STORAGE) + 1;
       int numBytes = (lastWritten / BitBuffer.SIZE_BYTE) + 1;
 
-      // TODO: Pool these byte arrays!
-      byte[] data = new byte[numBytes];
+      if (buffer.Length < numBytes)
+        throw new ArgumentException("Buffer too small for StoreBytes");
+
+      int numWritten = 0;
       for (int i = 0; i < numChunks; i++)
       {
         int index = i * BitBuffer.BYTES_PER_CHUNK;
-        int bytesRemaining = BitBuffer.GetRemainingBytes(index, numBytes);
-        BitBuffer.StoreValue(data, index, bytesRemaining, this.chunks[i]);
+        int bytesRemaining = BitBuffer.GetBytesForChunk(index, numBytes);
+        BitBuffer.StoreValue(buffer, index, bytesRemaining, this.chunks[i]);
+        numWritten += bytesRemaining;
       }
 
       // Remove the sentinel bit from our working copy
       this.Pop(1);
 
-      return data;
+      return numWritten;
     }
 
     /// <summary>
     /// Overwrites this buffer with an array of byte data.
     /// </summary>
-    public void ReadBytes(byte[] data)
+    public void ReadBytes(byte[] data, int length)
     {
       this.Clear();
 
-      int numBytes = data.Length;
-      int numChunks = (data.Length / BitBuffer.BYTES_PER_CHUNK) + 1;
+      int numBytes = length;
+      int numChunks = (length / BitBuffer.BYTES_PER_CHUNK) + 1;
 
       if (this.chunks.Length < numChunks)
         this.chunks = new uint[numChunks];
@@ -270,12 +240,12 @@ namespace Railgun
       for (int i = 0; i < numChunks; i++)
       {
         int index = i * BitBuffer.BYTES_PER_CHUNK;
-        int bytesRemaining = BitBuffer.GetRemainingBytes(index, numBytes);
-        this.chunks[i] = BitBuffer.ReadValue(data, index, bytesRemaining);
+        int bytesForChunk = BitBuffer.GetBytesForChunk(index, numBytes);
+        this.chunks[i] = BitBuffer.ReadValue(data, index, bytesForChunk);
       }
 
       // Find position and pop the sentinel bit
-      this.position = BitBuffer.FindPosition(data);
+      this.position = BitBuffer.FindPosition(data, length);
       this.Pop(1);
     }
 
@@ -300,19 +270,19 @@ namespace Railgun
       return value;
     }
 
-    private static int GetRemainingBytes(int index, int numBytes)
+    private static int GetBytesForChunk(int index, int numBytes)
     {
       int maxBytes = index + BitBuffer.BYTES_PER_CHUNK;
       int capacity = (maxBytes > numBytes) ? numBytes : maxBytes;
       return capacity - index;
     }
 
-    private static int FindPosition(byte[] data)
+    private static int FindPosition(byte[] data, int length)
     {
-      if (data.Length == 0)
+      if (length == 0)
         return 0;
 
-      byte last = data[data.Length - 1];
+      byte last = data[length - 1];
       int shiftCount = 0;
       while (last != 0)
       {
@@ -320,7 +290,35 @@ namespace Railgun
         shiftCount++;
       }
 
-      return ((data.Length - 1) * BitBuffer.SIZE_BYTE) + shiftCount;
+      return ((length - 1) * BitBuffer.SIZE_BYTE) + shiftCount;
+    }
+
+    #region Encoder Helpers
+    /// <summary>
+    /// Pushes an encodable value.
+    /// </summary>
+    public void Push<T>(Encoder<T> encoder, T value)
+    {
+      uint encoded = encoder.Pack(value);
+      this.Push(encoder.RequiredBits, encoded);
+    }
+
+    /// <summary>
+    /// Pops a value and decodes it.
+    /// </summary>
+    public T Pop<T>(Encoder<T> encoder)
+    {
+      uint data = this.Pop(encoder.RequiredBits);
+      return encoder.Unpack(data);
+    }
+
+    /// <summary>
+    /// Peeks at a value and decodes it.
+    /// </summary>
+    public T Peek<T>(Encoder<T> encoder)
+    {
+      uint data = this.Peek(encoder.RequiredBits);
+      return encoder.Unpack(data);
     }
 
     #region Conditional Serialization Helpers
@@ -344,6 +342,7 @@ namespace Railgun
         return this.Pop(encoder);
       return basisVal;
     }
+    #endregion
     #endregion
   }
 }

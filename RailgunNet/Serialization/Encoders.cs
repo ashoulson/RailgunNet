@@ -26,27 +26,13 @@ namespace Railgun
 {
   internal static class Encoders
   {
-    // Used by StateBag
-    internal static IntEncoder EntityCount = null;
-    internal static IntEncoder EntityId = null;
+    internal static readonly IntEncoder EntityCount = new IntEncoder(0, 1023);
+    internal static readonly IntEncoder EntityId = Encoders.EntityCount;
 
-    internal static IntEncoder StateType = null;
+    internal static readonly IntEncoder StateType = new IntEncoder(0, 31);
 
-    internal static IntEncoder Tick = null;
+    internal static readonly IntEncoder Tick = new IntEncoder(-1, 4194301);
 
-    internal static IntEncoder Bit = null;
-
-    internal static void Initialize()
-    {
-      // Used by StateBag
-      Encoders.EntityCount = new IntEncoder(0, 1023);
-      Encoders.EntityId = Encoders.EntityCount;
-
-      Encoders.StateType = new IntEncoder(0, 31);
-
-      Encoders.Tick = new IntEncoder(-1, 4194301);
-
-      Encoders.Bit = new IntEncoder(0, 1);
-    }
+    internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
   }
 }

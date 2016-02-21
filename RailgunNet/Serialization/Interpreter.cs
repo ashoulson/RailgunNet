@@ -42,17 +42,20 @@ namespace Railgun
   /// </summary>
   internal class Interpreter
   {
+    private byte[] byteBuffer;
     private BitBuffer bitBuffer;
-    private List<Image> newImages;
+    private List<RailImage> newImages;
 
     internal Interpreter()
     {
+      this.byteBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
       this.bitBuffer = new BitBuffer();
-      this.newImages = new List<Image>();
+      this.newImages = new List<RailImage>();
     }
 
-    public byte[] Encode(
-      Snapshot snapshot)
+    internal void EncodeSend(
+      RailPeer peer,
+      RailSnapshot snapshot)
     {
       this.bitBuffer.Clear();
 
@@ -60,14 +63,16 @@ namespace Railgun
       this.EncodeSnapshot(snapshot);
 
       // Write: [Basis Tick]
-      this.bitBuffer.Push(Encoders.Tick, Clock.INVALID_TICK);
+      this.bitBuffer.Push(Encoders.Tick, RailClock.INVALID_TICK);
 
-      return this.bitBuffer.StoreBytes();
+      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
+      peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    public byte[] Encode(
-      Snapshot snapshot, 
-      Snapshot basis)
+    internal void EncodeSend(
+      RailPeer peer,
+      RailSnapshot snapshot, 
+      RailSnapshot basis)
     {
       this.bitBuffer.Clear();
       
@@ -77,24 +82,45 @@ namespace Railgun
       // Write: [Basis Tick]
       this.bitBuffer.Push(Encoders.Tick, basis.Tick);
 
-      return this.bitBuffer.StoreBytes();
+      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
+      peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    public Snapshot Decode(
-      byte[] data,
-      RingBuffer<Snapshot> basisBuffer)
+    internal IEnumerable<RailSnapshot> DecodeReceived(
+      RailPeer peer,
+      RingBuffer<RailSnapshot> basisBuffer)
     {
-      this.bitBuffer.ReadBytes(data);
+      foreach (int length in peer.ReadReceived(this.byteBuffer))
+      {
+        RailSnapshot snapshot = this.DecodeBuffer(length, basisBuffer);
+        if (snapshot != null)
+          yield return snapshot;
+      }
+    }
+
+    private RailSnapshot DecodeBuffer(
+      int length,
+      RingBuffer<RailSnapshot> basisBuffer)
+    {
+      this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
       // Read: [Basis Tick]
       int basisTick = bitBuffer.Pop(Encoders.Tick);
 
       // Read: [Snapshot]
-      Snapshot result;
-      if (basisTick != Clock.INVALID_TICK)
-        result = this.DecodeSnapshot(basisBuffer.Get(basisTick));
+      RailSnapshot result = null;
+      if (basisTick != RailClock.INVALID_TICK)
+      {
+        // There's a slim chance the basis could have been overwritten
+        // if packets arrived out of order, in which case we can't decode
+        RailSnapshot basis = basisBuffer.Get(basisTick); 
+        if (basis != null)
+          result = this.DecodeSnapshot(basis);
+      }
       else
+      {
         result = this.DecodeSnapshot();
+      }
 
       CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
       return result;
@@ -102,9 +128,9 @@ namespace Railgun
 
     #region Snapshot Encode/Decode
     private void EncodeSnapshot(
-      Snapshot snapshot)
+      RailSnapshot snapshot)
     {
-      foreach (Image image in snapshot.GetValues())
+      foreach (RailImage image in snapshot.GetValues())
       {
         // Write: [Image Data]
         this.EncodeImage(image);
@@ -121,15 +147,15 @@ namespace Railgun
     }
 
     private void EncodeSnapshot(
-      Snapshot snapshot, 
-      Snapshot basis)
+      RailSnapshot snapshot, 
+      RailSnapshot basis)
     {
       int count = 0;
 
-      foreach (Image image in snapshot.GetValues())
+      foreach (RailImage image in snapshot.GetValues())
       {
         // Write: [Image Data]
-        Image basisImage;
+        RailImage basisImage;
         if (basis.TryGet(image.Id, out basisImage))
         {
           if (this.EncodeImage(image, basisImage) == false)
@@ -154,7 +180,7 @@ namespace Railgun
       this.bitBuffer.Push(Encoders.Tick, snapshot.Tick);
     }
 
-    private Snapshot DecodeSnapshot()
+    private RailSnapshot DecodeSnapshot()
     {
       this.newImages.Clear();
 
@@ -164,7 +190,7 @@ namespace Railgun
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = ResourceManager.Instance.AllocateSnapshot();
+      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
       snapshot.Tick = tick;
 
       for (int i = 0; i < count; i++)
@@ -179,8 +205,8 @@ namespace Railgun
       return snapshot;
     }
 
-    private Snapshot DecodeSnapshot(
-      Snapshot basis)
+    private RailSnapshot DecodeSnapshot(
+      RailSnapshot basis)
     {
       this.newImages.Clear();
 
@@ -190,7 +216,7 @@ namespace Railgun
       // Read: [Count]
       int count = this.bitBuffer.Pop(Encoders.EntityCount);
 
-      Snapshot snapshot = ResourceManager.Instance.AllocateSnapshot();
+      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
       snapshot.Tick = tick;
 
       for (int i = 0; i < count; i++)
@@ -199,7 +225,7 @@ namespace Railgun
         int imageId = this.bitBuffer.Pop(Encoders.EntityId);
 
         // Read: [Image Data]
-        Image basisImage;
+        RailImage basisImage;
         if (basis.TryGet(imageId, out basisImage))
           snapshot.Add(this.DecodeImage(imageId, basisImage));
         else
@@ -213,7 +239,7 @@ namespace Railgun
 
     #region Image Encode/Decode
     private void EncodeImage(
-      Image image)
+      RailImage image)
     {
       // Write: [State Data]
       image.State.Encode(this.bitBuffer);
@@ -223,8 +249,8 @@ namespace Railgun
     }
 
     private bool EncodeImage(
-      Image image, 
-      Image basis)
+      RailImage image, 
+      RailImage basis)
     {
       // Write: [State Data]
       return image.State.Encode(this.bitBuffer, basis.State);
@@ -232,14 +258,14 @@ namespace Railgun
       // (No type identifier for delta images)
     }
 
-    private Image DecodeImage(
+    private RailImage DecodeImage(
       int imageId)
     {
       // Read: [Type]
       int stateType = this.bitBuffer.Pop(Encoders.StateType);
 
-      Image image = ResourceManager.Instance.AllocateImage();
-      State state = ResourceManager.Instance.AllocateState(stateType);
+      RailImage image = RailResource.Instance.AllocateImage();
+      RailState state = RailResource.Instance.AllocateState(stateType);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer);
@@ -251,14 +277,14 @@ namespace Railgun
       return image;
     }
 
-    private Image DecodeImage(
+    private RailImage DecodeImage(
       int imageId, 
-      Image basis)
+      RailImage basis)
     {
       // (No type identifier for delta images)
 
-      Image image = ResourceManager.Instance.AllocateImage();
-      State state = ResourceManager.Instance.AllocateState(basis.State.Type);
+      RailImage image = RailResource.Instance.AllocateImage();
+      RailState state = RailResource.Instance.AllocateState(basis.State.Type);
 
       // Read: [State Data]
       state.Decode(this.bitBuffer, basis.State);
@@ -274,7 +300,7 @@ namespace Railgun
     /// Returns the new images created during a decode.
     /// Only valid immediately after a decode.
     /// </summary>
-    internal IList<Image> GetNewImages()
+    internal IList<RailImage> GetNewImages()
     {
       return this.newImages.AsReadOnly();
     }
@@ -283,9 +309,9 @@ namespace Railgun
     /// Incorporates any non-updated entities from the basis snapshot into
     /// the newly-populated snapshot.
     /// </summary>
-    private void ReconcileBasis(Snapshot snapshot, Snapshot basis)
+    private void ReconcileBasis(RailSnapshot snapshot, RailSnapshot basis)
     {
-      foreach (Image basisImage in basis.GetValues())
+      foreach (RailImage basisImage in basis.GetValues())
         if (snapshot.Contains(basisImage.Id) == false)
           snapshot.Add(basisImage.Clone());
     }

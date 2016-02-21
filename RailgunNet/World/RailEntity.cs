@@ -24,8 +24,43 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class ClientPacket
+  public abstract class RailEntity : RailRecord
   {
-    int LatestTick { get; set; }
+    protected internal bool IsMaster { get; internal set; }
+    protected internal RailEnvironment Environment { get; internal set; }
+
+    protected internal virtual void OnUpdateHost() { }
+    protected internal virtual void OnAddedToEnvironment() { }
+
+    internal RailImage CreateImage()
+    {
+      RailImage image = RailResource.Instance.AllocateImage();
+      image.Id = this.Id;
+      image.State = this.State.Clone();
+      return image;
+    }
+  }
+
+  /// <summary>
+  /// Handy shortcut class for auto-casting the internal state.
+  /// </summary>
+  public abstract class RailEntity<T> : RailEntity
+    where T : RailState
+  {
+    private T typedState = null;
+    public new T State 
+    { 
+      get 
+      { 
+        if (this.typedState == null)
+          this.typedState = (T)base.State;
+        return (T)base.State; 
+      }
+      set
+      {
+        this.typedState = null;
+        base.State = value;
+      }
+    }
   }
 }

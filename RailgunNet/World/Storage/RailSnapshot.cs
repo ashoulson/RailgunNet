@@ -27,42 +27,40 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// An image is the stored state of an entity at a given point in time.
+  /// A snapshot is a collection of images representing a complete state
+  /// of the world at a given frame.
   /// </summary>
-  public class Image : Record, IPoolable
+  public class RailSnapshot 
+    : RailRecordCollection<RailImage>, IPoolable, IRingValue
   {
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
+    int IRingValue.Key { get { return this.Tick; } }
+
+    public int Tick { get; internal protected set; }
+
+    public RailSnapshot()
+    {
+      this.Tick = RailClock.INVALID_TICK;
+    }
 
     /// <summary>
-    /// Deep-copies this Image, allocating from the pool in the process.
+    /// Deep-copies this Snapshot, allocating from the pool in the process.
     /// </summary>
-    internal Image Clone()
+    internal RailSnapshot Clone()
     {
-      Image clone = ResourceManager.Instance.AllocateImage();
-      clone.Id = this.Id;
-      clone.State = this.State.Clone();
+      RailSnapshot clone = RailResource.Instance.AllocateSnapshot();
+      clone.Tick = this.Tick;
+      foreach (RailImage image in this.Entries.Values)
+        clone.Add(image.Clone());
       return clone;
     }
 
-    /// <summary>
-    /// Creates an entity out of this image. The entity type instantiation
-    /// is handled by the State itself.
-    /// </summary>
-    internal Entity CreateEntity()
+    protected virtual void Reset()
     {
-      Entity entity = this.State.CreateEntity();
-      entity.Id = this.Id;
-      entity.State = this.State.Clone();
-      return entity;
-    }
-
-    protected void Reset()
-    {
-      this.Id = Record.INVALID_ID;
-      if (this.State != null)
-        Pool.Free(this.State);
-      this.State = null;
+      foreach (RailImage image in this.Entries.Values)
+        Pool.Free(image);
+      this.Entries.Clear();
     }
   }
 }

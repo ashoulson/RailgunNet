@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace CommonTools
 {
-  public class GenericPool<T> : Pool<T>
+  internal class GenericPool<T> : Pool<T>
     where T : IPoolable, new()
   {
     public override T Allocate()

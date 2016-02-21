@@ -36,14 +36,13 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Clock.cs" />
-    <Compile Include="Connection\Client.cs" />
-    <Compile Include="Connection\ClientPacket.cs" />
-    <Compile Include="Connection\Peer\ClientPeer.cs" />
-    <Compile Include="Connection\IConnection.cs" />
-    <Compile Include="Connection\Host.cs" />
-    <Compile Include="Connection\Peer\Peer.cs" />
-    <Compile Include="ResourceManager.cs" />
+    <Compile Include="Connection\RailPeer.cs" />
+    <Compile Include="RailClock.cs" />
+    <Compile Include="Connection\RailClient.cs" />
+    <Compile Include="Connection\INetPeer.cs" />
+    <Compile Include="Connection\RailHost.cs" />
+    <Compile Include="RailConfig.cs" />
+    <Compile Include="RailResource.cs" />
     <Compile Include="Util\Common\CommonDebug.cs" />
     <Compile Include="Util\Common\CommonUtil.cs" />
     <Compile Include="Util\Common\Pooling\GenericPool.cs" />
@@ -52,16 +51,16 @@
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\Common\RingBuffer\IRingValue.cs" />
     <Compile Include="Util\Common\RingBuffer\RingBuffer.cs" />
-    <Compile Include="Util\StatePool.cs" />
-    <Compile Include="World\Storage\Base\RecordCollection.cs" />
-    <Compile Include="World\Storage\Base\Record.cs" />
-    <Compile Include="World\Storage\Snapshot.cs" />
-    <Compile Include="World\Entity.cs" />
+    <Compile Include="Util\RailStatePool.cs" />
+    <Compile Include="World\RailFactory.cs" />
+    <Compile Include="World\Storage\Base\RailRecordCollection.cs" />
+    <Compile Include="World\Storage\Base\RailRecord.cs" />
+    <Compile Include="World\Storage\RailSnapshot.cs" />
+    <Compile Include="World\RailEntity.cs" />
     <Compile Include="Serialization\Interpreter.cs" />
-    <Compile Include="World\Environment.cs" />
-    <Compile Include="World\Storage\Image.cs" />
-    <Compile Include="World\Storage\State.cs" />
-    <Compile Include="Railgun.cs" />
+    <Compile Include="World\RailEnvironment.cs" />
+    <Compile Include="World\Storage\RailImage.cs" />
+    <Compile Include="World\Storage\RailState.cs" />
     <Compile Include="Serialization\BitBuffer.cs" />
     <Compile Include="Serialization\Encoder\Encoder.cs" />
     <Compile Include="Serialization\Encoder\Typed\FloatEncoder.cs" />

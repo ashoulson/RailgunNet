@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace CommonTools
 {
-  public abstract class Pool
+  internal abstract class Pool
   {
     protected abstract void DeallocateGeneric(object item);
 
@@ -34,7 +34,7 @@ namespace CommonTools
     }
   }
 
-  public abstract class Pool<T> : Pool
+  internal abstract class Pool<T> : Pool
     where T : IPoolable
   {
     protected Stack<T> freeList;

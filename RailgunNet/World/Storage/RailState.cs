@@ -30,22 +30,22 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class State : IPoolable
+  public abstract class RailState : IPoolable
   {
     Pool IPoolable.Pool { get; set; }
     void IPoolable.Reset() { this.Reset(); }
 
-    internal State Clone()
+    internal RailState Clone()
     {
-      State clone = ResourceManager.Instance.AllocateState(this.Type);
+      RailState clone = RailResource.Instance.AllocateState(this.Type);
       clone.SetFrom(this);
       return clone;
     }
 
-    internal abstract Entity CreateEntity();
-    internal abstract void SetFrom(State other);
-    internal abstract bool Encode(BitBuffer buffer, State basis);
-    internal abstract void Decode(BitBuffer buffer, State basis);
+    internal abstract RailEntity CreateEntity();
+    internal abstract void SetFrom(RailState other);
+    internal abstract bool Encode(BitBuffer buffer, RailState basis);
+    internal abstract void Decode(BitBuffer buffer, RailState basis);
 
     /// <summary>
     /// Should return an int code for this type of state.
@@ -61,28 +61,28 @@ namespace Railgun
   /// <summary>
   /// This is the class to override to attach user-defined data to an entity.
   /// </summary>
-  public abstract class State<T, TEntity> : State
-    where T : State<T, TEntity>
-    where TEntity : Entity<T>, new()
+  public abstract class RailState<T, TEntity> : RailState
+    where T : RailState<T, TEntity>
+    where TEntity : RailEntity<T>, new()
   {
     #region Casting Overrides
-    internal override void SetFrom(State other)
+    internal override void SetFrom(RailState other)
     {
       this.SetFrom((T)other);
     }
 
-    internal override bool Encode(BitBuffer buffer, State basis)
+    internal override bool Encode(BitBuffer buffer, RailState basis)
     {
       return this.Encode(buffer, (T)basis);
     }
 
-    internal override void Decode(BitBuffer buffer, State basis)
+    internal override void Decode(BitBuffer buffer, RailState basis)
     {
       this.Decode(buffer, (T)basis);
     }
     #endregion
 
-    internal override Entity CreateEntity() { return new TEntity(); }
+    internal override RailEntity CreateEntity() { return new TEntity(); }
 
     protected internal abstract void SetFrom(T other);
     protected internal abstract bool Encode(BitBuffer buffer, T basis);

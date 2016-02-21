@@ -24,7 +24,7 @@ using System.Diagnostics;
 
 namespace CommonTools
 {
-  public static class CommonDebug
+  internal static class CommonDebug
   {
     // TODO: We may want some logging values outside of debug/diagnostics for
     // release builds. Investigate this possibility.
