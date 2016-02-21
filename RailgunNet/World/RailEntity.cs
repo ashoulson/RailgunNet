@@ -24,14 +24,18 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public abstract class RailEntity : RailRecord
+  public abstract class RailEntity
   {
     public delegate void UpdateEvent(int tick);
 
     public event UpdateEvent StateUpdated;
 
+    public int Id { get; internal set; }
+
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
+    protected internal int Type { get { return this.State.Type; } }
+    protected internal RailState State { get; set; }
 
     protected internal virtual void OnUpdateHost() { }
     protected internal virtual void OnAddedToWorld() { }
@@ -66,11 +70,11 @@ namespace Railgun
       { 
         if (this.typedState == null)
           this.typedState = (T)base.State;
-        return (T)base.State; 
+        return this.typedState;
       }
       set
       {
-        this.typedState = null;
+        this.typedState = value;
         base.State = value;
       }
     }
