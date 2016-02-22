@@ -89,6 +89,16 @@ public class DemoState : RailState<DemoState, DemoEntity>
     this.Status = status;
   }
 
+  protected override void Reset()
+  {
+    this.ArchetypeId = 0;
+    this.UserId = 0;
+    this.X = 0.0f;
+    this.Y = 0.0f;
+    this.Angle = 0.0f;
+    this.Status = 0;
+  }
+
   /// <summary>
   /// Writes the values from another PawnState to this one.
   /// </summary>

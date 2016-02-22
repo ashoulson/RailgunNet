@@ -57,7 +57,7 @@ namespace Railgun
     protected internal abstract void Encode(BitBuffer buffer);
     protected internal abstract void Decode(BitBuffer buffer);
 
-    protected internal virtual void Reset() { }
+    protected internal abstract void Reset();
   }
 
   /// <summary>

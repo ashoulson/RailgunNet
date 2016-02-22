@@ -36,8 +36,10 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Connection\Peers\RailPeerHost.cs" />
     <Compile Include="Connection\RailConnection.cs" />
-    <Compile Include="Connection\RailPeer.cs" />
+    <Compile Include="Connection\Peers\RailPeer.cs" />
+    <Compile Include="Connection\Peers\RailPeerClient.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\RailClient.cs" />
     <Compile Include="Connection\IRailNetPeer.cs" />

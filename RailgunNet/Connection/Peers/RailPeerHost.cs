@@ -23,38 +23,19 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public delegate void RailPeerEvent(RailPeer peer);
-
-  public class RailPeer
+  public class RailPeerHost : RailPeer
   {
-    internal event RailPeerEvent MessagesReady;
+    public event Action<RailPeerHost> MessagesReady;
 
-    internal IRailNetPeer NetPeer { get { return this.NetPeer; } }
-    internal int LastAckedTick { get; set; }
-
-    private readonly IRailNetPeer netPeer;
-
-    internal RailPeer(IRailNetPeer netPeer)
+    internal RailPeerHost(IRailNetPeer netPeer)
+      : base(netPeer)
     {
-      this.netPeer = netPeer;
-      this.netPeer.MessagesReady += this.OnMessagesReady;
-      this.LastAckedTick = RailClock.INVALID_TICK;
     }
 
-    internal IEnumerable<int> ReadReceived(byte[] buffer)
-    {
-      return this.netPeer.ReadReceived(buffer);
-    }
-
-    internal void EnqueueSend(byte[] buffer, int length)
-    {
-      this.netPeer.EnqueueSend(buffer, length);
-    }
-
-    private void OnMessagesReady(IRailNetPeer peer)
+    protected override void OnMessagesReady(IRailNetPeer peer)
     {
       if (this.MessagesReady != null)
-        this.MessagesReady.Invoke(this);
+        this.MessagesReady(this);
     }
   }
 }

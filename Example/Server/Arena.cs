@@ -15,13 +15,14 @@ namespace Example
       this.host = host;
       this.environment = host.World;
 
-      host.PeerAdded += this.OnPeerAdded;
+      host.ClientAdded += this.OnPeerAdded;
     }
 
-    private void OnPeerAdded(RailPeer peer)
+    private void OnPeerAdded(RailPeerClient peer)
     {
       DemoEntity entity = this.environment.CreateEntity<DemoEntity>(DemoTypes.TYPE_DEMO);
       entity.InitializeHost(0);
+      entity.AssignOwner(peer);
       this.environment.AddEntity(entity);
     }
   }

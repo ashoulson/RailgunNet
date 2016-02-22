@@ -19,47 +19,32 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
-using Railgun;
-using UnityEngine;
-
-public class DemoEntity : RailEntity<DemoState>
+namespace Railgun
 {
-  public DemoEntity() { }
-
-  private float modifier;
-
-  public void InitializeHost(int archetypeId)
+  public abstract class RailPeer
   {
-    this.modifier = 1.0f;
-    this.State.ArchetypeId = archetypeId;
-  }
+    internal IRailNetPeer NetPeer { get { return this.NetPeer; } }
 
-  protected override void OnUpdateHost()
-  {
-    this.UpdatePosition();
-  }
+    private readonly IRailNetPeer netPeer;
 
-  protected override void OnAddedToWorld()
-  {
-    DemoEvents.OnEntityAdded(this);
-  }
-
-  private void UpdatePosition()
-  {
-    DemoCommand command = this.GetLatestCommand<DemoCommand>();
-    if (command != null)
+    internal RailPeer(IRailNetPeer netPeer)
     {
-      if (command.Up)
-        this.State.Y += 5.0f * Time.fixedDeltaTime;
-      if (command.Down)
-        this.State.Y -= 5.0f * Time.fixedDeltaTime;
-      if (command.Left)
-        this.State.X -= 5.0f * Time.fixedDeltaTime;
-      if (command.Right)
-        this.State.X += 5.0f * Time.fixedDeltaTime;
+      this.netPeer = netPeer;
+      this.netPeer.MessagesReady += this.OnMessagesReady;
     }
+
+    internal IEnumerable<int> ReadReceived(byte[] buffer)
+    {
+      return this.netPeer.ReadReceived(buffer);
+    }
+
+    internal void EnqueueSend(byte[] buffer, int length)
+    {
+      this.netPeer.EnqueueSend(buffer, length);
+    }
+
+    protected abstract void OnMessagesReady(IRailNetPeer peer);
   }
 }

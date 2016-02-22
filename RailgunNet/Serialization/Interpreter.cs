@@ -42,7 +42,7 @@ namespace Railgun
 
     #region Input
     internal void SendInput(
-      RailPeer peer,
+      RailPeerHost peer,
       RailInput input)
     {
       this.bitBuffer.Clear();
@@ -55,7 +55,7 @@ namespace Railgun
     }
 
     internal IEnumerable<RailInput> ReceiveInputs(
-      RailPeer peer)
+      RailPeerClient peer)
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
       {
@@ -72,7 +72,7 @@ namespace Railgun
 
     #region Snapshot
     internal void SendSnapshot(
-      RailPeer peer,
+      RailPeerClient peer,
       RailSnapshot snapshot,
       RailRingBuffer<RailSnapshot> basisBuffer)
     {
@@ -91,7 +91,7 @@ namespace Railgun
     }
 
     internal IEnumerable<RailSnapshot> ReceiveSnapshots(
-      RailPeer peer,
+      RailPeerHost peer,
       RailRingBuffer<RailSnapshot> basisBuffer) // TODO: Move this into peer
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))

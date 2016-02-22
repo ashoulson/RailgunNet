@@ -42,11 +42,6 @@ namespace Railgun
     /// </summary>
     internal readonly RailRingBuffer<RailSnapshot> snapshotBuffer;
 
-    /// <summary>
-    /// A history of sent or received commands. Used as a dejitter buffer.
-    /// </summary>
-    internal readonly RailRingBuffer<RailInput> inputBuffer;
-
     public abstract void Update();
 
     protected RailConnection(
@@ -67,14 +62,6 @@ namespace Railgun
         new RailRingBuffer<RailSnapshot>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
-
-      // In contrast to snapshots, inputs are sent in batches that
-      // correspond to the last N frames, so we need to store inputs
-      // from frames not on the send rate cadence (i.e. between send frames)
-      // and as a result use no divisor
-      this.inputBuffer =
-        new RailRingBuffer<RailInput>(
-          RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
     protected bool ShouldSend(int tick)

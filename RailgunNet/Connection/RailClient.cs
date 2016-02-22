@@ -33,7 +33,7 @@ namespace Railgun
 
     public int RemoteTick { get { return this.serverClock.RemoteTick; } }
 
-    private RailPeer hostPeer;
+    private RailPeerHost hostPeer;
     private int lastReceived;
     private int lastApplied;
     private byte[] dataBuffer;
@@ -41,6 +41,13 @@ namespace Railgun
     private RailClock serverClock;
     private bool shouldUpdateClock = false;
     private bool shouldUpdate = false;
+
+
+    /// <summary>
+    /// A history of inputs sent (or waiting to be sent) to the client.
+    /// </summary>
+    // TODO: This should probably be just a regular queue
+    internal readonly RailRingBuffer<RailInput> inputBuffer;
 
     // TODO: This is clumsy
     private int localTick;
@@ -60,11 +67,14 @@ namespace Railgun
       this.shouldUpdateClock = false;
 
       this.localTick = 0;
+      this.inputBuffer =
+        new RailRingBuffer<RailInput>(
+          RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
     public void SetPeer(IRailNetPeer netPeer)
     {
-      this.hostPeer = new RailPeer(netPeer);
+      this.hostPeer = new RailPeerHost(netPeer);
       this.hostPeer.MessagesReady += this.OnMessagesReady;
     }
 
@@ -117,7 +127,7 @@ namespace Railgun
       }
     }
 
-    private void OnMessagesReady(RailPeer peer)
+    private void OnMessagesReady(RailPeerHost peer)
     {
       IEnumerable<RailSnapshot> decode =
         this.interpreter.ReceiveSnapshots(
