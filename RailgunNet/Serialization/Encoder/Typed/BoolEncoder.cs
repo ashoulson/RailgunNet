@@ -26,32 +26,20 @@ using CommonTools;
 
 namespace Railgun
 {
-  internal abstract class RailStatePool : Pool<RailState>
+  public class BoolEncoder : Encoder<bool>
   {
-    public int Type { get; private set; }
+    internal override int RequiredBits { get { return 1; } }
 
-    public RailStatePool()
+    public BoolEncoder() {}
+
+    internal override uint Pack(bool value)
     {
-      // Allocate and deallocate a dummy state to read and store its type
-      RailState dummy = this.Allocate();
-      this.Type = dummy.Type;
-      this.Deallocate(dummy);
+      return value ? 1u : 0u;
     }
 
-    public abstract override RailState Allocate();
-  }
-
-  internal class RailStatePool<T> : RailStatePool
-    where T : RailState, IPoolable, new()
-  {
-    public override RailState Allocate()
+    internal override bool Unpack(uint data)
     {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
-
-      T value = new T();
-      value.Pool = this;
-      return value;
+      return (data == 0) ? false : true;
     }
   }
 }

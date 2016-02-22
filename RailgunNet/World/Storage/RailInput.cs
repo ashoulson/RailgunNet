@@ -29,22 +29,53 @@ namespace Railgun
   /// <summary>
   /// Input is a collection of player state data sent from client to host.
   /// </summary>
-  public class RailInput : IPoolable, IRingValue
+  public class RailInput : IRailPoolable, IRailRingValue
   {
-    Pool IPoolable.Pool { get; set; }
-    void IPoolable.Reset() { this.Reset(); }
-    int IRingValue.Key { get { return this.Tick; } }
+    RailPool IRailPoolable.Pool { get; set; }
+    void IRailPoolable.Reset() { this.Reset(); }
+    int IRailRingValue.Key { get { return this.Tick; } }
 
-    public int Tick { get; internal protected set; }
+    internal int Tick { get; set; }
+    internal RailCommand Command { get; set; }
 
-    public RailInput()
+    protected void Reset()
     {
       this.Tick = RailClock.INVALID_TICK;
+      if (this.Command != null)
+        RailPool.Free(this.Command);
+      this.Command = null;
     }
 
-    public void Reset()
+    #region Encode/Decode
+    /// Input encoding order: | TICK | -- COMMAND -- |
+    /// 
+    internal void Encode(
+      BitBuffer buffer)
     {
+      // Write: [Command]
+      this.Command.Encode(buffer);
 
+      // Write: [Tick]
+      buffer.Push(Encoders.Tick, this.Tick);
     }
+
+    internal static RailInput Decode(
+      BitBuffer buffer)
+    {
+      // Read: [Tick]
+      int tick = buffer.Pop(Encoders.Tick);
+
+      RailInput input = RailResource.Instance.AllocateInput();
+      RailCommand command = RailResource.Instance.AllocateCommand();
+
+      // Read: [Command]
+      command.Decode(buffer);
+
+      input.Tick = tick;
+      input.Command = command;
+
+      return input;
+    }
+    #endregion
   }
 }

@@ -33,4 +33,6 @@ public static class DemoEncoders
 
   public static readonly FloatEncoder Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
   public static readonly FloatEncoder Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
+
+  public static readonly BoolEncoder Bool = new BoolEncoder();
 }

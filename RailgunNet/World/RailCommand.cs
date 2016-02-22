@@ -30,29 +30,20 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailState : IRailPoolable
+  public abstract class RailCommand : IRailPoolable
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
 
-    internal RailState Clone()
+    internal RailCommand Clone()
     {
-      RailState clone = RailResource.Instance.AllocateState(this.Type);
+      RailCommand clone = RailResource.Instance.AllocateCommand();
       clone.SetFrom(this);
       return clone;
     }
 
-    internal abstract RailEntity CreateEntity();
-    internal abstract RailPoolState CreatePool();
-
-    internal abstract void SetFrom(RailState other);
-    internal abstract bool Encode(BitBuffer buffer, RailState basis);
-    internal abstract void Decode(BitBuffer buffer, RailState basis);
-
-    /// <summary>
-    /// Should return an int code for this type of state.
-    /// </summary>
-    protected internal abstract int Type { get; }
+    internal abstract void SetFrom(RailCommand other);
+    internal abstract RailPoolCommand CreatePool();
 
     protected internal abstract void Encode(BitBuffer buffer);
     protected internal abstract void Decode(BitBuffer buffer);
@@ -63,36 +54,19 @@ namespace Railgun
   /// <summary>
   /// This is the class to override to attach user-defined data to an entity.
   /// </summary>
-  public abstract class RailState<T, TEntity> : RailState
-    where T : RailState<T, TEntity>, new()
-    where TEntity : RailEntity<T>, new()
+  public abstract class RailCommand<T> : RailCommand
+    where T : RailCommand<T>, new()
   {
     #region Casting Overrides
-    internal override void SetFrom(RailState other)
+    internal override void SetFrom(RailCommand other)
     {
       this.SetFrom((T)other);
     }
 
-    internal override bool Encode(BitBuffer buffer, RailState basis)
+    internal override RailPoolCommand CreatePool()
     {
-      return this.Encode(buffer, (T)basis);
-    }
-
-    internal override void Decode(BitBuffer buffer, RailState basis)
-    {
-      this.Decode(buffer, (T)basis);
-    }
-
-    internal override RailPoolState CreatePool()
-    {
-      return new RailPoolState<T>();
+      return new RailPoolCommand<T>();
     }
     #endregion
-
-    internal override RailEntity CreateEntity() { return new TEntity(); }
-
-    protected internal abstract void SetFrom(T other);
-    protected internal abstract bool Encode(BitBuffer buffer, T basis);
-    protected internal abstract void Decode(BitBuffer buffer, T basis);
   }
 }

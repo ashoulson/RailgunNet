@@ -24,17 +24,32 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal static class Encoders
+  internal abstract class RailPoolState : RailPool<RailState>
   {
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, 1023);
-    internal static readonly IntEncoder EntityId = Encoders.EntityCount;
+    internal int Type { get; private set; }
 
-    internal static readonly IntEncoder StateType = new IntEncoder(0, 31);
+    internal RailPoolState()
+    {
+      // Allocate and deallocate a dummy state to read and store its type
+      RailState dummy = this.Allocate();
+      this.Type = dummy.Type;
+      this.Deallocate(dummy);
+    }
 
-    internal static readonly IntEncoder Tick = new IntEncoder(-1, 4194301);
+    internal abstract override RailState Allocate();
+  }
 
-    internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
+  internal class RailPoolState<T> : RailPoolState
+    where T : RailState, IRailPoolable, new()
+  {
+    internal override RailState Allocate()
+    {
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
 
-    internal static readonly BoolEncoder Bool = new BoolEncoder();
+      T value = new T();
+      value.Pool = this;
+      return value;
+    }
   }
 }

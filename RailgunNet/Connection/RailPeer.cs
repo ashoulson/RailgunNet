@@ -29,12 +29,12 @@ namespace Railgun
   {
     internal event RailPeerEvent MessagesReady;
 
-    internal INetPeer NetPeer { get { return this.NetPeer; } }
+    internal IRailNetPeer NetPeer { get { return this.NetPeer; } }
     internal int LastAckedTick { get; set; }
 
-    private readonly INetPeer netPeer;
+    private readonly IRailNetPeer netPeer;
 
-    internal RailPeer(INetPeer netPeer)
+    internal RailPeer(IRailNetPeer netPeer)
     {
       this.netPeer = netPeer;
       this.netPeer.MessagesReady += this.OnMessagesReady;
@@ -51,7 +51,7 @@ namespace Railgun
       this.netPeer.EnqueueSend(buffer, length);
     }
 
-    private void OnMessagesReady(INetPeer peer)
+    private void OnMessagesReady(IRailNetPeer peer)
     {
       if (this.MessagesReady != null)
         this.MessagesReady.Invoke(this);

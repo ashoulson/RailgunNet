@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Railgun;
 using MiniUDP;
 
-internal class NetPeerWrapper : INetPeer
+internal class NetPeerWrapper : IRailNetPeer
 {
   public event NetPeerEvent MessagesReady;
 

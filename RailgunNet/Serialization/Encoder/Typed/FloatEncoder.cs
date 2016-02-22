@@ -45,10 +45,6 @@ namespace Railgun
     internal float MaxValue { get { return this.maxValue; } }
     internal override int RequiredBits { get { return this.requiredBits; } }
 
-    /// <summary>
-    /// Initializes a float serializer. We use shorts to retrieve the min and
-    /// max values in order to avoid overflow errors during conversion.
-    /// </summary>
     public FloatEncoder(float minValue, float maxValue, float precision)
     {
       this.minValue = minValue;

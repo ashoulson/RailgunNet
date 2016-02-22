@@ -24,17 +24,15 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal static class Encoders
+  public delegate void NetPeerEvent(IRailNetPeer peer);
+
+  public interface IRailNetPeer
   {
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, 1023);
-    internal static readonly IntEncoder EntityId = Encoders.EntityCount;
+    event NetPeerEvent MessagesReady;
 
-    internal static readonly IntEncoder StateType = new IntEncoder(0, 31);
+    object UserData { get; set; }
 
-    internal static readonly IntEncoder Tick = new IntEncoder(-1, 4194301);
-
-    internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
-
-    internal static readonly BoolEncoder Bool = new BoolEncoder();
+    IEnumerable<int> ReadReceived(byte[] buffer);
+    void EnqueueSend(byte[] buffer, int length);
   }
 }

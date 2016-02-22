@@ -40,10 +40,41 @@ namespace Railgun
       this.bitBuffer = new BitBuffer();
     }
 
+    #region Input
+    internal void SendInput(
+      RailPeer peer,
+      RailInput input)
+    {
+      this.bitBuffer.Clear();
+
+      // Write: [Input]
+      input.Encode(this.bitBuffer);
+
+      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
+      peer.EnqueueSend(this.byteBuffer, length);
+    }
+
+    internal IEnumerable<RailInput> ReceiveInputs(
+      RailPeer peer)
+    {
+      foreach (int length in peer.ReadReceived(this.byteBuffer))
+      {
+        this.bitBuffer.ReadBytes(this.byteBuffer, length);
+
+        // Read: [Input]
+        RailInput result = RailInput.Decode(this.bitBuffer);
+
+        CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
+        yield return result;
+      }
+    }
+    #endregion
+
+    #region Snapshot
     internal void SendSnapshot(
       RailPeer peer,
       RailSnapshot snapshot,
-      RingBuffer<RailSnapshot> basisBuffer)
+      RailRingBuffer<RailSnapshot> basisBuffer)
     {
       this.bitBuffer.Clear();
 
@@ -61,7 +92,7 @@ namespace Railgun
 
     internal IEnumerable<RailSnapshot> ReceiveSnapshots(
       RailPeer peer,
-      RingBuffer<RailSnapshot> basisBuffer) // TODO: Move this into peer
+      RailRingBuffer<RailSnapshot> basisBuffer) // TODO: Move this into peer
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
       {
@@ -87,7 +118,7 @@ namespace Railgun
 
     private static RailSnapshot GetBasis(
       int basisTick,
-      RingBuffer<RailSnapshot> basisBuffer)
+      RailRingBuffer<RailSnapshot> basisBuffer)
     {
       RailSnapshot basis = null;
       if (basisTick != RailClock.INVALID_TICK)
@@ -95,5 +126,6 @@ namespace Railgun
           return basis;
       return null;
     }
+    #endregion
   }
 }

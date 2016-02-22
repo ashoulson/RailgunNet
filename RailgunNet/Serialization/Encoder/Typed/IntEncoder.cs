@@ -38,9 +38,6 @@ namespace Railgun
     internal int MaxValue { get { return this.maxValue; } }
     internal override int RequiredBits { get { return this.requiredBits; } }
 
-    /// <summary>
-    /// Initializes a float serializer.
-    /// </summary>
     public IntEncoder(int minValue, int maxValue)
     {
       this.minValue = minValue;

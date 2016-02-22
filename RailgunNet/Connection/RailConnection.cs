@@ -40,20 +40,41 @@ namespace Railgun
     /// A complete snapshot history of all sent/received snapshots. Used for
     /// delta encoding either on send or on receive.
     /// </summary>
-    internal readonly RingBuffer<RailSnapshot> snapshots;
+    internal readonly RailRingBuffer<RailSnapshot> snapshotBuffer;
+
+    /// <summary>
+    /// A history of sent or received commands. Used as a dejitter buffer.
+    /// </summary>
+    internal readonly RailRingBuffer<RailInput> inputBuffer;
 
     public abstract void Update();
 
-    public RailConnection(params RailStateFactory[] factories)
+    protected RailConnection(
+      RailCommand commandToRegister, 
+      RailState[] statestoRegister)
     {
-      RailResource.Initialize(factories);
+      RailResource.Initialize(
+        commandToRegister, 
+        statestoRegister);
 
       this.world = new RailWorld();
       this.interpreter = new Interpreter();
-      this.snapshots = 
-        new RingBuffer<RailSnapshot>(
+
+      // Snapshots are sent according to the send rate, so we include
+      // the send rate as a divisor for the ring buffer (i.e. we'll
+      // never have snapshots stored for frames that aren't sending frames)
+      this.snapshotBuffer = 
+        new RailRingBuffer<RailSnapshot>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
+
+      // In contrast to snapshots, inputs are sent in batches that
+      // correspond to the last N frames, so we need to store inputs
+      // from frames not on the send rate cadence (i.e. between send frames)
+      // and as a result use no divisor
+      this.inputBuffer =
+        new RailRingBuffer<RailInput>(
+          RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
     protected bool ShouldSend(int tick)

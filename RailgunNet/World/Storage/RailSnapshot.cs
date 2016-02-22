@@ -30,11 +30,11 @@ namespace Railgun
   /// A snapshot is a collection of images representing a complete state
   /// of the world at a given frame.
   /// </summary>
-  public class RailSnapshot : IPoolable, IRingValue
+  public class RailSnapshot : IRailPoolable, IRailRingValue
   {
-    Pool IPoolable.Pool { get; set; }
-    void IPoolable.Reset() { this.Reset(); }
-    int IRingValue.Key { get { return this.Tick; } }
+    RailPool IRailPoolable.Pool { get; set; }
+    void IRailPoolable.Reset() { this.Reset(); }
+    int IRailRingValue.Key { get { return this.Tick; } }
 
     public int Tick { get; internal protected set; }
 
@@ -61,7 +61,7 @@ namespace Railgun
     protected virtual void Reset()
     {
       foreach (RailImage image in this.Values)
-        Pool.Free(image);
+        RailPool.Free(image);
       this.images.Clear();
     }
 
