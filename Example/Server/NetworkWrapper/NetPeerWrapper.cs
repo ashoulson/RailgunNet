@@ -6,7 +6,7 @@ using MiniUDP;
 
 namespace Example
 {
-  internal class NetPeerWrapper : INetPeer
+  internal class NetPeerWrapper : IRailNetPeer
   {
     public event NetPeerEvent MessagesReady;
 

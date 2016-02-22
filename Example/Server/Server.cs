@@ -23,17 +23,17 @@ namespace Example
 
       this.socket = new NetSocket();
 
-      // Logging
-      this.socket.Connected += this.OnConnected;
-      this.socket.Disconnected += this.OnDisconnected;
-      this.socket.TimedOut += this.OnTimedOut;
-
-      this.host = new RailHost(new RailFactory<DemoState>());
+      this.host = new RailHost(new DemoCommand(), new DemoState());
       this.wrapper = new NetHostWrapper(socket, host);
       this.arena = new Arena(this.host);
 
       this.clock = new Clock(updateRate);
       this.clock.OnFixedUpdate += this.FixedUpdate;
+
+      // Logging
+      this.socket.Connected += this.OnConnected;
+      this.socket.Disconnected += this.OnDisconnected;
+      this.socket.TimedOut += this.OnTimedOut;
     }
 
     public void Start()

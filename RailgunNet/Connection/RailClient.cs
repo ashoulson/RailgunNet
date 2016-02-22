@@ -42,7 +42,13 @@ namespace Railgun
     private bool shouldUpdateClock = false;
     private bool shouldUpdate = false;
 
-    public RailClient(params RailStateFactory[] factories) : base(factories)
+    // TODO: This is clumsy
+    private int localTick;
+
+    public RailClient(
+      RailCommand commandToRegister, 
+      params RailState[] statestoRegister)
+      : base(commandToRegister, statestoRegister)
     {
       this.hostPeer = null;
       this.lastReceived = RailClock.INVALID_TICK;
@@ -52,9 +58,11 @@ namespace Railgun
       this.serverClock = new RailClock(RailConfig.NETWORK_SEND_RATE);
       this.shouldUpdate = false;
       this.shouldUpdateClock = false;
+
+      this.localTick = 0;
     }
 
-    public void SetPeer(INetPeer netPeer)
+    public void SetPeer(IRailNetPeer netPeer)
     {
       this.hostPeer = new RailPeer(netPeer);
       this.hostPeer.MessagesReady += this.OnMessagesReady;
@@ -70,17 +78,36 @@ namespace Railgun
           this.serverClock.Tick();
 
         this.SelectAndApplySnapshot();
+
+        if (this.hostPeer != null)
+        {
+          RailInput input = this.inputBuffer.Get(this.localTick);
+          if (input != null)
+            this.interpreter.SendInput(this.hostPeer, input);
+        }
       }
 
-      // TEMP:
-      if (this.hostPeer != null)
-        this.hostPeer.EnqueueSend(new byte[] {}, 0);
+      this.localTick++;
+    }
+
+    public T CreateCommand<T>()
+      where T : RailCommand<T>, new()
+    {
+      return (T)RailResource.Instance.AllocateCommand();
+    }
+
+    public void RegisterCommand(RailCommand command)
+    {
+      RailInput input = RailResource.Instance.AllocateInput();
+      input.Tick = this.localTick;
+      input.Command = command;
+      this.inputBuffer.Store(input);
     }
 
     private void SelectAndApplySnapshot()
     {
       RailSnapshot snapshot =
-        this.snapshots.GetOrFirstBefore(
+        this.snapshotBuffer.GetOrFirstBefore(
           this.serverClock.RemoteTick);
 
       if ((snapshot != null) && (snapshot.Tick > this.lastApplied))
@@ -95,11 +122,11 @@ namespace Railgun
       IEnumerable<RailSnapshot> decode =
         this.interpreter.ReceiveSnapshots(
           this.hostPeer, 
-          this.snapshots);
+          this.snapshotBuffer);
 
       foreach (RailSnapshot snapshot in decode)
       {
-        this.snapshots.Store(snapshot);
+        this.snapshotBuffer.Store(snapshot);
 
         // See if we should update the clock with a new received tick
         if (snapshot.Tick > this.lastReceived)

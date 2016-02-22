@@ -1,5 +1,5 @@
 ﻿/*
- *  Common Utilities for Working with C# and Unity
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
  *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
@@ -22,40 +22,41 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace CommonTools
-{
-  internal abstract class Pool
-  {
-    protected abstract void DeallocateGeneric(object item);
+using Railgun;
 
-    public static void Free(IPoolable item)
-    {
-      item.Pool.DeallocateGeneric(item);
-    }
+public class DemoCommand : RailCommand<DemoCommand>
+{
+  public bool Up { get; set; }
+  public bool Down { get; set; }
+  public bool Left { get; set; }
+  public bool Right { get; set; }
+
+  public void SetData(
+    bool up,
+    bool down,
+    bool left,
+    bool right)
+  {
+    this.Up = up;
+    this.Down = down;
+    this.Left = left;
+    this.Right = right;
   }
 
-  internal abstract class Pool<T> : Pool
-    where T : IPoolable
+  protected override void Encode(BitBuffer buffer)
   {
-    protected Stack<T> freeList;
+    buffer.Push(DemoEncoders.Bool, this.Right);
+    buffer.Push(DemoEncoders.Bool, this.Left);
+    buffer.Push(DemoEncoders.Bool, this.Down);
+    buffer.Push(DemoEncoders.Bool, this.Up);
+  }
 
-    public Pool()
-    {
-      this.freeList = new Stack<T>();
-    }
-
-    public abstract T Allocate();
-
-    public void Deallocate(T value)
-    {
-      CommonDebug.Assert(value.Pool == this);
-      value.Reset();
-      this.freeList.Push(value);
-    }
-
-    protected override void DeallocateGeneric(object item)
-    {
-      this.Deallocate((T)item);
-    }
+  protected override void Decode(BitBuffer buffer)
+  {
+    this.SetData(
+      buffer.Pop(DemoEncoders.Bool),
+      buffer.Pop(DemoEncoders.Bool),
+      buffer.Pop(DemoEncoders.Bool),
+      buffer.Pop(DemoEncoders.Bool));
   }
 }

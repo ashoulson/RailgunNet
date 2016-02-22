@@ -22,22 +22,42 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
-  public abstract class RailStateFactory
+  internal abstract class RailPool
   {
-    internal RailStatePool StatePool { get { return this.statePool;} }
-    private readonly RailStatePool statePool;
+    internal abstract void DeallocateGeneric(object item);
 
-    internal RailStateFactory(RailStatePool statePool)
+    internal static void Free(IRailPoolable item)
     {
-      this.statePool = statePool;
+      item.Pool.DeallocateGeneric(item);
     }
   }
 
-  public class RailFactory<T> : RailStateFactory
-    where T : RailState, new()
+  internal abstract class RailPool<T> : RailPool
+    where T : IRailPoolable
   {
-    public RailFactory() : base(new RailStatePool<T>()) { }
+    internal Stack<T> freeList;
+
+    internal RailPool()
+    {
+      this.freeList = new Stack<T>();
+    }
+
+    internal abstract T Allocate();
+
+    internal void Deallocate(T value)
+    {
+      CommonDebug.Assert(value.Pool == this);
+      value.Reset();
+      this.freeList.Push(value);
+    }
+
+    internal override void DeallocateGeneric(object item)
+    {
+      this.Deallocate((T)item);
+    }
   }
 }

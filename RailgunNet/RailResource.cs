@@ -29,26 +29,35 @@ namespace Railgun
     // TODO: Make this thread-safe (like [ThreadStatic])
     internal static RailResource Instance { get; private set; }
 
-    internal static void Initialize(params RailStateFactory[] factories)
+    internal static void Initialize(
+      RailCommand commandToRegister, 
+      RailState[] statestoRegister)
     {
-      RailResource.Instance = new RailResource(factories);
+      RailResource.Instance = 
+        new RailResource(commandToRegister, statestoRegister);
     }
 
-    private GenericPool<RailSnapshot> snapshotPool;
-    private GenericPool<RailImage> imagePool;
-    private GenericPool<RailInput> inputPool;
+    private RailPoolGeneric<RailSnapshot> snapshotPool;
+    private RailPoolGeneric<RailImage> imagePool;
+    private RailPoolGeneric<RailInput> inputPool;
 
-    private Dictionary<int, RailStatePool> statePools;
+    private RailPoolCommand commandPool;
 
-    private RailResource(params RailStateFactory[] factories)
+    private Dictionary<int, RailPoolState> statePools;
+
+    private RailResource(
+      RailCommand commandToRegister, 
+      params RailState[] statestoRegister)
     {
-      this.snapshotPool = new GenericPool<RailSnapshot>();
-      this.imagePool = new GenericPool<RailImage>();
-      this.inputPool = new GenericPool<RailInput>();
+      this.snapshotPool = new RailPoolGeneric<RailSnapshot>();
+      this.imagePool = new RailPoolGeneric<RailImage>();
+      this.inputPool = new RailPoolGeneric<RailInput>();
 
-      this.statePools = new Dictionary<int, RailStatePool>();
-      foreach (RailStateFactory factory in factories)
-        this.statePools[factory.StatePool.Type] = factory.StatePool;
+      this.commandPool = commandToRegister.CreatePool();
+
+      this.statePools = new Dictionary<int, RailPoolState>();
+      foreach (RailState state in statestoRegister)
+        this.statePools[state.Type] = state.CreatePool();
     }
 
     internal RailSnapshot AllocateSnapshot()
@@ -64,6 +73,11 @@ namespace Railgun
     internal RailInput AllocateInput()
     {
       return this.inputPool.Allocate();
+    }
+
+    internal RailCommand AllocateCommand()
+    {
+      return this.commandPool.Allocate();
     }
 
     internal RailState AllocateState(int type)

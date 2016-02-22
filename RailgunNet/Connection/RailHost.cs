@@ -47,17 +47,20 @@ namespace Railgun
     /// </summary>
     public event RailPeerEvent PeerRemoved;
 
-    private Dictionary<INetPeer, RailPeer> peers;
+    private Dictionary<IRailNetPeer, RailPeer> peers;
 
-    public RailHost(params RailStateFactory[] factories) : base(factories)
+    public RailHost(
+      RailCommand commandToRegister,
+      params RailState[] statestoRegister)
+      : base(commandToRegister, statestoRegister)
     {
-      this.peers = new Dictionary<INetPeer, RailPeer>();
+      this.peers = new Dictionary<IRailNetPeer, RailPeer>();
     }
 
     /// <summary>
     /// Wraps an incoming connection in a peer and stores it.
     /// </summary>
-    public void AddPeer(INetPeer peer)
+    public void AddPeer(IRailNetPeer peer)
     {
       if (this.peers.ContainsKey(peer) == false)
       {
@@ -72,7 +75,7 @@ namespace Railgun
     /// <summary>
     /// Wraps an incoming connection in a peer and stores it.
     /// </summary>
-    public void RemovePeer(INetPeer peer)
+    public void RemovePeer(IRailNetPeer peer)
     {
       if (this.peers.ContainsKey(peer))
       {
@@ -99,7 +102,7 @@ namespace Railgun
       if (this.ShouldSend(this.world.Tick))
       {
         RailSnapshot snapshot = this.world.CreateSnapshot();
-        this.snapshots.Store(snapshot);
+        this.snapshotBuffer.Store(snapshot);
         this.Broadcast(snapshot);
       }
     }
@@ -110,13 +113,13 @@ namespace Railgun
     internal void Broadcast(RailSnapshot snapshot)
     {
       foreach (RailPeer peer in this.peers.Values)
-        this.interpreter.SendSnapshot(peer, snapshot, this.snapshots);
+        this.interpreter.SendSnapshot(peer, snapshot, this.snapshotBuffer);
     }
 
     /// <summary>
     /// Processes an incoming packet from a peer.
     /// </summary>
-    private void Process(INetPeer peer, byte[] data)
+    private void Process(IRailNetPeer peer, byte[] data)
     {
       // TODO
     }

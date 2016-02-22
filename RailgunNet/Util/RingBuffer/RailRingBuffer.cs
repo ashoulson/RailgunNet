@@ -1,5 +1,5 @@
 ﻿/*
- *  Common Utilities for Working with C# and Unity
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
  *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
@@ -22,10 +22,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace CommonTools
+namespace Railgun
 {
-  internal class RingBuffer<T>
-    where T : class, IRingValue, IPoolable
+  internal class RailRingBuffer<T>
+    where T : class, IRailRingValue, IRailPoolable
   {
     // Used for converting a key to an index. For example, the host may only
     // send a snapshot every two tick, so we would divide the tick number
@@ -34,11 +34,11 @@ namespace CommonTools
 
     private T[] data;
 
-    public RingBuffer(int capacity, int divisor = 1)
+    public RailRingBuffer(int capacity, int divisor = 1)
     {
       this.divisor = divisor;
-      this.data = new T[capacity];
-      for (int i = 0; i < capacity; i++)
+      this.data = new T[capacity / divisor];
+      for (int i = 0; i < this.data.Length; i++)
         this.data[i] = null;
     }
 
@@ -46,7 +46,7 @@ namespace CommonTools
     {
       int index = this.KeyToIndex(value.Key);
       if (this.data[index] != null)
-        Pool.Free(this.data[index]);
+        RailPool.Free(this.data[index]);
       this.data[index] = value;
     }
 
