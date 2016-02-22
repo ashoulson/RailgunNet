@@ -32,8 +32,11 @@ namespace Railgun
 
     public int Id { get; internal set; }
 
+    internal RailPeerClient Owner { get; set; }
+
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
+
     protected internal int Type { get { return this.State.Type; } }
     protected internal RailState State { get; set; }
 
@@ -41,11 +44,25 @@ namespace Railgun
     protected internal virtual void OnAddedToWorld() { }
     protected internal virtual void OnStateUpdated(int tick) { }
 
+    public void AssignOwner(RailPeerClient owner)
+    {
+      this.Owner = owner;
+    }
+
     internal void NotifyStateUpdated(int tick)
     {
       this.OnStateUpdated(tick);
       if (this.StateUpdated != null)
         this.StateUpdated.Invoke(tick);
+    }
+
+    protected T GetLatestCommand<T>()
+      where T : RailCommand<T>, new()
+    {
+      if (this.Owner != null)
+        if (this.Owner.latestInput != null)
+          return (T)this.Owner.latestInput.Command;
+      return null;
     }
 
     internal RailImage CreateImage()

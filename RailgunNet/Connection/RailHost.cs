@@ -40,21 +40,21 @@ namespace Railgun
     /// <summary>
     /// Fired when a new peer has been added to the host.
     /// </summary>
-    public event RailPeerEvent PeerAdded;
+    public event Action<RailPeerClient> ClientAdded;
 
     /// <summary>
     /// Fired when a peer has been removed from the host.
     /// </summary>
-    public event RailPeerEvent PeerRemoved;
+    public event Action<RailPeerClient> ClientRemoved;
 
-    private Dictionary<IRailNetPeer, RailPeer> peers;
+    private Dictionary<IRailNetPeer, RailPeerClient> clients;
 
     public RailHost(
       RailCommand commandToRegister,
       params RailState[] statestoRegister)
       : base(commandToRegister, statestoRegister)
     {
-      this.peers = new Dictionary<IRailNetPeer, RailPeer>();
+      this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
     }
 
     /// <summary>
@@ -62,13 +62,15 @@ namespace Railgun
     /// </summary>
     public void AddPeer(IRailNetPeer peer)
     {
-      if (this.peers.ContainsKey(peer) == false)
+      if (this.clients.ContainsKey(peer) == false)
       {
-        RailPeer railPeer = new RailPeer(peer);
-        this.peers.Add(peer, railPeer);
+        RailPeerClient railPeer = new RailPeerClient(peer);
+        this.clients.Add(peer, railPeer);
 
-        if (this.PeerAdded != null)
-          this.PeerAdded.Invoke(railPeer);
+        if (this.ClientAdded != null)
+          this.ClientAdded.Invoke(railPeer);
+
+        railPeer.MessagesReady += this.OnMessagesReady;
       }
     }
 
@@ -77,13 +79,13 @@ namespace Railgun
     /// </summary>
     public void RemovePeer(IRailNetPeer peer)
     {
-      if (this.peers.ContainsKey(peer))
+      if (this.clients.ContainsKey(peer))
       {
-        RailPeer railPeer = this.peers[peer];
-        this.peers.Remove(peer);
+        RailPeerClient client = this.clients[peer];
+        this.clients.Remove(peer);
 
-        if (this.PeerRemoved != null)
-          this.PeerAdded.Invoke(railPeer);
+        if (this.ClientRemoved != null)
+          this.ClientAdded.Invoke(client);
       }
     }
 
@@ -112,16 +114,15 @@ namespace Railgun
     /// </summary>
     internal void Broadcast(RailSnapshot snapshot)
     {
-      foreach (RailPeer peer in this.peers.Values)
+      foreach (RailPeerClient peer in this.clients.Values)
         this.interpreter.SendSnapshot(peer, snapshot, this.snapshotBuffer);
     }
 
-    /// <summary>
-    /// Processes an incoming packet from a peer.
-    /// </summary>
-    private void Process(IRailNetPeer peer, byte[] data)
+    private void OnMessagesReady(RailPeerClient peer)
     {
-      // TODO
+      IEnumerable<RailInput> decode = this.interpreter.ReceiveInputs(peer);
+      foreach (RailInput input in decode)
+        peer.StoreInput(input);
     }
   }
 }
