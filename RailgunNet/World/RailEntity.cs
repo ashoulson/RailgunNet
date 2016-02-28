@@ -30,13 +30,12 @@ namespace Railgun
 
     public event UpdateEvent StateUpdated;
 
-    public int Id { get; internal set; }
-
     internal RailPeerClient Owner { get; set; }
 
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
 
+    protected internal int Id { get { return this.State.Id; } }
     protected internal int Type { get { return this.State.Type; } }
     protected internal RailState State { get; set; }
 
@@ -65,12 +64,9 @@ namespace Railgun
       return null;
     }
 
-    internal RailImage CreateImage()
+    internal RailState CreateState()
     {
-      RailImage image = RailResource.Instance.AllocateImage();
-      image.Id = this.Id;
-      image.State = this.State.Clone();
-      return image;
+      return this.State.Clone();
     }
   }
 

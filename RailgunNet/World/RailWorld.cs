@@ -49,10 +49,10 @@ namespace Railgun
       where T : RailEntity
     {
       RailState state = RailResource.Instance.AllocateState(type);
-      RailEntity entity = state.CreateEntity();
+      state.Id = this.nextEntityId++;
 
+      RailEntity entity = state.CreateEntity();
       entity.IsMaster = true;
-      entity.Id = this.nextEntityId++;
       entity.State = state;
 
       return (T)entity;
@@ -77,18 +77,18 @@ namespace Railgun
     /// <summary>
     /// Creates a new entity that arrived via snapshot.
     /// </summary>
-    internal void ReplicateEntity(RailImage image)
+    internal void ReplicateEntity(RailState received)
     {
-      RailState state = RailResource.Instance.AllocateState(image.Type);
-      RailEntity entity = state.CreateEntity();
+      //RailState state = RailResource.Instance.AllocateState(image.Type);
+      //RailEntity entity = state.CreateEntity();
 
-      state.SetFrom(image.State);
+      //state.SetDataFrom(image.State);
 
-      entity.IsMaster = false;
-      entity.Id = image.Id;
-      entity.State = state;
+      //entity.IsMaster = false;
+      //entity.Id = image.Id;
+      //entity.State = state;
 
-      this.AddEntity(entity);
+      //this.AddEntity(entity);
     }
 
     /// <summary>
@@ -97,21 +97,21 @@ namespace Railgun
     /// </summary>
     internal void ApplySnapshot(RailSnapshot snapshot)
     {
-      foreach (RailImage image in snapshot.Values)
-      {
-        RailEntity entity;
-        if (this.entities.TryGetValue(image.Id, out entity))
-        {
-          entity.State.SetFrom(image.State);
-          entity.NotifyStateUpdated(snapshot.Tick);
-        }
-        else
-        {
-          this.ReplicateEntity(image);
-        }
-      }
+      //foreach (RailImage image in snapshot.Values)
+      //{
+      //  RailEntity entity;
+      //  if (this.entities.TryGetValue(image.Id, out entity))
+      //  {
+      //    entity.State.SetDataFrom(image.State);
+      //    entity.NotifyStateUpdated(snapshot.Tick);
+      //  }
+      //  else
+      //  {
+      //    this.ReplicateEntity(image);
+      //  }
+      //}
 
-      // TODO: Entity removal
+      //// TODO: Entity removal
     }
     
     internal void UpdateHost()
@@ -126,7 +126,7 @@ namespace Railgun
       RailSnapshot output = RailResource.Instance.AllocateSnapshot();
       output.Tick = this.Tick;
       foreach (RailEntity entity in this.entities.Values)
-        output.Add(entity.CreateImage());
+        output.Add(entity.CreateState());
       return output;
     }
   }
