@@ -30,8 +30,15 @@ namespace Railgun
 
     public int Tick { get; internal protected set; }
 
+    // TODO: Rollover? Free list?
     private int nextEntityId;
+
     private Dictionary<int, RailEntity> entities;
+
+    public bool TryGetEntity(int id, out RailEntity value)
+    {
+      return this.entities.TryGetValue(id, out value);
+    }
 
     internal RailWorld()
     {
@@ -40,93 +47,48 @@ namespace Railgun
       this.Tick = 0;
     }
 
-    /// <summary>
-    /// Creates an entity of a given type. Note that this function does NOT
-    /// add the entity to the environment. You should configure the entity
-    /// and then call AddEntity().
-    /// </summary>
-    public T CreateEntity<T>(int type)
-      where T : RailEntity
+    internal int GetEntityId()
     {
-      RailState state = RailResource.Instance.AllocateState(type);
-      state.Id = this.nextEntityId++;
-
-      RailEntity entity = state.CreateEntity();
-      entity.IsMaster = true;
-      entity.State = state;
-
-      return (T)entity;
+      return this.nextEntityId++;
     }
 
     /// <summary>
-    /// Adds an entity to the host's environment. This entity will be
-    /// replicated over the network to all client peers.
+    /// Adds an entity to the world and notifies it that it has been added.
     /// </summary>
-    public void AddEntity(RailEntity entity)
+    internal void AddEntity(RailEntity entity)
     {
       this.entities.Add(entity.Id, entity);
       entity.World = this;
-      entity.OnAddedToWorld();
+      entity.AddedToWorld();
     }
 
-    public void RemoveEntity(RailEntity entity)
+    internal void RemoveEntity(RailEntity entity)
     {
       // TODO
-    }
-
-    /// <summary>
-    /// Creates a new entity that arrived via snapshot.
-    /// </summary>
-    internal void ReplicateEntity(RailState received)
-    {
-      //RailState state = RailResource.Instance.AllocateState(image.Type);
-      //RailEntity entity = state.CreateEntity();
-
-      //state.SetDataFrom(image.State);
-
-      //entity.IsMaster = false;
-      //entity.Id = image.Id;
-      //entity.State = state;
-
-      //this.AddEntity(entity);
-    }
-
-    /// <summary>
-    /// Applies a snapshot by adding/removing entities or by
-    /// updating existing ones.
-    /// </summary>
-    internal void ApplySnapshot(RailSnapshot snapshot)
-    {
-      //foreach (RailImage image in snapshot.Values)
-      //{
-      //  RailEntity entity;
-      //  if (this.entities.TryGetValue(image.Id, out entity))
-      //  {
-      //    entity.State.SetDataFrom(image.State);
-      //    entity.NotifyStateUpdated(snapshot.Tick);
-      //  }
-      //  else
-      //  {
-      //    this.ReplicateEntity(image);
-      //  }
-      //}
-
-      //// TODO: Entity removal
     }
     
     internal void UpdateHost()
     {
       this.Tick++;
       foreach (RailEntity entity in this.entities.Values)
-        entity.OnUpdateHost();
+        entity.UpdateHost();
+    }
+
+    internal void UpdateClient(int serverTick)
+    {
+      this.Tick = serverTick;
+      foreach (RailEntity entity in this.entities.Values)
+        entity.UpdateClient(serverTick);
     }
 
     internal RailSnapshot CreateSnapshot()
     {
       RailSnapshot output = RailResource.Instance.AllocateSnapshot();
+
       output.Tick = this.Tick;
+
       foreach (RailEntity entity in this.entities.Values)
-        output.Add(entity.CreateState());
+        output.Add(entity.CloneForSnapshot(this.Tick));
       return output;
     }
   }

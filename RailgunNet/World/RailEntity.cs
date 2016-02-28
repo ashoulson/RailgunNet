@@ -26,11 +26,10 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
-    public delegate void UpdateEvent(int tick);
-
-    public event UpdateEvent StateUpdated;
-
     internal RailPeerClient Owner { get; set; }
+
+    internal RailStateBuffer StateBuffer { get; private set; }
+    protected RailStateDelta StateDelta { get; private set; }
 
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
@@ -39,20 +38,59 @@ namespace Railgun
     protected internal int Type { get { return this.State.Type; } }
     protected internal RailState State { get; set; }
 
-    protected internal virtual void OnUpdateHost() { }
-    protected internal virtual void OnAddedToWorld() { }
-    protected internal virtual void OnStateUpdated(int tick) { }
+    protected virtual void OnUpdateHost() { }
+    protected virtual void OnUpdateClient() { }
+    protected virtual void OnAddedToWorld() { }
+
+    internal RailEntity()
+    {
+      this.Owner = null;
+      this.World = null;
+    }
+
+    internal void InitializeClient()
+    {
+      this.State = null;
+      this.IsMaster = false;
+      this.StateBuffer = new RailStateBuffer();
+      this.StateDelta = new RailStateDelta();
+    }
+
+    internal void InitializeHost(RailState state)
+    {
+      this.State = state;
+      this.IsMaster = true;
+      this.StateBuffer = null;
+      this.StateDelta = null;
+    }
+
+    internal void UpdateHost()
+    {
+      this.OnUpdateHost();
+    }
+
+    internal void UpdateClient(int serverTick)
+    {
+      this.StateDelta.Update(this.StateBuffer, serverTick);
+      this.State = this.StateDelta.Latest;
+      this.OnUpdateClient();
+    }
+
+    internal bool CheckDelta(int serverTick)
+    {
+      this.StateDelta.Update(this.StateBuffer, serverTick);
+      this.State = this.StateDelta.Latest;
+      return (this.State != null);
+    }
+
+    internal void AddedToWorld()
+    {
+      this.OnAddedToWorld();
+    }
 
     public void AssignOwner(RailPeerClient owner)
     {
       this.Owner = owner;
-    }
-
-    internal void NotifyStateUpdated(int tick)
-    {
-      this.OnStateUpdated(tick);
-      if (this.StateUpdated != null)
-        this.StateUpdated.Invoke(tick);
     }
 
     protected T GetLatestCommand<T>()
@@ -64,9 +102,10 @@ namespace Railgun
       return null;
     }
 
-    internal RailState CreateState()
+    internal RailState CloneForSnapshot(int tick)
     {
-      return this.State.Clone();
+      RailState clone = this.State.Clone(tick);
+      return clone;
     }
   }
 
@@ -76,20 +115,6 @@ namespace Railgun
   public abstract class RailEntity<T> : RailEntity
     where T : RailState
   {
-    private T typedState = null;
-    public new T State 
-    { 
-      get 
-      { 
-        if (this.typedState == null)
-          this.typedState = (T)base.State;
-        return this.typedState;
-      }
-      set
-      {
-        this.typedState = value;
-        base.State = value;
-      }
-    }
+    public new T State { get { return (T)base.State; } }
   }
 }

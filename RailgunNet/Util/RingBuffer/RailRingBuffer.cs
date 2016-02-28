@@ -28,7 +28,7 @@ namespace Railgun
     where T : class, IRailRingValue, IRailPoolable
   {
     // Used for converting a key to an index. For example, the host may only
-    // send a snapshot every two tick, so we would divide the tick number
+    // send a snapshot every two ticks, so we would divide the tick number
     // key by 2 so as to avoid wasting space in the frame buffer
     private int divisor;
 
@@ -44,56 +44,111 @@ namespace Railgun
 
     public void Store(T value)
     {
-      int index = this.KeyToIndex(value.Key);
+      int index = this.TickToIndex(value.Tick);
       if (this.data[index] != null)
         RailPool.Free(this.data[index]);
       this.data[index] = value;
     }
 
-    public T Get(int key)
+    public T Get(int tick)
     {
-      T result = this.data[this.KeyToIndex(key)];
-      if ((result != null) && (result.Key == key))
+      if (tick == RailClock.INVALID_TICK)
+        return null;
+
+      T result = this.data[this.TickToIndex(tick)];
+      if ((result != null) && (result.Tick == tick))
         return result;
       return null;
     }
 
-    public T GetOrFirstBefore(int key)
+    public void PopulateDelta(RailRingDelta<T> delta, int currentTick)
     {
+      if (currentTick == RailClock.INVALID_TICK)
+      {
+        delta.Set(null, null, null);
+        return;
+      }
+
+      T prior = null;
+      T latest = null;
+      T next = null;
+
+      for (int i = 0; i < this.data.Length; i++)
+      {
+        T value = this.data[i];
+        if (value != null)
+        {
+          if (value.Tick > currentTick)
+          {
+            if ((next == null) || (value.Tick < next.Tick))
+              next = value;
+          }
+          else if ((prior == null) || (value.Tick > prior.Tick))
+          {
+            if ((latest == null) || (value.Tick > latest.Tick))
+            {
+              prior = latest;
+              latest = value;
+            }
+            else
+            {
+              prior = value;
+            }
+          }
+        }
+      }
+
+      delta.Set(prior, latest, next);
+    }
+
+    public T GetOrFirstBefore(int tick)
+    {
+      if (tick == RailClock.INVALID_TICK)
+        return null;
+
       T result = null;
       for (int i = 0; i < this.data.Length; i++)
       {
         T value = this.data[i];
         if (value != null)
         {
-          if (value.Key == key)
+          if (value.Tick == tick)
             return value;
 
-          if (value.Key < key)
-            if ((result == null) || (result.Key < value.Key))
+          if (value.Tick < tick)
+            if ((result == null) || (result.Tick < value.Tick))
               result = value;
         }
       }
       return result;
     }
 
-    public bool Contains(int key)
+    public bool Contains(int tick)
     {
-      T result = this.data[this.KeyToIndex(key)];
-      if ((result != null) && (result.Key == key))
+      if (tick == RailClock.INVALID_TICK)
+        return false;
+
+      T result = this.data[this.TickToIndex(tick)];
+      if ((result != null) && (result.Tick == tick))
         return true;
       return false;
     }
 
-    public bool TryGet(int key, out T value)
+    public bool TryGet(int tick, out T value)
     {
-      value = this.Get(key);
+      if (tick == RailClock.INVALID_TICK)
+      {
+        value = null;
+        return false;
+      }
+
+      value = this.Get(tick);
       return (value != null);
     }
 
-    private int KeyToIndex(int key)
+    private int TickToIndex(int tick)
     {
-      return (key / this.divisor) % this.data.Length;
+      return (tick / this.divisor) % this.data.Length;
     }
   }
 }

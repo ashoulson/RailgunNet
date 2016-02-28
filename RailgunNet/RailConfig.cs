@@ -36,6 +36,13 @@ namespace Railgun
     internal const int DEJITTER_BUFFER_LENGTH = 20;
 
     /// <summary>
+    /// The maximum history length (in ticks) that any jitter buffer will keep.
+    /// </summary>
+    internal const int DEJITTER_MAX_HISTORY =
+      RailConfig.DEJITTER_BUFFER_LENGTH *
+      RailConfig.NETWORK_SEND_RATE;
+
+    /// <summary>
     /// Data buffer size used for packet I/O. 
     /// Don't change this without a good reason.
     /// </summary>

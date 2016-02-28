@@ -30,19 +30,37 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailState : IRailPoolable
+  public abstract class RailState : IRailPoolable, IRailRingValue
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
+    int IRailRingValue.Tick { get { return this.Tick; } }
 
+    public RailState()
+    {
+      this.Reset();
+    }
+
+    /// <summary>
+    /// N.B.: Does not automatically add the state to the entity!
+    /// </summary>
     internal abstract RailEntity CreateEntity();
+
     internal abstract RailPoolState CreatePool();
 
     internal abstract void SetDataFrom(RailState other);
     internal abstract bool EncodeData(BitBuffer buffer, RailState basis);
     internal abstract void DecodeData(BitBuffer buffer, RailState basis);
 
-    public int Id { get; internal set; }
+    /// <summary>
+    /// The object's network ID.
+    /// </summary>
+    public int Id { get; private set; }
+
+    /// <summary>
+    /// The tick this state was generated on.
+    /// </summary>
+    internal int Tick { get; private set; }
 
     /// <summary>
     /// Should return an int code for this type of state.
@@ -52,23 +70,37 @@ namespace Railgun
     protected internal abstract void EncodeData(BitBuffer buffer);
     protected internal abstract void DecodeData(BitBuffer buffer);
 
-    protected internal abstract void Reset();
+    protected abstract void ResetData();
+
+    protected internal void Reset() 
+    {
+      this.Id = RailWorld.INVALID_ID;
+      this.Tick = RailClock.INVALID_TICK;
+      this.ResetData();
+    }
+
+    internal void Initialize(int id, int tick)
+    {
+      this.Id = id;
+      this.Tick = tick;
+    }
 
     #region Encode/Decode/etc.
     /// State encoding order:
     /// If new: | ID | TYPE | ----- STATE DATA ----- |
-    /// If old: | ID | ----- STATE DATA ----- |
+    /// If old: | ID | ----- STATE DELTA DATA ----- |
 
     internal static int PeekId(
       BitBuffer buffer)
     {
-      return buffer.Peek(Encoders.EntityId);
+      return buffer.Peek(StandardEncoders.EntityId);
     }
 
-    internal RailState Clone()
+    internal RailState Clone(int tick)
     {
       RailState clone = RailResource.Instance.AllocateState(this.Type);
       clone.Id = this.Id;
+      clone.Tick = tick;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -80,10 +112,10 @@ namespace Railgun
       this.EncodeData(buffer);
 
       // Write: [Type]
-      buffer.Push(Encoders.StateType, this.Type);
+      buffer.Push(StandardEncoders.StateType, this.Type);
 
       // Write: [Id]
-      buffer.Push(Encoders.EntityId, this.Id);
+      buffer.Push(StandardEncoders.EntityId, this.Id);
     }
 
     internal bool Encode(
@@ -97,21 +129,23 @@ namespace Railgun
       // (No [Type] for delta states)
 
       // Write: [Id]
-      buffer.Push(Encoders.EntityId, this.Id);
+      buffer.Push(StandardEncoders.EntityId, this.Id);
       return true;
     }
 
     internal static RailState Decode(
-      BitBuffer buffer)
+      BitBuffer buffer,
+      int tick)
     {
       // Read: [Id]
-      int stateId = buffer.Pop(Encoders.EntityId);
+      int stateId = buffer.Pop(StandardEncoders.EntityId);
 
       // Read: [Type]
-      int stateType = buffer.Pop(Encoders.StateType);
+      int stateType = buffer.Pop(StandardEncoders.StateType);
 
       RailState state = RailResource.Instance.AllocateState(stateType);
       state.Id = stateId;
+      state.Tick = tick;
 
       // Read: [State Data]
       state.DecodeData(buffer);
@@ -121,15 +155,17 @@ namespace Railgun
 
     internal static RailState Decode(
       BitBuffer buffer,
+      int tick,
       RailState basis)
     {
       // Read: [Id]
-      int stateId = buffer.Pop(Encoders.EntityId);
+      int stateId = buffer.Pop(StandardEncoders.EntityId);
 
       // (No [Type] for delta images)
 
       RailState state = RailResource.Instance.AllocateState(basis.Type);
       state.Id = stateId;
+      state.Tick = tick;
 
       // Read: [State Data]
       state.DecodeData(buffer, basis);
@@ -168,6 +204,9 @@ namespace Railgun
     }
     #endregion
 
+    /// <summary>
+    /// N.B.: Does not automatically add the state to the entity!
+    /// </summary>
     internal override RailEntity CreateEntity() { return new TEntity(); }
 
     protected internal abstract void SetDataFrom(T other);
