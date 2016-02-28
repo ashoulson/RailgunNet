@@ -26,6 +26,11 @@ namespace Railgun
   public class RailConfig
   {
     /// <summary>
+    /// The real time in seconds per simulation tick.
+    /// </summary>
+    internal const float FIXED_DELTA_TIME = 0.02f;
+
+    /// <summary>
     /// Network send rate in frames/packet.
     /// </summary>
     internal const int NETWORK_SEND_RATE = 2;

@@ -135,7 +135,7 @@ namespace Railgun
 
     internal static RailState Decode(
       BitBuffer buffer,
-      int tick)
+      int snapshotTick)
     {
       // Read: [Id]
       int stateId = buffer.Pop(StandardEncoders.EntityId);
@@ -144,8 +144,7 @@ namespace Railgun
       int stateType = buffer.Pop(StandardEncoders.StateType);
 
       RailState state = RailResource.Instance.AllocateState(stateType);
-      state.Id = stateId;
-      state.Tick = tick;
+      state.Initialize(stateId, snapshotTick);
 
       // Read: [State Data]
       state.DecodeData(buffer);
@@ -155,7 +154,7 @@ namespace Railgun
 
     internal static RailState Decode(
       BitBuffer buffer,
-      int tick,
+      int snapshotTick,
       RailState basis)
     {
       // Read: [Id]
@@ -164,8 +163,7 @@ namespace Railgun
       // (No [Type] for delta images)
 
       RailState state = RailResource.Instance.AllocateState(basis.Type);
-      state.Id = stateId;
-      state.Tick = tick;
+      state.Initialize(stateId, snapshotTick);
 
       // Read: [State Data]
       state.DecodeData(buffer, basis);

@@ -92,7 +92,7 @@ namespace Railgun
 
     internal IEnumerable<RailSnapshot> ReceiveSnapshots(
       RailPeerHost peer,
-      RailRingBuffer<RailSnapshot> basisBuffer) // TODO: Move this into peer
+      RailRingBuffer<RailSnapshot> basisBuffer)
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
       {

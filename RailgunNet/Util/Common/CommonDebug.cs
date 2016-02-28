@@ -50,12 +50,16 @@ namespace CommonTools
     [Conditional("DEBUG")]
     public static void Assert(bool condition)
     {
+      if (condition == false)
+        System.Diagnostics.Debug.Print("ERROR: ASSERT FAILED");
       System.Diagnostics.Debug.Assert(condition);
     }
 
     [Conditional("DEBUG")]
     public static void Assert(bool condition, string message)
     {
+      if (condition == false)
+        System.Diagnostics.Debug.Print("ERROR: ASSERT FAILED -- " + message);
       System.Diagnostics.Debug.Assert(condition, message);
     }
   }

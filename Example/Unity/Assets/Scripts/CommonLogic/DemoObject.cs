@@ -8,69 +8,91 @@ public class DemoObject : MonoBehaviour
 {
   public DemoEntity Entity { get; set; }
 
-  private int tick0 = -1;
-  private int tick1 = -1;
-
-  private float x0 = 0.0f;
-  private float x1 = 0.0f;
-
-  private float y0 = 0.0f;
-  private float y1 = 0.0f;
-
-  public bool DoInterpolation = false;
+  public bool DoSmoothing = false;
+  public Color color = Color.white;
 
   void Start()
   {
-    this.Entity.StateUpdated += OnStateUpdated;
   }
 
   void Update()
   {
     if (this.Entity != null)
-    {
-      float x, y;
-      this.GetExtrapolated(out x, out y);
-      transform.position = new Vector2(x, y);
-    }
+      this.UpdatePosition();
 
     if (Input.GetKeyDown(KeyCode.Alpha1))
-      this.DoInterpolation = true;
+      this.DoSmoothing = true;
     if (Input.GetKeyDown(KeyCode.Alpha2))
-      this.DoInterpolation = false;
+      this.DoSmoothing = false;
+
+    gameObject.GetComponent<Renderer>().material.color = this.color;
   }
 
-  private void GetExtrapolated(out float x, out float y)
+  private void UpdatePosition()
   {
-    if ((this.DoInterpolation == false) || (this.tick0 == -1) || (this.tick1 == -1))
+    if (this.DoSmoothing)
     {
-      x = this.Entity.State.X;
-      y = this.Entity.State.Y;
-      return;
+      if (this.Entity.StateDelta.CanInterpolate())
+      {
+        this.Interpolate();
+        this.color = Color.green;
+      }
+      else 
+      if (this.Entity.StateDelta.CanExtrapolate())
+      {
+        this.Extrapolate();
+        this.color = Color.yellow;
+      }
+      else
+      {
+        this.transform.position =
+          new Vector2(this.Entity.State.X, this.Entity.State.Y);
+        this.color = Color.red;
+      }
     }
-
-    int tickDelta = this.tick1 - this.tick0;
-    float xDelta = this.x1 - this.x0;
-    float yDelta = this.y1 - this.y0;
-
-    float velocityX = (xDelta / (float)tickDelta) / Time.fixedDeltaTime;
-    float velocityY = (yDelta / (float)tickDelta) / Time.fixedDeltaTime;
-
-    int currentTick = Client.Instance.RemoteTick;
-    int framesSinceFirst = currentTick - this.tick0;
-
-    float timeSinceFirst = (framesSinceFirst * Time.fixedDeltaTime) + (Time.time - Time.fixedTime);
-    x = this.x0 + (velocityX * timeSinceFirst);
-    y = this.y0 + (velocityY * timeSinceFirst);
+    else
+    {
+      this.transform.position =
+        new Vector2(this.Entity.State.X, this.Entity.State.Y);
+      this.color = Color.red;
+    }
   }
 
-  void OnStateUpdated(int tick)
+  private void Interpolate()
   {
-    this.tick0 = this.tick1;
-    this.x0 = this.x1;
-    this.y0 = this.y1;
+    DemoState latest = (DemoState)this.Entity.StateDelta.Latest;
+    DemoState next = (DemoState)this.Entity.StateDelta.Next;
 
-    this.tick1 = tick;
-    this.x1 = this.Entity.State.X;
-    this.y1 = this.Entity.State.Y;
+    Vector2 latestPos = new Vector2(latest.X, latest.Y);
+    Vector2 nextPos = new Vector2(next.X, next.Y);
+
+    float interpolationScalar;
+    this.Entity.StateDelta.GetInterpolationParams(
+      this.Entity.CurrentTick,
+      Time.time - Time.fixedTime,
+      out interpolationScalar);
+
+    this.transform.position = 
+      Vector2.Lerp(latestPos, nextPos, interpolationScalar);
+  }
+
+  private void Extrapolate()
+  {
+    DemoState prior = (DemoState)this.Entity.StateDelta.Prior;
+    DemoState latest = (DemoState)this.Entity.StateDelta.Latest;
+
+    Vector2 priorPos = new Vector2(prior.X, prior.Y);
+    Vector2 latestPos = new Vector2(latest.X, latest.Y);
+
+    float timeSincePrior;
+    float velocityScale;
+    this.Entity.StateDelta.GetExtrapolationParams(
+      this.Entity.CurrentTick,
+      Time.time - Time.fixedTime,
+      out timeSincePrior,
+      out velocityScale);
+
+    Vector2 velocity = (latestPos - priorPos) / velocityScale;
+    this.transform.position = priorPos + (velocity * timeSincePrior);
   }
 }

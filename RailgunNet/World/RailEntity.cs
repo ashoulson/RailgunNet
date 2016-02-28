@@ -29,7 +29,9 @@ namespace Railgun
     internal RailPeerClient Owner { get; set; }
 
     internal RailStateBuffer StateBuffer { get; private set; }
-    protected RailStateDelta StateDelta { get; private set; }
+
+    public RailStateDelta StateDelta { get; private set; }
+    public int CurrentTick { get { return this.World.Tick; } }
 
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }

@@ -27,5 +27,46 @@ namespace Railgun
     {
       buffer.PopulateDelta(this.Delta, currentTick);
     }
+
+    public bool CanInterpolate()
+    {
+      return (this.Latest != null) && (this.Next != null);
+    }
+
+    public bool CanExtrapolate()
+    {
+      return (this.Latest != null) && (this.Prior != null);
+    }
+
+    public void GetInterpolationParams(
+      int currentTick, 
+      float frameDelta,
+      out float interpolationScalar,
+      float fixedDeltaTime = RailConfig.FIXED_DELTA_TIME)
+    {
+      float latestTime = this.Latest.Tick * fixedDeltaTime;
+      float nextTime = this.Next.Tick * fixedDeltaTime;
+      float currentTime = (currentTick * fixedDeltaTime) + frameDelta;
+
+      float place = currentTime - latestTime;
+      float span = nextTime - latestTime;
+
+      interpolationScalar = place / span;
+    }
+
+    public void GetExtrapolationParams(
+      int currentTick, 
+      float frameDelta,
+      out float timeSincePrior,
+      out float velocityScale,
+      float fixedDeltaTime = RailConfig.FIXED_DELTA_TIME)
+    {
+      float priorTime = this.Prior.Tick * fixedDeltaTime;
+      float latestTime = this.Latest.Tick * fixedDeltaTime;
+      float currentTime = (currentTick * fixedDeltaTime) + frameDelta;
+
+      timeSincePrior = currentTime - priorTime;
+      velocityScale = latestTime - priorTime;
+    }
   }
 }

@@ -52,6 +52,9 @@ namespace Railgun
     /// </summary>
     private Dictionary<int, RailEntity> pendingEntities;
 
+    // Reusable removal list
+    private List<RailEntity> toRemove;
+
     // TODO: This is clumsy
     private int localTick;
 
@@ -74,6 +77,7 @@ namespace Railgun
           RailConfig.DEJITTER_BUFFER_LENGTH);
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
+      this.toRemove = new List<RailEntity>();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -86,11 +90,7 @@ namespace Railgun
     {
       if (this.shouldUpdate)
       {
-        int ticks = this.UpdateClock();
-
-        for (; ticks > 1; ticks--)
-          this.world.UpdateClient(this.serverClock.RemoteTick - ticks);
-        this.world.UpdateClient(this.serverClock.RemoteTick);
+        this.UpdateWorld(this.UpdateClock());
 
         if (this.hostPeer != null)
         {
@@ -126,25 +126,38 @@ namespace Railgun
 
     private void UpdateWorld(int numTicks)
     {
-      for (; numTicks >= 0; numTicks--)
-        this.world.UpdateClient(this.serverClock.RemoteTick - numTicks);
+      for (; numTicks > 0; numTicks--)
+      {
+        int serverTick = (this.serverClock.RemoteTick - numTicks) + 1;
+        this.UpdatePendingEntities(serverTick);
+        this.world.UpdateClient(serverTick);
+      }
     }
 
     private void UpdatePendingEntities(int serverTick)
     {
-      List<RailEntity> toRemove = new List<RailEntity>();
-
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
         if (entity.CheckDelta(serverTick))
         {
           this.world.AddEntity(entity);
-          toRemove.Add(entity);
+          this.AddRemove(entity);
         }
       }
 
-      foreach (RailEntity entity in toRemove)
+      this.DoRemove();
+    }
+
+    private void AddRemove(RailEntity entity)
+    {
+      this.toRemove.Add(entity);
+    }
+
+    private void DoRemove()
+    {
+      foreach (RailEntity entity in this.toRemove)
         this.pendingEntities.Remove(entity.Id);
+      this.toRemove.Clear();
     }
 
     private void OnMessagesReady(RailPeerHost peer)
@@ -156,7 +169,7 @@ namespace Railgun
 
       foreach (RailSnapshot snapshot in decode)
       {
-        this.DigestSnapshot(snapshot);
+        this.ProcessSnapshot(snapshot);
 
         // See if we should update the clock with a new received tick
         if (snapshot.Tick > this.lastReceived)
@@ -168,7 +181,7 @@ namespace Railgun
       }
     }
 
-    internal void DigestSnapshot(RailSnapshot snapshot)
+    internal void ProcessSnapshot(RailSnapshot snapshot)
     {
       this.snapshotBuffer.Store(snapshot);
       foreach (RailState state in snapshot.Values)
@@ -181,7 +194,7 @@ namespace Railgun
       if (this.World.TryGetEntity(state.Id, out entity) == false)
         if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
           entity = this.ReplicateEntity(state);
-      entity.StateBuffer.Store(state);
+      entity.StateBuffer.Store(state.Clone(state.Tick));
     }
 
     /// <summary>
