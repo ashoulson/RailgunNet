@@ -102,7 +102,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// <summary>
   /// Writes the values from another PawnState to this one.
   /// </summary>
-  protected override void SetFrom(DemoState other)
+  protected override void SetDataFrom(DemoState other)
   {
     this.ArchetypeId = other.ArchetypeId;
     this.UserId = other.UserId;
@@ -115,7 +115,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// <summary>
   /// Write a fully populated encoding of this state.
   /// </summary>
-  protected override void Encode(BitBuffer buffer)
+  protected override void EncodeData(BitBuffer buffer)
   {
     // Write in opposite order so we can read in SetData order
     buffer.Push(DemoEncoders.Status, this.Status);
@@ -133,7 +133,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// Delta-encode this state relative to the given basis state.
   /// Returns true iff the state was encoded (will bypass if no change).
   /// </summary>
-  protected override bool Encode(BitBuffer buffer, DemoState basis)
+  protected override bool EncodeData(BitBuffer buffer, DemoState basis)
   {
     int dirty = DemoState.GetDirtyFlags(this, basis);
     if (dirty == 0)
@@ -155,7 +155,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// <summary>
   /// Decode a fully populated data packet and set values to this object.
   /// </summary>
-  protected override void Decode(BitBuffer buffer)
+  protected override void DecodeData(BitBuffer buffer)
   {
     int dirty = buffer.Pop(DemoEncoders.EntityDirty);
     //RailgunUtil.Assert(dirty == DemoState.FLAG_ALL);
@@ -173,7 +173,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// Decode a delta-encoded packet against a given basis and set values
   /// to this object.
   /// </summary>
-  protected override void Decode(BitBuffer buffer, DemoState basis)
+  protected override void DecodeData(BitBuffer buffer, DemoState basis)
   {
     int dirty = buffer.Pop(DemoEncoders.EntityDirty);
 

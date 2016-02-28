@@ -26,12 +26,12 @@ namespace Railgun
 {
   internal static class Encoders
   {
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, 1023);
+    internal static readonly IntEncoder EntityCount = new IntEncoder(0, 4095);
     internal static readonly IntEncoder EntityId = Encoders.EntityCount;
 
     internal static readonly IntEncoder StateType = new IntEncoder(0, 31);
 
-    internal static readonly IntEncoder Tick = new IntEncoder(-1, 4194301);
+    internal static readonly IntEncoder Tick = new IntEncoder(-1, 1048574);
 
     internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
 

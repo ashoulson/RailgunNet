@@ -29,12 +29,12 @@ namespace Railgun
   /// <summary>
   /// Responsible for encoding and decoding packet information.
   /// </summary>
-  internal class Interpreter
+  internal class RailInterpreter
   {
     private byte[] byteBuffer;
     private BitBuffer bitBuffer;
 
-    internal Interpreter()
+    internal RailInterpreter()
     {
       this.byteBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
       this.bitBuffer = new BitBuffer();
@@ -80,7 +80,7 @@ namespace Railgun
 
       // Write: [Snapshot] (full or delta)
       RailSnapshot basis =
-        Interpreter.GetBasis(peer.LastAckedTick, basisBuffer);
+        RailInterpreter.GetBasis(peer.LastAckedTick, basisBuffer);
       if (basis != null)
         snapshot.Encode(this.bitBuffer, basis);
       else
@@ -103,7 +103,7 @@ namespace Railgun
 
         // Read: [Snapshot]
         RailSnapshot result = null;
-        RailSnapshot basis = Interpreter.GetBasis(basisTick, basisBuffer);
+        RailSnapshot basis = RailInterpreter.GetBasis(basisTick, basisBuffer);
         if (basis != null)
           result = RailSnapshot.Decode(this.bitBuffer, basis);
         else if (basisTick == RailClock.INVALID_TICK)

@@ -38,8 +38,8 @@ namespace Railgun
     }
 
     private RailPoolGeneric<RailSnapshot> snapshotPool;
-    private RailPoolGeneric<RailImage> imagePool;
     private RailPoolGeneric<RailInput> inputPool;
+    private RailPoolGeneric<RailView> viewPool;
 
     private RailPoolCommand commandPool;
 
@@ -50,8 +50,8 @@ namespace Railgun
       params RailState[] statestoRegister)
     {
       this.snapshotPool = new RailPoolGeneric<RailSnapshot>();
-      this.imagePool = new RailPoolGeneric<RailImage>();
       this.inputPool = new RailPoolGeneric<RailInput>();
+      this.viewPool = new RailPoolGeneric<RailView>();
 
       this.commandPool = commandToRegister.CreatePool();
 
@@ -63,11 +63,6 @@ namespace Railgun
     internal RailSnapshot AllocateSnapshot()
     {
       return this.snapshotPool.Allocate();
-    }
-
-    internal RailImage AllocateImage()
-    {
-      return this.imagePool.Allocate();
     }
 
     internal RailInput AllocateInput()
@@ -83,6 +78,11 @@ namespace Railgun
     internal RailState AllocateState(int type)
     {
       return this.statePools[type].Allocate();
+    }
+
+    internal RailView AllocateView()
+    {
+      return this.viewPool.Allocate();
     }
   }
 }

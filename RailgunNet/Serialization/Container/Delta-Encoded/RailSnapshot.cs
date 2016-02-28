@@ -27,10 +27,11 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// A snapshot is a collection of images representing a complete state
-  /// of the world at a given frame.
+  /// A snapshot is a collection of entity states representing a complete
+  /// state of the world at a given frame.
   /// </summary>
-  public class RailSnapshot : IRailPoolable, IRailRingValue
+  public class RailSnapshot 
+    : IRailPoolable, IRailRingValue
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
@@ -38,11 +39,11 @@ namespace Railgun
 
     public int Tick { get; internal protected set; }
 
-    private Dictionary<int, RailImage> images;
+    private Dictionary<int, RailState> states;
 
     public RailSnapshot()
     {
-      this.images = new Dictionary<int, RailImage>();
+      this.states = new Dictionary<int, RailState>();
       this.Tick = RailClock.INVALID_TICK;
     }
 
@@ -53,43 +54,43 @@ namespace Railgun
     {
       RailSnapshot clone = RailResource.Instance.AllocateSnapshot();
       clone.Tick = this.Tick;
-      foreach (RailImage image in this.Values)
-        clone.Add(image.Clone());
+      foreach (RailState state in this.Values)
+        clone.Add(state.Clone());
       return clone;
     }
 
     protected virtual void Reset()
     {
-      foreach (RailImage image in this.Values)
-        RailPool.Free(image);
-      this.images.Clear();
+      foreach (RailState state in this.Values)
+        RailPool.Free(state);
+      this.states.Clear();
     }
 
-    #region Image Access
-    internal virtual void Add(RailImage image)
+    #region State Access
+    internal virtual void Add(RailState state)
     {
-      this.images.Add(image.Id, image);
+      this.states.Add(state.Id, state);
     }
 
-    internal bool TryGet(int id, out RailImage image)
+    internal bool TryGet(int id, out RailState state)
     {
-      return this.images.TryGetValue(id, out image);
+      return this.states.TryGetValue(id, out state);
     }
 
     internal bool Contains(int id)
     {
-      return this.images.ContainsKey(id);
+      return this.states.ContainsKey(id);
     }
 
-    internal Dictionary<int, RailImage>.ValueCollection Values
+    internal Dictionary<int, RailState>.ValueCollection Values
     {
-      get { return this.images.Values; }
+      get { return this.states.Values; }
     }
     #endregion
 
     #region Encode/Decode
     /// Snapshot encoding order:
-    /// | BASISTICK | TICK | IMAGE COUNT | IMAGE | IMAGE | IMAGE | ...
+    /// | BASISTICK | TICK | STATE COUNT | STATE | STATE | STATE | ...
 
     internal static int PeekBasisTick(
       BitBuffer buffer)
@@ -100,14 +101,14 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer)
     {
-      foreach (RailImage image in this.Values)
+      foreach (RailState state in this.Values)
       {
-        // Write: [Image Data]
-        image.Encode(buffer);
+        // Write: [State Data]
+        state.Encode(buffer);
       }
 
       // Write: [Count]
-      buffer.Push(Encoders.EntityCount, this.images.Count);
+      buffer.Push(Encoders.EntityCount, this.states.Count);
 
       // Write: [Tick]
       buffer.Push(Encoders.Tick, this.Tick);
@@ -122,19 +123,19 @@ namespace Railgun
     {
       int count = 0;
 
-      foreach (RailImage image in this.Values)
+      foreach (RailState state in this.Values)
       {
-        // Write: [Image]
-        RailImage basisImage;
-        if (basis.TryGet(image.Id, out basisImage))
+        // Write: [State]
+        RailState basisState;
+        if (basis.TryGet(state.Id, out basisState))
         {
-          // We may not write an image if nothing changed
-          if (image.Encode(buffer, basisImage))
+          // We may not write a state if nothing changed
+          if (state.Encode(buffer, basisState))
             count++;
         }
         else
         {
-          image.Encode(buffer);
+          state.Encode(buffer);
           count++;
         }
       }
@@ -166,8 +167,8 @@ namespace Railgun
 
       for (int i = 0; i < count; i++)
       {
-        // Read: [Image] (full)
-        snapshot.Add(RailImage.Decode(buffer));
+        // Read: [State] (full)
+        snapshot.Add(RailState.Decode(buffer));
       }
 
       return snapshot;
@@ -191,15 +192,15 @@ namespace Railgun
 
       for (int i = 0; i < count; i++)
       {
-        // Peek: [Image.Id]
-        int imageId = RailImage.PeekId(buffer);
+        // Peek: [State.Id]
+        int stateId = RailState.PeekId(buffer);
 
-        // Read: [Image] (either full or delta)
-        RailImage basisImage;
-        if (basis.TryGet(imageId, out basisImage))
-          snapshot.Add(RailImage.Decode(buffer, basisImage));
+        // Read: [State] (either full or delta)
+        RailState basisState;
+        if (basis.TryGet(stateId, out basisState))
+          snapshot.Add(RailState.Decode(buffer, basisState));
         else
-          snapshot.Add(RailImage.Decode(buffer));
+          snapshot.Add(RailState.Decode(buffer));
       }
 
       RailSnapshot.ReconcileBasis(snapshot, basis);
@@ -214,9 +215,9 @@ namespace Railgun
       RailSnapshot snapshot, 
       RailSnapshot basis)
     {
-      foreach (RailImage basisImage in basis.Values)
-        if (snapshot.Contains(basisImage.Id) == false)
-          snapshot.Add(basisImage.Clone());
+      foreach (RailState basisState in basis.Values)
+        if (snapshot.Contains(basisState.Id) == false)
+          snapshot.Add(basisState.Clone());
     }
     #endregion
   }

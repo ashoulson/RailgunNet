@@ -34,7 +34,7 @@ namespace Railgun
   {
     public RailWorld World { get { return this.world; } }
     protected RailWorld world;
-    internal Interpreter interpreter;
+    internal RailInterpreter interpreter;
 
     /// <summary>
     /// A complete snapshot history of all sent/received snapshots. Used for
@@ -53,7 +53,7 @@ namespace Railgun
         statestoRegister);
 
       this.world = new RailWorld();
-      this.interpreter = new Interpreter();
+      this.interpreter = new RailInterpreter();
 
       // Snapshots are sent according to the send rate, so we include
       // the send rate as a divisor for the ring buffer (i.e. we'll
