@@ -25,11 +25,21 @@ public class UnityDebugTraceListener : System.Diagnostics.TraceListener
 
   public override void WriteLine(string message)
   {
-    Debug.Log(message);
+    if (message.Contains("ERROR:"))
+      Debug.LogError(message);
+    else if (message.Contains("WARNING:"))
+      Debug.LogWarning(message);
+    else
+      Debug.Log(message);
   }
 
   public override void Write(string message)
   {
-    Debug.Log(message);
+    if (message.Contains("ERROR:"))
+      Debug.LogError(message);
+    else if (message.Contains("WARNING:"))
+      Debug.LogWarning(message);
+    else
+      Debug.Log(message);
   }
 }

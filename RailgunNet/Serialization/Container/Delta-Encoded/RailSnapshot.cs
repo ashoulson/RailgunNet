@@ -51,7 +51,6 @@ namespace Railgun
       foreach (RailState state in this.Values)
         RailPool.Free(state);
       this.states.Clear();
-
       this.Tick = RailClock.INVALID_TICK;
     }
 

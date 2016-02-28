@@ -31,10 +31,10 @@ namespace Railgun
   /// </summary>
   internal class RailClock
   {
+    public const int INVALID_TICK = -1;
+
     private const int DELAY_MIN = 2;
     private const int DELAY_MAX = 8;
-
-    public const int INVALID_TICK = -1;
 
     private int remoteRate;
     private int delayDesired;
