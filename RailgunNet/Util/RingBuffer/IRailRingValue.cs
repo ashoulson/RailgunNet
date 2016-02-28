@@ -26,6 +26,6 @@ namespace Railgun
 {
   internal interface IRailRingValue
   {
-    int Key { get; }
+    int Tick { get; }
   }
 }

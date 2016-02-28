@@ -70,21 +70,21 @@ namespace Railgun
     {
       foreach (KeyValuePair<int, int> pair in this.idToFrame)
       {
-        buffer.Push(Encoders.Tick, pair.Value);
-        buffer.Push(Encoders.EntityId, pair.Key);
+        buffer.Push(StandardEncoders.Tick, pair.Value);
+        buffer.Push(StandardEncoders.EntityId, pair.Key);
       }
-      buffer.Push(Encoders.EntityCount, this.idToFrame.Count);
+      buffer.Push(StandardEncoders.EntityCount, this.idToFrame.Count);
     }
 
     public static RailView Decode(BitBuffer buffer)
     {
-      int count = buffer.Pop(Encoders.EntityCount);
+      int count = buffer.Pop(StandardEncoders.EntityCount);
       RailView result = RailResource.Instance.AllocateView();
 
       for (int i = 0; i < count; i++)
         result.Add(
-          buffer.Pop(Encoders.EntityId),
-          buffer.Pop(Encoders.Tick));
+          buffer.Pop(StandardEncoders.EntityId),
+          buffer.Pop(StandardEncoders.Tick));
 
       return result;
     }

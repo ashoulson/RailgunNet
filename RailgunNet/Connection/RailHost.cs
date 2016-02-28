@@ -47,6 +47,9 @@ namespace Railgun
     /// </summary>
     public event Action<RailPeerClient> ClientRemoved;
 
+    /// <summary>
+    /// Collection of all participating clients.
+    /// </summary>
     private Dictionary<IRailNetPeer, RailPeerClient> clients;
 
     public RailHost(
@@ -103,10 +106,43 @@ namespace Railgun
 
       if (this.ShouldSend(this.world.Tick))
       {
-        RailSnapshot snapshot = this.world.CreateSnapshot();
-        this.snapshotBuffer.Store(snapshot);
-        this.Broadcast(snapshot);
+        RailSnapshot masterSnapshot = this.world.CreateSnapshot();
+        this.snapshotBuffer.Store(masterSnapshot);
+        this.Broadcast(masterSnapshot);
       }
+    }
+
+    /// <summary>
+    /// Creates a state of a given type for use in creating an entity.
+    /// </summary>
+    public T CreateState<T>()
+      where T : RailState, new()
+    {
+      return (T)RailResource.Instance.AllocateState((new T()).Type);
+    }
+
+    /// <summary>
+    /// Creates an entity of a given type. Does not add ie to the world.
+    /// </summary>
+    public T CreateEntity<T>(RailState state)
+      where T : RailEntity
+    {
+      // Entity states don't have a tick since they are reused every frame
+      state.Initialize(this.world.GetEntityId(), RailClock.INVALID_TICK);
+
+      RailEntity entity = state.CreateEntity();
+      entity.InitializeHost(state);
+
+      return (T)entity;
+    }
+
+    /// <summary>
+    /// Adds an entity to the host's world.
+    /// </summary>
+    /// <param name="entity"></param>
+    public void AddEntity(RailEntity entity)
+    {
+      this.world.AddEntity(entity);
     }
 
     /// <summary>

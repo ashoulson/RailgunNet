@@ -29,14 +29,6 @@ public class DemoEntity : RailEntity<DemoState>
 {
   public DemoEntity() { }
 
-  private float modifier;
-
-  public void InitializeHost(int archetypeId)
-  {
-    this.modifier = 1.0f;
-    this.State.ArchetypeId = archetypeId;
-  }
-
   protected override void OnUpdateHost()
   {
     this.UpdatePosition();

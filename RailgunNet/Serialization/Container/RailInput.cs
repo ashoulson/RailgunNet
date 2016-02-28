@@ -33,7 +33,7 @@ namespace Railgun
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Key { get { return this.Tick; } }
+    int IRailRingValue.Tick { get { return this.Tick; } }
 
     internal int Tick { get; set; }
     internal RailCommand Command { get; set; }
@@ -56,14 +56,14 @@ namespace Railgun
       this.Command.Encode(buffer);
 
       // Write: [Tick]
-      buffer.Push(Encoders.Tick, this.Tick);
+      buffer.Push(StandardEncoders.Tick, this.Tick);
     }
 
     internal static RailInput Decode(
       BitBuffer buffer)
     {
       // Read: [Tick]
-      int tick = buffer.Pop(Encoders.Tick);
+      int tick = buffer.Pop(StandardEncoders.Tick);
 
       RailInput input = RailResource.Instance.AllocateInput();
       RailCommand command = RailResource.Instance.AllocateCommand();

@@ -89,7 +89,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
     this.Status = status;
   }
 
-  protected override void Reset()
+  protected override void ResetData()
   {
     this.ArchetypeId = 0;
     this.UserId = 0;
@@ -124,9 +124,6 @@ public class DemoState : RailState<DemoState, DemoEntity>
     buffer.Push(DemoEncoders.Coordinate, this.X);
     buffer.Push(DemoEncoders.UserId, this.UserId);
     buffer.Push(DemoEncoders.ArchetypeId, this.ArchetypeId);
-
-    // Add metadata
-    buffer.Push(DemoEncoders.EntityDirty, DemoState.FLAG_ALL);
   }
 
   /// <summary>
@@ -147,7 +144,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
     buffer.PushIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, this.UserId);
     buffer.PushIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, this.ArchetypeId);
 
-    // Add metadata
+    // Add delta metadata
     buffer.Push(DemoEncoders.EntityDirty, dirty);
     return true;
   }
@@ -157,9 +154,6 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// </summary>
   protected override void DecodeData(BitBuffer buffer)
   {
-    int dirty = buffer.Pop(DemoEncoders.EntityDirty);
-    //RailgunUtil.Assert(dirty == DemoState.FLAG_ALL);
-
     this.SetData(
       buffer.Pop(DemoEncoders.ArchetypeId),
       buffer.Pop(DemoEncoders.UserId),
@@ -175,6 +169,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
   /// </summary>
   protected override void DecodeData(BitBuffer buffer, DemoState basis)
   {
+    // Retrieve delta metadata
     int dirty = buffer.Pop(DemoEncoders.EntityDirty);
 
     this.SetData(

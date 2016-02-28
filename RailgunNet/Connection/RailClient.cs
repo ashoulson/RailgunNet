@@ -35,19 +35,22 @@ namespace Railgun
 
     private RailPeerHost hostPeer;
     private int lastReceived;
-    private int lastApplied;
     private byte[] dataBuffer;
 
     private RailClock serverClock;
     private bool shouldUpdateClock = false;
     private bool shouldUpdate = false;
 
-
     /// <summary>
     /// A history of inputs sent (or waiting to be sent) to the client.
     /// </summary>
     // TODO: This should probably be just a regular queue
     internal readonly RailRingBuffer<RailInput> inputBuffer;
+
+    /// <summary>
+    /// Entities that are waiting to be added to the world.
+    /// </summary>
+    private Dictionary<int, RailEntity> pendingEntities;
 
     // TODO: This is clumsy
     private int localTick;
@@ -59,7 +62,6 @@ namespace Railgun
     {
       this.hostPeer = null;
       this.lastReceived = RailClock.INVALID_TICK;
-      this.lastApplied = RailClock.INVALID_TICK;
       this.dataBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
 
       this.serverClock = new RailClock(RailConfig.NETWORK_SEND_RATE);
@@ -70,6 +72,8 @@ namespace Railgun
       this.inputBuffer =
         new RailRingBuffer<RailInput>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
+
+      this.pendingEntities = new Dictionary<int, RailEntity>();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -82,12 +86,11 @@ namespace Railgun
     {
       if (this.shouldUpdate)
       {
-        if (this.shouldUpdateClock)
-          this.serverClock.Tick(this.lastReceived);
-        else
-          this.serverClock.Tick();
+        int ticks = this.UpdateClock();
 
-        this.SelectAndApplySnapshot();
+        for (; ticks > 1; ticks--)
+          this.world.UpdateClient(this.serverClock.RemoteTick - ticks);
+        this.world.UpdateClient(this.serverClock.RemoteTick);
 
         if (this.hostPeer != null)
         {
@@ -114,17 +117,34 @@ namespace Railgun
       this.inputBuffer.Store(input);
     }
 
-    private void SelectAndApplySnapshot()
+    private int UpdateClock()
     {
-      RailSnapshot snapshot =
-        this.snapshotBuffer.GetOrFirstBefore(
-          this.serverClock.RemoteTick);
+      if (this.shouldUpdateClock)
+        return this.serverClock.Tick(this.lastReceived);
+      return this.serverClock.Tick();
+    }
 
-      if ((snapshot != null) && (snapshot.Tick > this.lastApplied))
+    private void UpdateWorld(int numTicks)
+    {
+      for (; numTicks >= 0; numTicks--)
+        this.world.UpdateClient(this.serverClock.RemoteTick - numTicks);
+    }
+
+    private void UpdatePendingEntities(int serverTick)
+    {
+      List<RailEntity> toRemove = new List<RailEntity>();
+
+      foreach (RailEntity entity in this.pendingEntities.Values)
       {
-        this.world.ApplySnapshot(snapshot);
-        this.lastApplied = snapshot.Tick;
+        if (entity.CheckDelta(serverTick))
+        {
+          this.world.AddEntity(entity);
+          toRemove.Add(entity);
+        }
       }
+
+      foreach (RailEntity entity in toRemove)
+        this.pendingEntities.Remove(entity.Id);
     }
 
     private void OnMessagesReady(RailPeerHost peer)
@@ -136,7 +156,7 @@ namespace Railgun
 
       foreach (RailSnapshot snapshot in decode)
       {
-        this.snapshotBuffer.Store(snapshot);
+        this.DigestSnapshot(snapshot);
 
         // See if we should update the clock with a new received tick
         if (snapshot.Tick > this.lastReceived)
@@ -146,6 +166,33 @@ namespace Railgun
           this.shouldUpdate = true;
         }
       }
+    }
+
+    internal void DigestSnapshot(RailSnapshot snapshot)
+    {
+      this.snapshotBuffer.Store(snapshot);
+      foreach (RailState state in snapshot.Values)
+        this.ProcessState(state);
+    }
+
+    private void ProcessState(RailState state)
+    {
+      RailEntity entity;
+      if (this.World.TryGetEntity(state.Id, out entity) == false)
+        if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
+          entity = this.ReplicateEntity(state);
+      entity.StateBuffer.Store(state);
+    }
+
+    /// <summary>
+    /// Creates an entity and adds it to the pending entity list.
+    /// </summary>
+    private RailEntity ReplicateEntity(RailState state)
+    {
+      RailEntity entity = state.CreateEntity();
+      entity.InitializeClient();
+      this.pendingEntities.Add(state.Id, entity);
+      return entity;
     }
   }
 }

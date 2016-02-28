@@ -30,14 +30,13 @@ namespace Railgun
   /// A snapshot is a collection of entity states representing a complete
   /// state of the world at a given frame.
   /// </summary>
-  public class RailSnapshot 
-    : IRailPoolable, IRailRingValue
+  internal class RailSnapshot : IRailPoolable, IRailRingValue
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Key { get { return this.Tick; } }
+    int IRailRingValue.Tick { get { return this.Tick; } }
 
-    public int Tick { get; internal protected set; }
+    internal int Tick { get; set; }
 
     private Dictionary<int, RailState> states;
 
@@ -47,29 +46,26 @@ namespace Railgun
       this.Tick = RailClock.INVALID_TICK;
     }
 
-    /// <summary>
-    /// Deep-copies this Snapshot, allocating from the pool in the process.
-    /// </summary>
-    internal RailSnapshot Clone()
-    {
-      RailSnapshot clone = RailResource.Instance.AllocateSnapshot();
-      clone.Tick = this.Tick;
-      foreach (RailState state in this.Values)
-        clone.Add(state.Clone());
-      return clone;
-    }
-
     protected virtual void Reset()
     {
       foreach (RailState state in this.Values)
         RailPool.Free(state);
       this.states.Clear();
+
+      this.Tick = RailClock.INVALID_TICK;
     }
 
-    #region State Access
     internal virtual void Add(RailState state)
     {
       this.states.Add(state.Id, state);
+    }
+
+    public RailState Get(int id)
+    {
+      RailState result;
+      if (this.states.TryGetValue(id, out result))
+        return result;
+      return null;
     }
 
     internal bool TryGet(int id, out RailState state)
@@ -86,7 +82,6 @@ namespace Railgun
     {
       get { return this.states.Values; }
     }
-    #endregion
 
     #region Encode/Decode
     /// Snapshot encoding order:
@@ -95,7 +90,7 @@ namespace Railgun
     internal static int PeekBasisTick(
       BitBuffer buffer)
     {
-      return buffer.Peek(Encoders.Tick);
+      return buffer.Peek(StandardEncoders.Tick);
     }
 
     internal void Encode(
@@ -108,13 +103,13 @@ namespace Railgun
       }
 
       // Write: [Count]
-      buffer.Push(Encoders.EntityCount, this.states.Count);
+      buffer.Push(StandardEncoders.EntityCount, this.states.Count);
 
       // Write: [Tick]
-      buffer.Push(Encoders.Tick, this.Tick);
+      buffer.Push(StandardEncoders.Tick, this.Tick);
 
       // Write: [BasisTick]
-      buffer.Push(Encoders.Tick, RailClock.INVALID_TICK);
+      buffer.Push(StandardEncoders.Tick, RailClock.INVALID_TICK);
     }
 
     internal void Encode(
@@ -141,34 +136,33 @@ namespace Railgun
       }
 
       // Write: [Count]
-      buffer.Push(Encoders.EntityCount, count);
+      buffer.Push(StandardEncoders.EntityCount, count);
 
       // Write: [Tick]
-      buffer.Push(Encoders.Tick, this.Tick);
+      buffer.Push(StandardEncoders.Tick, this.Tick);
 
       // Write: [BasisTick]
-      buffer.Push(Encoders.Tick, basis.Tick);
+      buffer.Push(StandardEncoders.Tick, basis.Tick);
     }
 
     internal static RailSnapshot Decode(
       BitBuffer buffer)
     {
-      // Read: [Basis Tick] (discarded)
-      buffer.Pop(Encoders.Tick);
+      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
+
+      // Read: [BasisTick] (discarded)
+      buffer.Pop(StandardEncoders.Tick);
 
       // Read: [Tick]
-      int tick = buffer.Pop(Encoders.Tick);
+      snapshot.Tick = buffer.Pop(StandardEncoders.Tick);
 
       // Read: [Count]
-      int count = buffer.Pop(Encoders.EntityCount);
-
-      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
-      snapshot.Tick = tick;
+      int count = buffer.Pop(StandardEncoders.EntityCount);
 
       for (int i = 0; i < count; i++)
       {
         // Read: [State] (full)
-        snapshot.Add(RailState.Decode(buffer));
+        snapshot.Add(RailState.Decode(buffer, snapshot.Tick));
       }
 
       return snapshot;
@@ -178,17 +172,16 @@ namespace Railgun
       BitBuffer buffer,
       RailSnapshot basis)
     {
+      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
+
       // Read: [BasisTick] (discarded)
-      buffer.Pop(Encoders.Tick);
+      buffer.Pop(StandardEncoders.Tick);
 
       // Read: [Tick]
-      int tick = buffer.Pop(Encoders.Tick);
+      snapshot.Tick = buffer.Pop(StandardEncoders.Tick);
 
       // Read: [Count]
-      int count = buffer.Pop(Encoders.EntityCount);
-
-      RailSnapshot snapshot = RailResource.Instance.AllocateSnapshot();
-      snapshot.Tick = tick;
+      int count = buffer.Pop(StandardEncoders.EntityCount);
 
       for (int i = 0; i < count; i++)
       {
@@ -198,9 +191,9 @@ namespace Railgun
         // Read: [State] (either full or delta)
         RailState basisState;
         if (basis.TryGet(stateId, out basisState))
-          snapshot.Add(RailState.Decode(buffer, basisState));
+          snapshot.Add(RailState.Decode(buffer, snapshot.Tick, basisState));
         else
-          snapshot.Add(RailState.Decode(buffer));
+          snapshot.Add(RailState.Decode(buffer, snapshot.Tick));
       }
 
       RailSnapshot.ReconcileBasis(snapshot, basis);
@@ -212,12 +205,12 @@ namespace Railgun
     /// the newly-populated snapshot.
     /// </summary>
     internal static void ReconcileBasis(
-      RailSnapshot snapshot, 
+      RailSnapshot snapshot,
       RailSnapshot basis)
     {
       foreach (RailState basisState in basis.Values)
         if (snapshot.Contains(basisState.Id) == false)
-          snapshot.Add(basisState.Clone());
+          snapshot.Add(basisState.Clone(snapshot.Tick));
     }
     #endregion
   }
