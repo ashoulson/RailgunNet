@@ -23,6 +23,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 using Railgun;
+using UnityEngine;
 
 public class DemoCommand : RailCommand<DemoCommand>
 {
@@ -43,7 +44,7 @@ public class DemoCommand : RailCommand<DemoCommand>
     this.Right = right;
   }
 
-  protected override void Encode(BitBuffer buffer)
+  protected override void EncodeData(BitBuffer buffer)
   {
     buffer.Push(DemoEncoders.Bool, this.Right);
     buffer.Push(DemoEncoders.Bool, this.Left);
@@ -51,12 +52,28 @@ public class DemoCommand : RailCommand<DemoCommand>
     buffer.Push(DemoEncoders.Bool, this.Up);
   }
 
-  protected override void Decode(BitBuffer buffer)
+  protected override void DecodeData(BitBuffer buffer)
   {
     this.SetData(
       buffer.Pop(DemoEncoders.Bool),
       buffer.Pop(DemoEncoders.Bool),
       buffer.Pop(DemoEncoders.Bool),
       buffer.Pop(DemoEncoders.Bool));
+  }
+
+  protected override void ResetData()
+  {
+    this.SetData(false, false, false, false);
+  }
+
+  protected override void Populate()
+  {
+#if CLIENT
+    this.SetData(
+      Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W),
+      Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S),
+      Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A),
+      Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D));
+#endif
   }
 }

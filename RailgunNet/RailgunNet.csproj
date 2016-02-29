@@ -41,9 +41,8 @@
     <Compile Include="Connection\Peers\RailPeer.cs" />
     <Compile Include="Connection\Peers\RailPeerClient.cs" />
     <Compile Include="World\Smoothing\RailStateBuffer.cs" />
-    <Compile Include="Serialization\Container\Delta-Encoded\RailSnapshot.cs" />
+    <Compile Include="Serialization\Container\RailSnapshot.cs" />
     <Compile Include="World\Smoothing\RailStateDelta.cs" />
-    <Compile Include="Serialization\Container\Packet\RailPacketC2S.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\RailClient.cs" />
     <Compile Include="Connection\IRailNetPeer.cs" />
@@ -62,12 +61,12 @@
     <Compile Include="Util\RingBuffer\RailRingBuffer.cs" />
     <Compile Include="Serialization\Container\Factory\RailPoolCommand.cs" />
     <Compile Include="Serialization\Container\Factory\RailPoolState.cs" />
-    <Compile Include="Serialization\Container\RailCommand.cs" />
-    <Compile Include="Serialization\Container\RailInput.cs" />
+    <Compile Include="Serialization\Container\UserDefined\RailCommand.cs" />
+    <Compile Include="Serialization\Container\Packet\RailClientPacket.cs" />
     <Compile Include="World\RailEntity.cs" />
     <Compile Include="Serialization\RailInterpreter.cs" />
     <Compile Include="World\RailWorld.cs" />
-    <Compile Include="Serialization\Container\Delta-Encoded\RailState.cs" />
+    <Compile Include="Serialization\Container\UserDefined\RailState.cs" />
     <Compile Include="Serialization\Encoding\BitBuffer.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Encoder.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\FloatEncoder.cs" />

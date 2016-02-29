@@ -101,12 +101,15 @@ namespace Railgun
       delta.Set(prior, latest, next);
     }
 
-    public T GetOrFirstBefore(int tick)
+    public T GetLatest(int tick)
     {
       if (tick == RailClock.INVALID_TICK)
         return null;
 
-      T result = null;
+      T result = this.Get(tick);
+      if (result != null)
+        return result;
+
       for (int i = 0; i < this.data.Length; i++)
       {
         T value = this.data[i];

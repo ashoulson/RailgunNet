@@ -42,22 +42,8 @@ public class Client : MonoBehaviour
   void FixedUpdate()
   {
     this.netSocket.Poll();
-
-    DemoCommand command = this.client.CreateCommand<DemoCommand>();
-    this.PopulateCommand(command);
-    this.client.RegisterCommand(command);
-
     this.client.Update();
     this.netSocket.Transmit();
-  }
-
-  private void PopulateCommand(DemoCommand command)
-  {
-    command.SetData(
-      Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W),
-      Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S),
-      Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A),
-      Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D));
   }
 
   private void OnConnected(NetPeer peer)

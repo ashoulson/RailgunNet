@@ -41,16 +41,10 @@ namespace Railgun
       this.Reset();
     }
 
-    /// <summary>
-    /// N.B.: Does not automatically add the state to the entity!
-    /// </summary>
+    // N.B.: Does not automatically add the state to the entity!
     internal abstract RailEntity CreateEntity();
-
     internal abstract RailPoolState CreatePool();
-
     internal abstract void SetDataFrom(RailState other);
-    internal abstract bool EncodeData(BitBuffer buffer, RailState basis);
-    internal abstract void DecodeData(BitBuffer buffer, RailState basis);
 
     /// <summary>
     /// The object's network ID.
@@ -58,7 +52,7 @@ namespace Railgun
     public int Id { get; private set; }
 
     /// <summary>
-    /// The tick this state was generated on.
+    /// The server tick this state was generated on.
     /// </summary>
     internal int Tick { get; private set; }
 
@@ -67,9 +61,10 @@ namespace Railgun
     /// </summary>
     protected internal abstract int Type { get; }
 
-    protected internal abstract void EncodeData(BitBuffer buffer);
-    protected internal abstract void DecodeData(BitBuffer buffer);
-
+    protected abstract void EncodeData(BitBuffer buffer);
+    protected abstract void DecodeData(BitBuffer buffer);
+    protected abstract bool EncodeData(BitBuffer buffer, RailState basis);
+    protected abstract void DecodeData(BitBuffer buffer, RailState basis);
     protected abstract void ResetData();
 
     protected internal void Reset() 
@@ -186,12 +181,12 @@ namespace Railgun
       this.SetDataFrom((T)other);
     }
 
-    internal override bool EncodeData(BitBuffer buffer, RailState basis)
+    protected override bool EncodeData(BitBuffer buffer, RailState basis)
     {
       return this.EncodeData(buffer, (T)basis);
     }
 
-    internal override void DecodeData(BitBuffer buffer, RailState basis)
+    protected override void DecodeData(BitBuffer buffer, RailState basis)
     {
       this.DecodeData(buffer, (T)basis);
     }

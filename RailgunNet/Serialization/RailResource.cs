@@ -33,12 +33,12 @@ namespace Railgun
       RailCommand commandToRegister, 
       RailState[] statestoRegister)
     {
-      RailResource.Instance = 
+      RailResource.Instance =
         new RailResource(commandToRegister, statestoRegister);
     }
 
     private RailPoolGeneric<RailSnapshot> snapshotPool;
-    private RailPoolGeneric<RailPacketC2S> inputPool;
+    private RailPoolGeneric<RailClientPacket> clientPacketPool;
 
     private RailPoolCommand commandPool;
 
@@ -49,7 +49,7 @@ namespace Railgun
       params RailState[] statestoRegister)
     {
       this.snapshotPool = new RailPoolGeneric<RailSnapshot>();
-      this.inputPool = new RailPoolGeneric<RailPacketC2S>();
+      this.clientPacketPool = new RailPoolGeneric<RailClientPacket>();
 
       this.commandPool = commandToRegister.CreatePool();
 
@@ -63,9 +63,9 @@ namespace Railgun
       return this.snapshotPool.Allocate();
     }
 
-    internal RailPacketC2S AllocateInput()
+    internal RailClientPacket AllocateClientPacket()
     {
-      return this.inputPool.Allocate();
+      return this.clientPacketPool.Allocate();
     }
 
     internal RailCommand AllocateCommand()

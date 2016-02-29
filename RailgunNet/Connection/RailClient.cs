@@ -28,24 +28,15 @@ namespace Railgun
 {
   public class RailClient : RailConnection
   {
-    //public event Action Connected;
-    //public event Action Disconnected;
-
-    public int RemoteTick { get { return this.serverClock.RemoteTick; } }
+    public int RemoteTick { get { return this.serverClock.RemoteTickEstimated; } }
 
     private RailPeerHost hostPeer;
-    private int lastReceived;
-    private byte[] dataBuffer;
-
     private RailClock serverClock;
-    private bool shouldUpdateClock = false;
-    private bool shouldUpdate = false;
 
     /// <summary>
-    /// A history of inputs sent (or waiting to be sent) to the client.
+    /// A history of commands sent (or waiting to be sent) to the client.
     /// </summary>
-    // TODO: This should probably be just a regular queue
-    internal readonly RailRingBuffer<RailPacketC2S> inputBuffer;
+    internal readonly Queue<RailCommand> commandBuffer;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -55,26 +46,20 @@ namespace Railgun
     // Reusable removal list
     private List<RailEntity> toRemove;
 
-    // TODO: This is clumsy
+    // The local simulation tick, used for commands
     private int localTick;
 
     public RailClient(
       RailCommand commandToRegister, 
-      params RailState[] statestoRegister)
-      : base(commandToRegister, statestoRegister)
+      params RailState[] statesToRegister)
+      : base(commandToRegister, statesToRegister)
     {
       this.hostPeer = null;
-      this.lastReceived = RailClock.INVALID_TICK;
-      this.dataBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
+      this.serverClock = new RailClock();
 
-      this.serverClock = new RailClock(RailConfig.NETWORK_SEND_RATE);
-      this.shouldUpdate = false;
-      this.shouldUpdateClock = false;
-
-      this.localTick = 0;
-      this.inputBuffer =
-        new RailRingBuffer<RailPacketC2S>(
-          RailConfig.DEJITTER_BUFFER_LENGTH);
+      this.localTick = 1;
+      this.commandBuffer = 
+        new Queue<RailCommand>(RailConfig.COMMAND_BUFFER_SIZE + 1);
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
       this.toRemove = new List<RailEntity>();
@@ -88,49 +73,58 @@ namespace Railgun
 
     public override void Update()
     {
-      if (this.shouldUpdate)
-      {
-        this.UpdateWorld(this.UpdateClock());
-
-        if (this.hostPeer != null)
-        {
-          RailPacketC2S input = this.inputBuffer.Get(this.localTick);
-          if (input != null)
-            this.interpreter.SendInput(this.hostPeer, input);
-        }
-      }
+      this.UpdateWorld(this.serverClock.Tick());
+      this.UpdateCommands();
+      if ((this.hostPeer != null) && this.ShouldSend(this.localTick))
+        this.SendPacket();
 
       this.localTick++;
     }
 
-    public T CreateCommand<T>()
-      where T : RailCommand<T>, new()
+    /// <summary>
+    /// Packs and sends a client-to-host packet to the host.
+    /// </summary>
+    private void SendPacket()
     {
-      return (T)RailResource.Instance.AllocateCommand();
+      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
+      packet.Initialize(
+        this.localTick, 
+        this.serverClock.RemoteTickLatest, 
+        this.commandBuffer);
+      this.interpreter.SendClientPacket(this.hostPeer, packet);
     }
 
-    public void RegisterCommand(RailCommand command)
-    {
-      RailPacketC2S input = RailResource.Instance.AllocateInput();
-      input.Tick = this.localTick;
-      input.Command = command;
-      this.inputBuffer.Store(input);
-    }
-
-    private int UpdateClock()
-    {
-      if (this.shouldUpdateClock)
-        return this.serverClock.Tick(this.lastReceived);
-      return this.serverClock.Tick();
-    }
-
+    /// <summary>
+    /// Updates the world a number of ticks. If we have entities waiting to be
+    /// added, this function will check them and add them if applicable.
+    /// </summary>
     private void UpdateWorld(int numTicks)
     {
       for (; numTicks > 0; numTicks--)
       {
-        int serverTick = (this.serverClock.RemoteTick - numTicks) + 1;
+        int serverTick = (this.serverClock.RemoteTickEstimated - numTicks) + 1;
         this.UpdatePendingEntities(serverTick);
         this.world.UpdateClient(serverTick);
+      }
+    }
+
+    /// <summary>
+    /// Polls the command generator to produce a command and adds it to the
+    /// rolling outgoing command queue. TODO: Local prediction!
+    /// </summary>
+    private void UpdateCommands()
+    {
+      RailCommand command = RailResource.Instance.AllocateCommand();
+
+      command.Populate();
+      command.Tick = this.localTick;
+
+      this.commandBuffer.Enqueue(command);
+
+      if (this.commandBuffer.Count > RailConfig.COMMAND_BUFFER_SIZE)
+      {
+        RailCommand oldest = this.commandBuffer.Dequeue();
+        RailPool.Free(oldest);
       }
     }
 
@@ -170,18 +164,11 @@ namespace Railgun
       foreach (RailSnapshot snapshot in decode)
       {
         this.ProcessSnapshot(snapshot);
-
-        // See if we should update the clock with a new received tick
-        if (snapshot.Tick > this.lastReceived)
-        {
-          this.lastReceived = snapshot.Tick;
-          this.shouldUpdateClock = true;
-          this.shouldUpdate = true;
-        }
+        this.serverClock.UpdateLatest(snapshot.Tick);
       }
     }
 
-    internal void ProcessSnapshot(RailSnapshot snapshot)
+    private void ProcessSnapshot(RailSnapshot snapshot)
     {
       this.snapshotBuffer.Store(snapshot);
       foreach (RailState state in snapshot.Values)
