@@ -29,7 +29,7 @@ namespace Railgun
   /// <summary>
   /// Input is a collection of player state data sent from client to host.
   /// </summary>
-  public class RailInput : IRailPoolable, IRailRingValue
+  public class RailPacketC2S : IRailPoolable, IRailRingValue
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
@@ -48,7 +48,6 @@ namespace Railgun
 
     #region Encode/Decode
     /// Input encoding order: | TICK | -- COMMAND -- |
-    /// 
     internal void Encode(
       BitBuffer buffer)
     {
@@ -59,13 +58,13 @@ namespace Railgun
       buffer.Push(StandardEncoders.Tick, this.Tick);
     }
 
-    internal static RailInput Decode(
+    internal static RailPacketC2S Decode(
       BitBuffer buffer)
     {
       // Read: [Tick]
       int tick = buffer.Pop(StandardEncoders.Tick);
 
-      RailInput input = RailResource.Instance.AllocateInput();
+      RailPacketC2S input = RailResource.Instance.AllocateInput();
       RailCommand command = RailResource.Instance.AllocateCommand();
 
       // Read: [Command]

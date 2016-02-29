@@ -45,7 +45,7 @@ namespace Railgun
     /// A history of inputs sent (or waiting to be sent) to the client.
     /// </summary>
     // TODO: This should probably be just a regular queue
-    internal readonly RailRingBuffer<RailInput> inputBuffer;
+    internal readonly RailRingBuffer<RailPacketC2S> inputBuffer;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -73,7 +73,7 @@ namespace Railgun
 
       this.localTick = 0;
       this.inputBuffer =
-        new RailRingBuffer<RailInput>(
+        new RailRingBuffer<RailPacketC2S>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
@@ -94,7 +94,7 @@ namespace Railgun
 
         if (this.hostPeer != null)
         {
-          RailInput input = this.inputBuffer.Get(this.localTick);
+          RailPacketC2S input = this.inputBuffer.Get(this.localTick);
           if (input != null)
             this.interpreter.SendInput(this.hostPeer, input);
         }
@@ -111,7 +111,7 @@ namespace Railgun
 
     public void RegisterCommand(RailCommand command)
     {
-      RailInput input = RailResource.Instance.AllocateInput();
+      RailPacketC2S input = RailResource.Instance.AllocateInput();
       input.Tick = this.localTick;
       input.Command = command;
       this.inputBuffer.Store(input);

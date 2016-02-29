@@ -43,7 +43,7 @@ namespace Railgun
     #region Input
     internal void SendInput(
       RailPeerHost peer,
-      RailInput input)
+      RailPacketC2S input)
     {
       this.bitBuffer.Clear();
 
@@ -54,7 +54,7 @@ namespace Railgun
       peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailInput> ReceiveInputs(
+    internal IEnumerable<RailPacketC2S> ReceiveInputs(
       RailPeerClient peer)
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
@@ -62,7 +62,7 @@ namespace Railgun
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
         // Read: [Input]
-        RailInput result = RailInput.Decode(this.bitBuffer);
+        RailPacketC2S result = RailPacketC2S.Decode(this.bitBuffer);
 
         CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
         yield return result;

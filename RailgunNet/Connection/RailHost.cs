@@ -156,8 +156,8 @@ namespace Railgun
 
     private void OnMessagesReady(RailPeerClient peer)
     {
-      IEnumerable<RailInput> decode = this.interpreter.ReceiveInputs(peer);
-      foreach (RailInput input in decode)
+      IEnumerable<RailPacketC2S> decode = this.interpreter.ReceiveInputs(peer);
+      foreach (RailPacketC2S input in decode)
         peer.StoreInput(input);
     }
   }

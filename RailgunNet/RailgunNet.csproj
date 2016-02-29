@@ -50,7 +50,6 @@
     <Compile Include="Connection\RailHost.cs" />
     <Compile Include="RailConfig.cs" />
     <Compile Include="Util\RingBuffer\RailRingDelta.cs" />
-    <Compile Include="Serialization\Container\RailView.cs" />
     <Compile Include="Serialization\RailResource.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\BoolEncoder.cs" />
     <Compile Include="Util\Common\CommonDebug.cs" />

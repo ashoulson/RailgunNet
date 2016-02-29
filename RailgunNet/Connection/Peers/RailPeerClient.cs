@@ -30,12 +30,12 @@ namespace Railgun
     /// <summary>
     /// A history of received inputs from the client. Used for dejitter.
     /// </summary>
-    internal readonly RailRingBuffer<RailInput> inputBuffer;
+    internal readonly RailRingBuffer<RailPacketC2S> inputBuffer;
 
     internal int LastAckedTick { get; set; }
 
     // TODO: Temp!
-    internal RailInput latestInput;
+    internal RailPacketC2S latestInput;
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
@@ -44,7 +44,7 @@ namespace Railgun
       // We use no divisor for storing inputs because inputs are sent in
       // batches that we can use to fill in the holes between send frames
       this.inputBuffer =
-        new RailRingBuffer<RailInput>(
+        new RailRingBuffer<RailPacketC2S>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
@@ -54,7 +54,7 @@ namespace Railgun
         this.MessagesReady(this);
     }
 
-    internal void StoreInput(RailInput input)
+    internal void StoreInput(RailPacketC2S input)
     {
       this.inputBuffer.Store(input);
 
