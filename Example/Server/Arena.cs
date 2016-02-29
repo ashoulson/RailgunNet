@@ -7,22 +7,22 @@ namespace Example
 {
   public class Arena
   {
-    private RailHost host;
+    private RailServer server;
 
-    public Arena(RailHost host)
+    public Arena(RailServer server)
     {
-      this.host = host;
+      this.server = server;
 
-      host.ClientAdded += this.OnPeerAdded;
+      server.ClientAdded += this.OnPeerAdded;
     }
 
     private void OnPeerAdded(RailPeerClient peer)
     {
-      DemoState state = this.host.CreateState<DemoState>();
+      DemoState state = this.server.CreateState<DemoState>();
       state.ArchetypeId = 0;
-      DemoEntity entity = this.host.CreateEntity<DemoEntity>(state);
+      DemoEntity entity = this.server.CreateEntity<DemoEntity>(state);
       entity.AssignOwner(peer);
-      this.host.AddEntity(entity);
+      this.server.AddEntity(entity);
     }
   }
 }

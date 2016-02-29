@@ -27,7 +27,7 @@ namespace Railgun
   internal class RailRingBuffer<T>
     where T : class, IRailRingValue, IRailPoolable
   {
-    // Used for converting a key to an index. For example, the host may only
+    // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
     // key by 2 so as to avoid wasting space in the frame buffer
     private int divisor;

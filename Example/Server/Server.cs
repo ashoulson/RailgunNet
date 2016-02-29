@@ -12,8 +12,8 @@ namespace Example
     private Clock clock;
 
     private NetSocket socket;
-    private RailHost host;
-    private NetHostWrapper wrapper;
+    private RailServer server;
+    private NetServerWrapper wrapper;
 
     private Arena arena;
 
@@ -23,9 +23,9 @@ namespace Example
 
       this.socket = new NetSocket();
 
-      this.host = new RailHost(new DemoCommand(), new DemoState());
-      this.wrapper = new NetHostWrapper(socket, host);
-      this.arena = new Arena(this.host);
+      this.server = new RailServer(new DemoCommand(), new DemoState());
+      this.wrapper = new NetServerWrapper(socket, server);
+      this.arena = new Arena(this.server);
 
       this.clock = new Clock(updateRate);
       this.clock.OnFixedUpdate += this.FixedUpdate;
@@ -56,7 +56,7 @@ namespace Example
     private void FixedUpdate()
     {
       this.socket.Poll();
-      this.host.Update();
+      this.server.Update();
       this.socket.Transmit();
     }
 

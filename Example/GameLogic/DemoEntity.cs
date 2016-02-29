@@ -29,7 +29,7 @@ public class DemoEntity : RailEntity<DemoState>
 {
   public DemoEntity() { }
 
-  protected override void OnUpdateHost()
+  protected override void OnUpdateServer()
   {
     this.UpdatePosition();
   }

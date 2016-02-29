@@ -30,7 +30,7 @@ namespace Railgun
   {
     public int RemoteTick { get { return this.serverClock.RemoteTickEstimated; } }
 
-    private RailPeerHost hostPeer;
+    private RailPeerServer serverPeer;
     private RailClock serverClock;
 
     /// <summary>
@@ -54,7 +54,7 @@ namespace Railgun
       params RailState[] statesToRegister)
       : base(commandToRegister, statesToRegister)
     {
-      this.hostPeer = null;
+      this.serverPeer = null;
       this.serverClock = new RailClock();
 
       this.localTick = 1;
@@ -67,22 +67,22 @@ namespace Railgun
 
     public void SetPeer(IRailNetPeer netPeer)
     {
-      this.hostPeer = new RailPeerHost(netPeer);
-      this.hostPeer.MessagesReady += this.OnMessagesReady;
+      this.serverPeer = new RailPeerServer(netPeer);
+      this.serverPeer.MessagesReady += this.OnMessagesReady;
     }
 
     public override void Update()
     {
       this.UpdateWorld(this.serverClock.Tick());
       this.UpdateCommands();
-      if ((this.hostPeer != null) && this.ShouldSend(this.localTick))
+      if ((this.serverPeer != null) && this.ShouldSend(this.localTick))
         this.SendPacket();
 
       this.localTick++;
     }
 
     /// <summary>
-    /// Packs and sends a client-to-host packet to the host.
+    /// Packs and sends a client-to-server packet to the server.
     /// </summary>
     private void SendPacket()
     {
@@ -91,7 +91,7 @@ namespace Railgun
         this.localTick, 
         this.serverClock.RemoteTickLatest, 
         this.commandBuffer);
-      this.interpreter.SendClientPacket(this.hostPeer, packet);
+      this.interpreter.SendClientPacket(this.serverPeer, packet);
     }
 
     /// <summary>
@@ -154,11 +154,11 @@ namespace Railgun
       this.toRemove.Clear();
     }
 
-    private void OnMessagesReady(RailPeerHost peer)
+    private void OnMessagesReady(RailPeerServer peer)
     {
       IEnumerable<RailSnapshot> decode =
         this.interpreter.ReceiveSnapshots(
-          this.hostPeer, 
+          this.serverPeer, 
           this.snapshotBuffer);
 
       foreach (RailSnapshot snapshot in decode)

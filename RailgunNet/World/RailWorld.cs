@@ -67,11 +67,11 @@ namespace Railgun
       // TODO
     }
     
-    internal void UpdateHost()
+    internal void UpdateServer()
     {
       this.Tick++;
       foreach (RailEntity entity in this.entities.Values)
-        entity.UpdateHost();
+        entity.UpdateServer();
     }
 
     internal void UpdateClient(int serverTick)

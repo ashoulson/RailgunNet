@@ -8,16 +8,16 @@ namespace Example
 {
   /// <summary>
   /// Responsible for interpreting events from the socket and communicating
-  /// them to the Railgun host.
+  /// them to the Railgun server.
   /// </summary>
-  internal class NetHostWrapper
+  internal class NetServerWrapper
   {
     private NetSocket socket;
-    private RailHost host;
+    private RailServer server;
 
-    public NetHostWrapper(NetSocket socket, RailHost host)
+    public NetServerWrapper(NetSocket socket, RailServer server)
     {
-      this.host = host;
+      this.server = server;
 
       this.socket = socket;
       this.socket.Connected += this.OnConnected;
@@ -29,19 +29,19 @@ namespace Example
     {
       NetPeerWrapper wrapper = new NetPeerWrapper(peer);
       peer.UserData = wrapper;
-      this.host.AddPeer(wrapper);
+      this.server.AddPeer(wrapper);
     }
 
     private void OnDisconnected(NetPeer peer)
     {
       NetPeerWrapper wrapper = (NetPeerWrapper)peer.UserData;
-      this.host.RemovePeer(wrapper);
+      this.server.RemovePeer(wrapper);
     }
 
     private void OnTimedOut(NetPeer peer)
     {
       NetPeerWrapper wrapper = (NetPeerWrapper)peer.UserData;
-      this.host.RemovePeer(wrapper);
+      this.server.RemovePeer(wrapper);
     }
   }
 }
