@@ -23,6 +23,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 using Railgun;
+using UnityEngine;
 
 public class DemoState : RailState<DemoState, DemoEntity>
 {

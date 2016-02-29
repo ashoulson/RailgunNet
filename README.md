@@ -11,7 +11,8 @@ Based loosely on the [Quake 3](https://github.com/id-Software/Quake-III-Arena) a
 Supported Networking Tasks:
 - Compact bit-packing of serialized entity data
 - Delta-compression for entity data
-- Network clock (frame number) sync (in progress)
+- Network clock (frame number) sync
+- Smoothing and interpolation support
 
 To-Do:
 - Client-side prediction support
