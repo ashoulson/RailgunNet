@@ -40,7 +40,7 @@ namespace Railgun
     protected internal int Type { get { return this.State.Type; } }
     protected internal RailState State { get; set; }
 
-    protected virtual void OnUpdateHost() { }
+    protected virtual void OnUpdateServer() { }
     protected virtual void OnUpdateClient() { }
     protected virtual void OnAddedToWorld() { }
 
@@ -58,7 +58,7 @@ namespace Railgun
       this.StateDelta = new RailStateDelta();
     }
 
-    internal void InitializeHost(RailState state)
+    internal void InitializeServer(RailState state)
     {
       this.State = state;
       this.IsMaster = true;
@@ -66,9 +66,9 @@ namespace Railgun
       this.StateDelta = null;
     }
 
-    internal void UpdateHost()
+    internal void UpdateServer()
     {
-      this.OnUpdateHost();
+      this.OnUpdateServer();
     }
 
     internal void UpdateClient(int serverTick)

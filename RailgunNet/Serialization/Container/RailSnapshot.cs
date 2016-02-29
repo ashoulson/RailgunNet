@@ -38,7 +38,7 @@ namespace Railgun
 
     internal int Tick { get; set; }
 
-    private Dictionary<int, RailState> states;
+    private readonly Dictionary<int, RailState> states;
 
     public RailSnapshot()
     {

@@ -28,7 +28,7 @@ namespace Railgun
 {
 
   /// <summary>
-  /// Packet sent from client to host
+  /// Packet sent from client to server
   /// </summary>
   internal class RailClientPacket : IRailPoolable, IRailRingValue
   {

@@ -23,11 +23,11 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailPeerHost : RailPeer
+  public class RailPeerServer : RailPeer
   {
-    public event Action<RailPeerHost> MessagesReady;
+    public event Action<RailPeerServer> MessagesReady;
 
-    internal RailPeerHost(IRailNetPeer netPeer)
+    internal RailPeerServer(IRailNetPeer netPeer)
       : base(netPeer)
     {
     }

@@ -27,18 +27,18 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// Host is the core executing class on the server. It is responsible for
+  /// Server is the core executing class on the server. It is responsible for
   /// managing connection contexts and payload I/O.
   /// </summary>
-  public class RailHost : RailConnection
+  public class RailServer : RailConnection
   {
     /// <summary>
-    /// Fired when a new peer has been added to the host.
+    /// Fired when a new peer has been added to the server.
     /// </summary>
     public event Action<RailPeerClient> ClientAdded;
 
     /// <summary>
-    /// Fired when a peer has been removed from the host.
+    /// Fired when a peer has been removed from the server.
     /// </summary>
     public event Action<RailPeerClient> ClientRemoved;
 
@@ -47,7 +47,7 @@ namespace Railgun
     /// </summary>
     private Dictionary<IRailNetPeer, RailPeerClient> clients;
 
-    public RailHost(
+    public RailServer(
       RailCommand commandToRegister,
       params RailState[] statesToRegister)
       : base(commandToRegister, statesToRegister)
@@ -97,7 +97,7 @@ namespace Railgun
       foreach (RailPeerClient client in this.clients.Values)
         client.Update();
 
-      this.world.UpdateHost();
+      this.world.UpdateServer();
 
       if (this.ShouldSend(this.world.Tick))
       {
@@ -126,13 +126,13 @@ namespace Railgun
       state.Initialize(this.world.GetEntityId(), RailClock.INVALID_TICK);
 
       RailEntity entity = state.CreateEntity();
-      entity.InitializeHost(state);
+      entity.InitializeServer(state);
 
       return (T)entity;
     }
 
     /// <summary>
-    /// Adds an entity to the host's world.
+    /// Adds an entity to the server's world.
     /// </summary>
     public void AddEntity(RailEntity entity)
     {
