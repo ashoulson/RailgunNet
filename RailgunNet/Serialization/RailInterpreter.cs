@@ -42,7 +42,7 @@ namespace Railgun
 
     #region Input
     internal void SendClientPacket(
-      RailPeerHost peer,
+      RailPeerServer peer,
       RailClientPacket input)
     {
       this.bitBuffer.Clear();
@@ -91,7 +91,7 @@ namespace Railgun
     }
 
     internal IEnumerable<RailSnapshot> ReceiveSnapshots(
-      RailPeerHost peer,
+      RailPeerServer peer,
       RailRingBuffer<RailSnapshot> basisBuffer)
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
