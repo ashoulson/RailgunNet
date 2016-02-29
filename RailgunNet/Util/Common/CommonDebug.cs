@@ -1,5 +1,5 @@
 ﻿/*
- *  Common Utilities for Working with C# and Unity
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
  *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
@@ -20,6 +20,8 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
+
 using System.Diagnostics;
 
 namespace CommonTools

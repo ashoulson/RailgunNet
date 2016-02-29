@@ -1,6 +1,6 @@
 ﻿/*
- *  MiniUDP - A Simple UDP Layer for Shipping and Receiving Byte Arrays
- *  Copyright (c) 2015-2016 - Alexander Shoulson - http://ashoulson.com
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
@@ -19,6 +19,9 @@
 */
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+
 using System.Diagnostics;
 
 namespace Example

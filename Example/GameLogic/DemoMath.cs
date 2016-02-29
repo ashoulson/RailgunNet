@@ -22,9 +22,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 using Railgun;
+using UnityEngine;
 
 public static class DemoMath
 {

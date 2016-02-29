@@ -36,7 +36,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Connection\Peers\RailPeerHost.cs" />
+    <Compile Include="Connection\Peers\RailPeerServer.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\Peers\RailPeer.cs" />
     <Compile Include="Connection\Peers\RailPeerClient.cs" />
@@ -46,7 +46,7 @@
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\RailClient.cs" />
     <Compile Include="Connection\IRailNetPeer.cs" />
-    <Compile Include="Connection\RailHost.cs" />
+    <Compile Include="Connection\RailServer.cs" />
     <Compile Include="RailConfig.cs" />
     <Compile Include="Util\RingBuffer\RailRingDelta.cs" />
     <Compile Include="Serialization\RailResource.cs" />
