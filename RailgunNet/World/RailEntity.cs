@@ -99,8 +99,7 @@ namespace Railgun
       where T : RailCommand<T>, new()
     {
       if (this.Owner != null)
-        if (this.Owner.latestInput != null)
-          return (T)this.Owner.latestInput.Command;
+        return this.Owner.GetLatestCommand<T>();
       return null;
     }
 

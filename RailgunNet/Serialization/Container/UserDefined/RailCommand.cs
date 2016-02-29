@@ -30,10 +30,11 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailCommand : IRailPoolable
+  public abstract class RailCommand : IRailPoolable, IRailRingValue
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
+    int IRailRingValue.Tick { get { return this.Tick; } }
 
     internal RailCommand Clone()
     {
@@ -42,13 +43,53 @@ namespace Railgun
       return clone;
     }
 
+    /// <summary>
+    /// The client tick this command was generated on.
+    /// </summary>
+    internal int Tick { get; set; }
+
     internal abstract void SetFrom(RailCommand other);
     internal abstract RailPoolCommand CreatePool();
 
-    protected internal abstract void Encode(BitBuffer buffer);
-    protected internal abstract void Decode(BitBuffer buffer);
+    protected abstract void EncodeData(BitBuffer buffer);
+    protected abstract void DecodeData(BitBuffer buffer);
+    protected abstract void ResetData();
 
-    protected internal virtual void Reset() { }
+    protected internal abstract void Populate();
+
+    protected internal void Reset()
+    {
+      this.Tick = RailClock.INVALID_TICK;
+      this.ResetData();
+    }
+
+    #region Encode/Decode/etc.
+    // Command encoding order: | TICK | COMMAND DATA |
+
+    internal void Encode(
+      BitBuffer buffer)
+    {
+      // Write: [Command Data]
+      this.EncodeData(buffer);
+
+      // Write: [Tick]
+      buffer.Push(StandardEncoders.Tick, this.Tick);
+    }
+
+    internal static RailCommand Decode(
+      BitBuffer buffer)
+    {
+      RailCommand command = RailResource.Instance.AllocateCommand();
+
+      // Read: [Tick]
+      command.Tick = buffer.Pop(StandardEncoders.Tick);
+
+      // Read: [Command Data]
+      command.DecodeData(buffer);
+
+      return command;
+    }
+    #endregion
   }
 
   /// <summary>

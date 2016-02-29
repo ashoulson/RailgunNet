@@ -46,11 +46,11 @@ namespace Railgun
 
     protected RailConnection(
       RailCommand commandToRegister, 
-      RailState[] statestoRegister)
+      RailState[] statesToRegister)
     {
       RailResource.Initialize(
         commandToRegister, 
-        statestoRegister);
+        statesToRegister);
 
       this.world = new RailWorld();
       this.interpreter = new RailInterpreter();

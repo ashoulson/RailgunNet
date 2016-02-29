@@ -28,24 +28,26 @@ namespace Railgun
     public event Action<RailPeerClient> MessagesReady;
 
     /// <summary>
-    /// A history of received inputs from the client. Used for dejitter.
+    /// A history of received packets from the client. Used for dejitter.
     /// </summary>
-    internal readonly RailRingBuffer<RailPacketC2S> inputBuffer;
+    internal readonly RailRingBuffer<RailCommand> commandBuffer;
 
+    /// <summary>
+    /// The last tick that the client received a snapshot from the server.
+    /// </summary>
     internal int LastAckedTick { get; set; }
 
-    // TODO: Temp!
-    internal RailPacketC2S latestInput;
+    private RailClock clientClock;
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
       this.LastAckedTick = RailClock.INVALID_TICK;
+      this.clientClock = new RailClock();
 
-      // We use no divisor for storing inputs because inputs are sent in
+      // We use no divisor for storing commands because commands are sent in
       // batches that we can use to fill in the holes between send frames
-      this.inputBuffer =
-        new RailRingBuffer<RailPacketC2S>(
-          RailConfig.DEJITTER_BUFFER_LENGTH);
+      this.commandBuffer =
+        new RailRingBuffer<RailCommand>(RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
     protected override void OnMessagesReady(IRailNetPeer peer)
@@ -54,12 +56,24 @@ namespace Railgun
         this.MessagesReady(this);
     }
 
-    internal void StoreInput(RailPacketC2S input)
+    internal void Update()
     {
-      this.inputBuffer.Store(input);
+      this.clientClock.Tick();
+    }
 
-      if (this.latestInput == null || this.latestInput.Tick < input.Tick)
-        this.latestInput = input;
+    internal void ProcessPacket(RailClientPacket packet)
+    {
+      this.LastAckedTick = packet.LastAckedTick;
+      this.clientClock.UpdateLatest(packet.Tick);
+      foreach (RailCommand command in packet.Commands)
+        this.commandBuffer.Store(command);
+    }
+
+    internal T GetLatestCommand<T>()
+      where T : RailCommand
+    {
+      int tick = this.clientClock.RemoteTickEstimated;
+      return (T)this.commandBuffer.GetLatest(tick);
     }
   }
 }

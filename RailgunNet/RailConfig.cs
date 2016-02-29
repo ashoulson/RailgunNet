@@ -26,6 +26,11 @@ namespace Railgun
   public class RailConfig
   {
     /// <summary>
+    /// Number of outgoing commands to send per packet.
+    /// </summary>
+    internal const int COMMAND_BUFFER_SIZE = 4;
+
+    /// <summary>
     /// The real time in seconds per simulation tick.
     /// </summary>
     internal const float FIXED_DELTA_TIME = 0.02f;
@@ -39,13 +44,6 @@ namespace Railgun
     /// Number of entries to store in a dejitter buffer.
     /// </summary>
     internal const int DEJITTER_BUFFER_LENGTH = 20;
-
-    /// <summary>
-    /// The maximum history length (in ticks) that any jitter buffer will keep.
-    /// </summary>
-    internal const int DEJITTER_MAX_HISTORY =
-      RailConfig.DEJITTER_BUFFER_LENGTH *
-      RailConfig.NETWORK_SEND_RATE;
 
     /// <summary>
     /// Data buffer size used for packet I/O. 

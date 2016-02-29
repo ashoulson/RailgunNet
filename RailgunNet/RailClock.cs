@@ -44,58 +44,72 @@ namespace Railgun
     private int remoteTickLatest;
     private int remoteTickEstimated;
 
-    public int RemoteTick { get { return this.remoteTickEstimated; } }
+    private bool shouldUpdateEstimate;
+    private bool shouldTick;
+
+    public bool ShouldTick { get { return this.shouldTick; } }
+    public int RemoteTickEstimated { get { return this.remoteTickEstimated; } }
+    public int RemoteTickLatest { get { return this.remoteTickLatest; } }
 
     internal RailClock(
-      int remoteSendRate,
+      int remoteSendRate = RailConfig.NETWORK_SEND_RATE,
       int delayMin = RailClock.DELAY_MIN,
       int delayMax = RailClock.DELAY_MAX)
     {
       this.remoteRate = remoteSendRate;
       this.remoteTickEstimated = 0;
+      this.remoteTickLatest = RailClock.INVALID_TICK;
 
       this.delayMin = delayMin;
       this.delayMax = delayMax;
       this.delayDesired = ((delayMax - delayMin) / 2) + delayMin;
+
+      this.shouldUpdateEstimate = false;
+      this.shouldTick = false;
+    }
+
+    public void UpdateLatest(int latestTick)
+    {
+      if (latestTick > this.remoteTickLatest)
+      {
+        this.remoteTickLatest = latestTick;
+        this.shouldUpdateEstimate = true;
+        this.shouldTick = true;
+      }
     }
 
     // See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
     public int Tick()
     {
-      this.remoteTickEstimated++;
-      return 1;
-    }
+      if (this.shouldTick == false)
+        return 0;
 
-    public int Tick(int remoteTick)
-    {
       this.remoteTickEstimated++;
-      this.remoteTickLatest = remoteTick;
+      if (this.shouldUpdateEstimate == false)
+        return 1;
 
       int delta = this.remoteTickLatest - this.remoteTickEstimated;
 
       if (this.ShouldSnapTick(delta))
       {
-        // We're way off, reset our calculation of the tick
-        this.remoteTickEstimated = remoteTick - this.delayDesired;
-        CommonDebug.Log(
-          "Clock: T=" + this.remoteTickEstimated + " (Reset) D:" + delta);
+        // Reset
+        this.remoteTickEstimated = this.remoteTickLatest - this.delayDesired;
         return 0;
       }
       else if (delta > this.delayMax)
       {
+        // Jump 1
         this.remoteTickEstimated++;
-        CommonDebug.Log(
-          "Clock: T+2 (Jump) @ T" + this.remoteTickEstimated + " D:" + delta);
         return 2;
       }
       else if (delta < this.delayMin)
       {
+        // Stall 1
         this.remoteTickEstimated--;
-        CommonDebug.Log(
-          "Clock: T+0 (Wait) @ T" + this.remoteTickEstimated + " D:" + delta);
         return 0;
       }
 
+      this.shouldUpdateEstimate = false;
       return 1;
     }
       

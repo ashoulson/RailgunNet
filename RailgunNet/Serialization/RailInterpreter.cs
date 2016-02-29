@@ -41,9 +41,9 @@ namespace Railgun
     }
 
     #region Input
-    internal void SendInput(
+    internal void SendClientPacket(
       RailPeerHost peer,
-      RailPacketC2S input)
+      RailClientPacket input)
     {
       this.bitBuffer.Clear();
 
@@ -54,7 +54,7 @@ namespace Railgun
       peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailPacketC2S> ReceiveInputs(
+    internal IEnumerable<RailClientPacket> ReceiveClientPackets(
       RailPeerClient peer)
     {
       foreach (int length in peer.ReadReceived(this.byteBuffer))
@@ -62,9 +62,9 @@ namespace Railgun
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
         // Read: [Input]
-        RailPacketC2S result = RailPacketC2S.Decode(this.bitBuffer);
+        RailClientPacket result = RailClientPacket.Decode(this.bitBuffer);
 
-        CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
+        CommonDebug.Assert(this.bitBuffer.BitsUsed == 0, "Bad packet read");
         yield return result;
       }
     }
@@ -105,13 +105,20 @@ namespace Railgun
         RailSnapshot result = null;
         RailSnapshot basis = RailInterpreter.GetBasis(basisTick, basisBuffer);
         if (basis != null)
+        {
           result = RailSnapshot.Decode(this.bitBuffer, basis);
+        }
         else if (basisTick == RailClock.INVALID_TICK)
+        {
           result = RailSnapshot.Decode(this.bitBuffer);
+        }
         else
+        {
           CommonDebug.LogWarning("Missing basis for delta snapshot decode");
+          continue;
+        }
 
-        CommonDebug.Assert(this.bitBuffer.BitsUsed == 0);
+        CommonDebug.Assert(this.bitBuffer.BitsUsed == 0, "Bad packet read");
         yield return result;
       }
     }

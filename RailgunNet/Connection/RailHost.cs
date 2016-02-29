@@ -33,11 +33,6 @@ namespace Railgun
   public class RailHost : RailConnection
   {
     /// <summary>
-    /// Fired after the host has been ticked normally.
-    /// </summary>
-    public event Action Updated;
-
-    /// <summary>
     /// Fired when a new peer has been added to the host.
     /// </summary>
     public event Action<RailPeerClient> ClientAdded;
@@ -54,8 +49,8 @@ namespace Railgun
 
     public RailHost(
       RailCommand commandToRegister,
-      params RailState[] statestoRegister)
-      : base(commandToRegister, statestoRegister)
+      params RailState[] statesToRegister)
+      : base(commandToRegister, statesToRegister)
     {
       this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
     }
@@ -99,10 +94,10 @@ namespace Railgun
     /// </summary>
     public override void Update()
     {
-      this.world.UpdateHost();
+      foreach (RailPeerClient client in this.clients.Values)
+        client.Update();
 
-      if (this.Updated != null)
-        this.Updated.Invoke();
+      this.world.UpdateHost();
 
       if (this.ShouldSend(this.world.Tick))
       {
@@ -139,7 +134,6 @@ namespace Railgun
     /// <summary>
     /// Adds an entity to the host's world.
     /// </summary>
-    /// <param name="entity"></param>
     public void AddEntity(RailEntity entity)
     {
       this.world.AddEntity(entity);
@@ -156,9 +150,9 @@ namespace Railgun
 
     private void OnMessagesReady(RailPeerClient peer)
     {
-      IEnumerable<RailPacketC2S> decode = this.interpreter.ReceiveInputs(peer);
-      foreach (RailPacketC2S input in decode)
-        peer.StoreInput(input);
+      IEnumerable<RailClientPacket> decode = this.interpreter.ReceiveClientPackets(peer);
+      foreach (RailClientPacket input in decode)
+        peer.ProcessPacket(input);
     }
   }
 }
