@@ -66,7 +66,7 @@ namespace Railgun
 
       this.localTick = 0;
       this.commandBuffer = 
-        new Queue<RailCommand>(RailConfig.COMMAND_SEND_COUNT + 1);
+        new Queue<RailCommand>(RailConfig.COMMAND_BUFFER_COUNT);
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
       this.knownEntities = new Dictionary<int, RailEntity>();
@@ -117,7 +117,8 @@ namespace Railgun
       command.Tick = this.localTick;
       command.ServerTick = this.serverClock.EstimatedRemoteActual;
 
-      this.commandBuffer.Enqueue(command);
+      if (this.commandBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
+        this.commandBuffer.Enqueue(command);
     }
 
     /// <summary>
