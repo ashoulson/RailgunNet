@@ -63,7 +63,7 @@ namespace Railgun
 
     protected abstract void EncodeData(BitBuffer buffer);
     protected abstract void DecodeData(BitBuffer buffer);
-    protected abstract bool EncodeData(BitBuffer buffer, RailState basis);
+    protected abstract void EncodeData(BitBuffer buffer, RailState basis);
     protected abstract void DecodeData(BitBuffer buffer, RailState basis);
     protected abstract void ResetData();
 
@@ -81,10 +81,6 @@ namespace Railgun
     }
 
     #region Encode/Decode/etc.
-    /// State encoding order:
-    /// If new: | ID | TYPE | ----- STATE DATA ----- |
-    /// If old: | ID | ----- STATE DELTA DATA ----- |
-
     internal static int PeekId(
       BitBuffer buffer)
     {
@@ -113,19 +109,17 @@ namespace Railgun
       buffer.Push(StandardEncoders.EntityId, this.Id);
     }
 
-    internal bool Encode(
+    internal void Encode(
       BitBuffer buffer,
       RailState basis)
     {
-      // Write: [State Data] -- May not write anything if no change
-      if (this.EncodeData(buffer, basis) == false)
-        return false;
+      // Write: [Data]
+      this.EncodeData(buffer, basis);
 
       // (No [Type] for delta states)
 
       // Write: [Id]
       buffer.Push(StandardEncoders.EntityId, this.Id);
-      return true;
     }
 
     internal static RailState Decode(
@@ -181,9 +175,9 @@ namespace Railgun
       this.SetDataFrom((T)other);
     }
 
-    protected override bool EncodeData(BitBuffer buffer, RailState basis)
+    protected override void EncodeData(BitBuffer buffer, RailState basis)
     {
-      return this.EncodeData(buffer, (T)basis);
+      this.EncodeData(buffer, (T)basis);
     }
 
     protected override void DecodeData(BitBuffer buffer, RailState basis)
@@ -203,7 +197,7 @@ namespace Railgun
     internal override RailEntity CreateEntity() { return new TEntity(); }
 
     protected internal abstract void SetDataFrom(T other);
-    protected internal abstract bool EncodeData(BitBuffer buffer, T basis);
+    protected internal abstract void EncodeData(BitBuffer buffer, T basis);
     protected internal abstract void DecodeData(BitBuffer buffer, T basis);
   }
 }

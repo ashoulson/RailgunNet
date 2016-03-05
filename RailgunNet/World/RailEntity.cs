@@ -48,13 +48,13 @@ namespace Railgun
     {
       this.Owner = null;
       this.World = null;
+      this.StateBuffer = new RailStateBuffer();
     }
 
-    internal void InitializeClient()
+    internal void InitializeClient(RailState state)
     {
-      this.State = null;
+      this.State = state;
       this.IsMaster = false;
-      this.StateBuffer = new RailStateBuffer();
       this.StateDelta = new RailStateDelta();
     }
 
@@ -62,7 +62,6 @@ namespace Railgun
     {
       this.State = state;
       this.IsMaster = true;
-      this.StateBuffer = null;
       this.StateDelta = null;
     }
 
@@ -78,7 +77,7 @@ namespace Railgun
       this.OnUpdateClient();
     }
 
-    internal bool CheckDelta(int serverTick)
+    internal bool HasLatest(int serverTick)
     {
       this.StateDelta.Update(this.StateBuffer, serverTick);
       this.State = this.StateDelta.Latest;
@@ -103,10 +102,9 @@ namespace Railgun
       return null;
     }
 
-    internal RailState CloneForSnapshot(int tick)
+    internal void StoreState(int tick)
     {
-      RailState clone = this.State.Clone(tick);
-      return clone;
+      this.StateBuffer.Store(this.State.Clone(tick));
     }
   }
 

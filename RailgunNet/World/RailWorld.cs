@@ -29,6 +29,10 @@ namespace Railgun
     public const int INVALID_ID = -1;
 
     public int Tick { get; internal protected set; }
+    public IEnumerable<RailEntity> Entities 
+    { 
+      get { return this.entities.Values; } 
+    }
 
     // TODO: Rollover? Free list?
     private int nextEntityId;
@@ -74,22 +78,17 @@ namespace Railgun
         entity.UpdateServer();
     }
 
+    internal void StoreStates()
+    {
+      foreach (RailEntity entity in this.entities.Values)
+        entity.StoreState(this.Tick);
+    }
+
     internal void UpdateClient(int serverTick)
     {
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
         entity.UpdateClient(serverTick);
-    }
-
-    internal RailSnapshot CreateSnapshot()
-    {
-      RailSnapshot output = RailResource.Instance.AllocateSnapshot();
-
-      output.Tick = this.Tick;
-
-      foreach (RailEntity entity in this.entities.Values)
-        output.Add(entity.CloneForSnapshot(this.Tick));
-      return output;
     }
   }
 }

@@ -41,15 +41,15 @@ namespace Railgun
     private int delayMin;
     private int delayMax;
 
-    private int remoteTickLatest;
-    private int remoteTickEstimated;
+    private int lastReceivedRemote;
+    private int estimatedRemote;
 
     private bool shouldUpdateEstimate;
     private bool shouldTick;
 
     public bool ShouldTick { get { return this.shouldTick; } }
-    public int RemoteTickEstimated { get { return this.remoteTickEstimated; } }
-    public int RemoteTickLatest { get { return this.remoteTickLatest; } }
+    public int EstimatedRemote { get { return this.estimatedRemote; } }
+    public int LastReceivedRemote { get { return this.lastReceivedRemote; } }
 
     internal RailClock(
       int remoteSendRate = RailConfig.NETWORK_SEND_RATE,
@@ -57,8 +57,8 @@ namespace Railgun
       int delayMax = RailClock.DELAY_MAX)
     {
       this.remoteRate = remoteSendRate;
-      this.remoteTickEstimated = 0;
-      this.remoteTickLatest = RailClock.INVALID_TICK;
+      this.estimatedRemote = 0;
+      this.lastReceivedRemote = RailClock.INVALID_TICK;
 
       this.delayMin = delayMin;
       this.delayMax = delayMax;
@@ -70,9 +70,9 @@ namespace Railgun
 
     public void UpdateLatest(int latestTick)
     {
-      if (latestTick > this.remoteTickLatest)
+      if (latestTick > this.lastReceivedRemote)
       {
-        this.remoteTickLatest = latestTick;
+        this.lastReceivedRemote = latestTick;
         this.shouldUpdateEstimate = true;
         this.shouldTick = true;
       }
@@ -84,28 +84,28 @@ namespace Railgun
       if (this.shouldTick == false)
         return 0;
 
-      this.remoteTickEstimated++;
+      this.estimatedRemote++;
       if (this.shouldUpdateEstimate == false)
         return 1;
 
-      int delta = this.remoteTickLatest - this.remoteTickEstimated;
+      int delta = this.lastReceivedRemote - this.estimatedRemote;
 
       if (this.ShouldSnapTick(delta))
       {
         // Reset
-        this.remoteTickEstimated = this.remoteTickLatest - this.delayDesired;
+        this.estimatedRemote = this.lastReceivedRemote - this.delayDesired;
         return 0;
       }
       else if (delta > this.delayMax)
       {
         // Jump 1
-        this.remoteTickEstimated++;
+        this.estimatedRemote++;
         return 2;
       }
       else if (delta < this.delayMin)
       {
         // Stall 1
-        this.remoteTickEstimated--;
+        this.estimatedRemote--;
         return 0;
       }
 

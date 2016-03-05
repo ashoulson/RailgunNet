@@ -101,9 +101,8 @@ namespace Railgun
 
       if (this.ShouldSend(this.world.Tick))
       {
-        RailSnapshot masterSnapshot = this.world.CreateSnapshot();
-        this.snapshotBuffer.Store(masterSnapshot);
-        this.Broadcast(masterSnapshot);
+        this.BroadcastPackets();
+        this.world.StoreStates();
       }
     }
 
@@ -140,17 +139,27 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Queues a snapshot broadcast for each peer (handles delta-compression).
+    /// Packs and sends a server-to-client packet to each peer.
+    /// TODO: Scope/packing maximum
     /// </summary>
-    internal void Broadcast(RailSnapshot snapshot)
+    private void BroadcastPackets()
     {
-      foreach (RailPeerClient peer in this.clients.Values)
-        this.interpreter.SendSnapshot(peer, snapshot, this.snapshotBuffer);
+      foreach (RailPeerClient clientPeer in this.clients.Values)
+      {
+        RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
+        packet.Initialize(
+          this.world.Tick,
+          clientPeer.LastAckedServerTick,
+          clientPeer.LastReceivedClientTick,
+          this.world.Entities);
+        this.interpreter.SendServerPacket(clientPeer, packet);
+      }
     }
 
     private void OnMessagesReady(RailPeerClient peer)
     {
-      IEnumerable<RailClientPacket> decode = this.interpreter.ReceiveClientPackets(peer);
+      IEnumerable<RailClientPacket> decode = 
+        this.interpreter.ReceiveClientPackets(peer);
       foreach (RailClientPacket input in decode)
         peer.ProcessPacket(input);
     }

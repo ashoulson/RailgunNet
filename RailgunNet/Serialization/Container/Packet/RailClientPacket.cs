@@ -34,10 +34,10 @@ namespace Railgun
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Tick { get { return this.Tick; } }
+    int IRailRingValue.Tick { get { return this.ClientTick; } }
 
-    internal int Tick { get; private set; }
-    internal int LastAckedTick { get; private set; }
+    internal int ClientTick { get; private set; }
+    internal int LastReceivedServerTick { get; private set; }
     internal IEnumerable<RailCommand> Commands { get { return this.commands; } }
 
     private readonly List<RailCommand> commands;
@@ -50,19 +50,19 @@ namespace Railgun
 
     public void Initialize(
       int tick, 
-      int lastAcked, 
+      int lastReceivedServerTick, 
       IEnumerable<RailCommand> commands)
     {
-      this.Tick = tick;
-      this.LastAckedTick = lastAcked;
+      this.ClientTick = tick;
+      this.LastReceivedServerTick = lastReceivedServerTick;
       this.commands.Clear();
       this.commands.AddRange(commands);
     }
 
     protected void Reset()
     {
-      this.Tick = RailClock.INVALID_TICK;
-      this.LastAckedTick = RailClock.INVALID_TICK;
+      this.ClientTick = RailClock.INVALID_TICK;
+      this.LastReceivedServerTick = RailClock.INVALID_TICK;
 
       foreach (RailCommand command in this.commands)
         RailPool.Free(command);
@@ -78,14 +78,14 @@ namespace Railgun
       foreach (RailCommand command in this.commands)
         command.Encode(buffer);
 
-      // Write: [Command Count]
+      // Write: [CommandCount]
       buffer.Push(StandardEncoders.CommandCount, this.commands.Count);
 
-      // Write: [LastAcked]
-      buffer.Push(StandardEncoders.Tick, this.LastAckedTick);
+      // Write: [LastReceivedServerTick]
+      buffer.Push(StandardEncoders.Tick, this.LastReceivedServerTick);
 
       // Write: [Tick]
-      buffer.Push(StandardEncoders.Tick, this.Tick);
+      buffer.Push(StandardEncoders.Tick, this.ClientTick);
     }
 
     internal static RailClientPacket Decode(
@@ -94,12 +94,12 @@ namespace Railgun
       RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
 
       // Read: [Tick]
-      packet.Tick = buffer.Pop(StandardEncoders.Tick);
+      packet.ClientTick = buffer.Pop(StandardEncoders.Tick);
 
-      // Read: [LastAcked]
-      packet.LastAckedTick = buffer.Pop(StandardEncoders.Tick);
+      // Read: [LastReceivedServerTick]
+      packet.LastReceivedServerTick = buffer.Pop(StandardEncoders.Tick);
 
-      // Read: [Command Count]
+      // Read: [CommandCount]
       int commandCount = buffer.Pop(StandardEncoders.CommandCount);
 
       // Read: [Commands]
