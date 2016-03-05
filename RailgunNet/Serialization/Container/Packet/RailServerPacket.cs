@@ -54,7 +54,7 @@ namespace Railgun
 
     internal int ServerTick { get; private set; }
     internal int BasisTick { get; private set; }
-    internal int LastReceivedClientTick { get; private set; }
+    internal int LastProcessedCommandTick { get; private set; }
     internal IEnumerable<RailState> States { get { return this.states; } }
 
     // State list, available after decoding on client
@@ -74,13 +74,13 @@ namespace Railgun
     public void Initialize(
       int serverTick,
       int basisTick,
-      int lastReceivedClientTick,
+      int lastProcessedCommandTick,
       IEnumerable<RailEntity> entities)
     {
       this.ServerTick = serverTick;
       this.BasisTick = 
         RailServerPacket.GetSafeBasisTick(serverTick, basisTick);
-      this.LastReceivedClientTick = lastReceivedClientTick;
+      this.LastProcessedCommandTick = lastProcessedCommandTick;
       this.entities.AddRange(entities);
     }
 
@@ -88,7 +88,7 @@ namespace Railgun
     {
       this.ServerTick = RailClock.INVALID_TICK;
       this.BasisTick = RailClock.INVALID_TICK;
-      this.LastReceivedClientTick = RailClock.INVALID_TICK;
+      this.LastProcessedCommandTick = RailClock.INVALID_TICK;
 
       this.states.Clear();
       this.entities.Clear();
@@ -105,8 +105,8 @@ namespace Railgun
       // Write: [State Count]
       buffer.Push(StandardEncoders.EntityCount, this.entities.Count);
 
-      // Write: [LastReceivedClientTick]
-      buffer.Push(StandardEncoders.Tick, this.LastReceivedClientTick);
+      // Write: [LastProcessedCommandTick]
+      buffer.Push(StandardEncoders.Tick, this.LastProcessedCommandTick);
 
       // Write: [LastAckedServerTick]
       buffer.Push(StandardEncoders.Tick, this.BasisTick);
@@ -127,8 +127,8 @@ namespace Railgun
       // Read: [LastAckedServerTick]
       packet.BasisTick = buffer.Pop(StandardEncoders.Tick);
 
-      // Read: [LastReceivedClientTick]
-      packet.LastReceivedClientTick = buffer.Pop(StandardEncoders.Tick);
+      // Read: [LastProcessedCommandTick]
+      packet.LastProcessedCommandTick = buffer.Pop(StandardEncoders.Tick);
 
       // Read: [State Count]
       int stateCount = buffer.Pop(StandardEncoders.EntityCount);

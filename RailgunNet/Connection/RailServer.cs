@@ -150,7 +150,7 @@ namespace Railgun
         packet.Initialize(
           this.world.Tick,
           clientPeer.LastAckedServerTick,
-          clientPeer.LastReceivedClientTick,
+          clientPeer.LastProcessedCommandTick,
           this.world.Entities);
         this.interpreter.SendServerPacket(clientPeer, packet);
       }

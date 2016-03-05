@@ -51,6 +51,11 @@ namespace Railgun
     public int EstimatedRemote { get { return this.estimatedRemote; } }
     public int LastReceivedRemote { get { return this.lastReceivedRemote; } }
 
+    public int EstimatedRemoteActual 
+    {
+      get { return this.estimatedRemote + this.delayDesired; } 
+    }
+
     internal RailClock(
       int remoteSendRate = RailConfig.NETWORK_SEND_RATE,
       int delayMin = RailClock.DELAY_MIN,

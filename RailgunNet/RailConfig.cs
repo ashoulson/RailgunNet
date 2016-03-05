@@ -29,7 +29,7 @@ namespace Railgun
     /// <summary>
     /// Number of outgoing commands to send per packet.
     /// </summary>
-    internal const int COMMAND_BUFFER_SIZE = 4;
+    internal const int COMMAND_SEND_COUNT = 4;
 
     /// <summary>
     /// The real time in seconds per simulation tick.
