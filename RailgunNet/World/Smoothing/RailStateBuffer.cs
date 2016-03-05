@@ -45,5 +45,15 @@ namespace Railgun
     {
       this.buffer.PopulateDelta(delta, currentTick);
     }
+
+    internal bool TryGet(int tick, out RailState state)
+    {
+      return this.buffer.TryGet(tick, out state);
+    }
+
+    internal RailState Get(int tick)
+    {
+      return this.buffer.Get(tick);
+    }
   }
 }

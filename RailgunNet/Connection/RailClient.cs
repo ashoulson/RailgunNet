@@ -28,8 +28,6 @@ namespace Railgun
 {
   public class RailClient : RailConnection
   {
-    public int RemoteTick { get { return this.serverClock.RemoteTickEstimated; } }
-
     private RailPeerServer serverPeer;
     private RailClock serverClock;
 
@@ -43,8 +41,10 @@ namespace Railgun
     /// </summary>
     private Dictionary<int, RailEntity> pendingEntities;
 
-    // Reusable removal list
-    private List<RailEntity> toRemove;
+    /// <summary>
+    /// All known entities, either in-world or pending.
+    /// </summary>
+    private Dictionary<int, RailEntity> knownEntities;
 
     // The local simulation tick, used for commands
     private int localTick;
@@ -62,7 +62,7 @@ namespace Railgun
         new Queue<RailCommand>(RailConfig.COMMAND_BUFFER_SIZE + 1);
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
-      this.toRemove = new List<RailEntity>();
+      this.knownEntities = new Dictionary<int,RailEntity>();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -75,23 +75,11 @@ namespace Railgun
     {
       this.UpdateWorld(this.serverClock.Tick());
       this.UpdateCommands();
+
       if ((this.serverPeer != null) && this.ShouldSend(this.localTick))
         this.SendPacket();
 
       this.localTick++;
-    }
-
-    /// <summary>
-    /// Packs and sends a client-to-server packet to the server.
-    /// </summary>
-    private void SendPacket()
-    {
-      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
-      packet.Initialize(
-        this.localTick, 
-        this.serverClock.RemoteTickLatest, 
-        this.commandBuffer);
-      this.interpreter.SendClientPacket(this.serverPeer, packet);
     }
 
     /// <summary>
@@ -102,8 +90,8 @@ namespace Railgun
     {
       for (; numTicks > 0; numTicks--)
       {
-        int serverTick = (this.serverClock.RemoteTickEstimated - numTicks) + 1;
-        this.UpdatePendingEntities(serverTick);
+        int serverTick = (this.serverClock.EstimatedRemote - numTicks) + 1;
+        this.UpdatePending(serverTick);
         this.world.UpdateClient(serverTick);
       }
     }
@@ -128,60 +116,65 @@ namespace Railgun
       }
     }
 
-    private void UpdatePendingEntities(int serverTick)
+    /// <summary>
+    /// Checks to see if any pending entities can be added to the world and
+    /// adds them if applicable.
+    /// </summary>
+    private void UpdatePending(int serverTick)
     {
+      // TODO: This list could be pre-allocated
+      List<RailEntity> toRemove = new List<RailEntity>();
+
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
-        if (entity.CheckDelta(serverTick))
+        if (entity.HasLatest(serverTick))
         {
           this.world.AddEntity(entity);
-          this.AddRemove(entity);
+          toRemove.Add(entity);
         }
       }
 
-      this.DoRemove();
-    }
-
-    private void AddRemove(RailEntity entity)
-    {
-      this.toRemove.Add(entity);
-    }
-
-    private void DoRemove()
-    {
-      foreach (RailEntity entity in this.toRemove)
+      foreach (RailEntity entity in toRemove)
         this.pendingEntities.Remove(entity.Id);
-      this.toRemove.Clear();
+    }
+
+    /// <summary>
+    /// Packs and sends a client-to-server packet to the server.
+    /// </summary>
+    private void SendPacket()
+    {
+      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
+      packet.Initialize(
+        this.localTick,
+        this.serverClock.LastReceivedRemote,
+        this.commandBuffer);
+      this.interpreter.SendClientPacket(this.serverPeer, packet);
     }
 
     private void OnMessagesReady(RailPeerServer peer)
     {
-      IEnumerable<RailSnapshot> decode =
-        this.interpreter.ReceiveSnapshots(
+      IEnumerable<RailServerPacket> decode =
+        this.interpreter.ReceiveServerPackets(
           this.serverPeer, 
-          this.snapshotBuffer);
+          this.knownEntities);
 
-      foreach (RailSnapshot snapshot in decode)
+      foreach (RailServerPacket packet in decode)
       {
-        this.ProcessSnapshot(snapshot);
-        this.serverClock.UpdateLatest(snapshot.Tick);
+        this.ProcessPacket(packet);
+        this.serverClock.UpdateLatest(packet.ServerTick);
       }
     }
 
-    private void ProcessSnapshot(RailSnapshot snapshot)
+    private void ProcessPacket(RailServerPacket packet)
     {
-      this.snapshotBuffer.Store(snapshot);
-      foreach (RailState state in snapshot.Values)
-        this.ProcessState(state);
-    }
-
-    private void ProcessState(RailState state)
-    {
-      RailEntity entity;
-      if (this.World.TryGetEntity(state.Id, out entity) == false)
-        if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
-          entity = this.ReplicateEntity(state);
-      entity.StateBuffer.Store(state.Clone(state.Tick));
+      foreach (RailState state in packet.States)
+      {
+        RailEntity entity;
+        if (this.World.TryGetEntity(state.Id, out entity) == false)
+          if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
+            entity = this.ReplicateEntity(state);
+        entity.StateBuffer.Store(state.Clone(state.Tick));
+      }
     }
 
     /// <summary>
@@ -190,8 +183,11 @@ namespace Railgun
     private RailEntity ReplicateEntity(RailState state)
     {
       RailEntity entity = state.CreateEntity();
-      entity.InitializeClient();
+      entity.InitializeClient(state);
+
       this.pendingEntities.Add(state.Id, entity);
+      this.knownEntities.Add(state.Id, entity);
+
       return entity;
     }
   }

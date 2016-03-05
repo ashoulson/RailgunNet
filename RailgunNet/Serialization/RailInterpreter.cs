@@ -40,28 +40,28 @@ namespace Railgun
       this.bitBuffer = new BitBuffer();
     }
 
-    #region Input
+    #region ClientPacket
     internal void SendClientPacket(
-      RailPeerServer peer,
-      RailClientPacket input)
+      RailPeerServer destinationPeer,
+      RailClientPacket packet)
     {
       this.bitBuffer.Clear();
 
-      // Write: [Input]
-      input.Encode(this.bitBuffer);
+      // Write: [Packet]
+      packet.Encode(this.bitBuffer);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
-      peer.EnqueueSend(this.byteBuffer, length);
+      destinationPeer.EnqueueSend(this.byteBuffer, length);
     }
 
     internal IEnumerable<RailClientPacket> ReceiveClientPackets(
-      RailPeerClient peer)
+      RailPeerClient sourcePeer)
     {
-      foreach (int length in peer.ReadReceived(this.byteBuffer))
+      foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
       {
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
-        // Read: [Input]
+        // Read: [Packet]
         RailClientPacket result = RailClientPacket.Decode(this.bitBuffer);
 
         CommonDebug.Assert(this.bitBuffer.BitsUsed == 0, "Bad packet read");
@@ -70,68 +70,66 @@ namespace Railgun
     }
     #endregion
 
-    #region Snapshot
-    internal void SendSnapshot(
-      RailPeerClient peer,
-      RailSnapshot snapshot,
-      RailRingBuffer<RailSnapshot> basisBuffer)
+    #region ServerPacket
+    internal void SendServerPacket(
+      RailPeerClient destinationPeer,
+      RailServerPacket packet)
     {
       this.bitBuffer.Clear();
 
-      // Write: [Snapshot] (full or delta)
-      RailSnapshot basis =
-        RailInterpreter.GetBasis(peer.LastAckedTick, basisBuffer);
-      if (basis != null)
-        snapshot.Encode(this.bitBuffer, basis);
-      else
-        snapshot.Encode(this.bitBuffer);
+      // Write: [Packet]
+      packet.Encode(this.bitBuffer);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
-      peer.EnqueueSend(this.byteBuffer, length);
+      destinationPeer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailSnapshot> ReceiveSnapshots(
-      RailPeerServer peer,
-      RailRingBuffer<RailSnapshot> basisBuffer)
+    internal IEnumerable<RailServerPacket> ReceiveServerPackets(
+      RailPeerServer sourcePeer,
+      IDictionary<int, RailEntity> knownEntities)
     {
-      foreach (int length in peer.ReadReceived(this.byteBuffer))
+      foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
       {
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
-        // Peek: [Snapshot.BasisTick]
-        int basisTick = RailSnapshot.PeekBasisTick(this.bitBuffer);
-
-        // Read: [Snapshot]
-        RailSnapshot result = null;
-        RailSnapshot basis = RailInterpreter.GetBasis(basisTick, basisBuffer);
-        if (basis != null)
-        {
-          result = RailSnapshot.Decode(this.bitBuffer, basis);
-        }
-        else if (basisTick == RailClock.INVALID_TICK)
-        {
-          result = RailSnapshot.Decode(this.bitBuffer);
-        }
-        else
-        {
-          CommonDebug.LogWarning("Missing basis for delta snapshot decode");
-          continue;
-        }
+        // Read: [Packet]
+        RailServerPacket result =
+          RailServerPacket.Decode(this.bitBuffer, knownEntities);
 
         CommonDebug.Assert(this.bitBuffer.BitsUsed == 0, "Bad packet read");
         yield return result;
       }
     }
+    #endregion
 
-    private static RailSnapshot GetBasis(
-      int basisTick,
-      RailRingBuffer<RailSnapshot> basisBuffer)
+    #region High-Level State Encode/Decode Helpers
+    internal static void EncodeState(
+      BitBuffer buffer, 
+      int basisTick, 
+      RailEntity entity)
     {
-      RailSnapshot basis = null;
       if (basisTick != RailClock.INVALID_TICK)
-        if (basisBuffer.TryGet(basisTick, out basis))
-          return basis;
-      return null;
+        entity.State.Encode(buffer, entity.StateBuffer.Get(basisTick));
+      else
+        entity.State.Encode(buffer);
+    }
+
+    internal static RailState DecodeState(
+      BitBuffer buffer, 
+      int currentTick,
+      int basisTick, 
+      IDictionary<int, RailEntity> knownEntities)
+    {
+      RailEntity entity = null;
+      RailState basis = null;
+
+      if (knownEntities.TryGetValue(RailState.PeekId(buffer), out entity))
+        basis = entity.StateBuffer.Get(basisTick);
+
+      if (basis != null)
+        return RailState.Decode(buffer, currentTick, basis);
+      else
+        return RailState.Decode(buffer, currentTick);
     }
     #endregion
   }

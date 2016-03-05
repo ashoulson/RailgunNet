@@ -36,12 +36,6 @@ namespace Railgun
     protected RailWorld world;
     internal RailInterpreter interpreter;
 
-    /// <summary>
-    /// A complete snapshot history of all sent/received snapshots. Used for
-    /// delta encoding either on send or on receive.
-    /// </summary>
-    internal readonly RailRingBuffer<RailSnapshot> snapshotBuffer;
-
     public abstract void Update();
 
     protected RailConnection(
@@ -54,14 +48,6 @@ namespace Railgun
 
       this.world = new RailWorld();
       this.interpreter = new RailInterpreter();
-
-      // Snapshots are sent according to the send rate, so we include
-      // the send rate as a divisor for the ring buffer (i.e. we'll
-      // never have snapshots stored for frames that aren't sending frames)
-      this.snapshotBuffer = 
-        new RailRingBuffer<RailSnapshot>(
-          RailConfig.DEJITTER_BUFFER_LENGTH,
-          RailConfig.NETWORK_SEND_RATE);
     }
 
     protected bool ShouldSend(int tick)

@@ -129,13 +129,10 @@ public class DemoState : RailState<DemoState, DemoEntity>
 
   /// <summary>
   /// Delta-encode this state relative to the given basis state.
-  /// Returns true iff the state was encoded (will bypass if no change).
   /// </summary>
-  protected override bool EncodeData(BitBuffer buffer, DemoState basis)
+  protected override void EncodeData(BitBuffer buffer, DemoState basis)
   {
     int dirty = DemoState.GetDirtyFlags(this, basis);
-    if (dirty == 0)
-      return false;
 
     // Write in opposite order so we can read in SetData order
     buffer.PushIf(dirty, FLAG_STATUS, DemoEncoders.Status, this.Status);
@@ -147,7 +144,6 @@ public class DemoState : RailState<DemoState, DemoEntity>
 
     // Add delta metadata
     buffer.Push(DemoEncoders.EntityDirty, dirty);
-    return true;
   }
 
   /// <summary>
