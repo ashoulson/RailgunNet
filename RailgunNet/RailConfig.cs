@@ -32,6 +32,11 @@ namespace Railgun
     internal const int COMMAND_SEND_COUNT = 4;
 
     /// <summary>
+    /// Number of commands to buffer for prediction.
+    /// </summary>
+    internal const int COMMAND_BUFFER_COUNT = 50;
+
+    /// <summary>
     /// The real time in seconds per simulation tick.
     /// </summary>
     internal const float FIXED_DELTA_TIME = 0.02f;
