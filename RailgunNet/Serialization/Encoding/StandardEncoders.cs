@@ -31,7 +31,7 @@ namespace Railgun
 
     internal static readonly IntEncoder StateType = new IntEncoder(0, 31);
 
-    internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_BUFFER_SIZE);
+    internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
 
     internal static readonly IntEncoder Tick = new IntEncoder(-1, 1048574);
 

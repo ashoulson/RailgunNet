@@ -25,33 +25,28 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
-public class DemoEntity : RailEntity<DemoState>
+public class DemoEntity : RailEntity<DemoState, DemoCommand>
 {
   public DemoEntity() { }
-
-  protected override void OnUpdateServer()
-  {
-    this.UpdatePosition();
-  }
 
   protected override void OnAddedToWorld()
   {
     DemoEvents.OnEntityAdded(this);
   }
 
-  private void UpdatePosition()
+  protected override void SimulateCommand(DemoCommand command)
   {
-    DemoCommand command = this.GetLatestCommand<DemoCommand>();
-    if (command != null)
-    {
-      if (command.Up)
-        this.State.Y += 5.0f * Time.fixedDeltaTime;
-      if (command.Down)
-        this.State.Y -= 5.0f * Time.fixedDeltaTime;
-      if (command.Left)
-        this.State.X -= 5.0f * Time.fixedDeltaTime;
-      if (command.Right)
-        this.State.X += 5.0f * Time.fixedDeltaTime;
-    }
+    if (command.Up)
+      this.State.Y += 5.0f * Time.fixedDeltaTime;
+    if (command.Down)
+      this.State.Y -= 5.0f * Time.fixedDeltaTime;
+    if (command.Left)
+      this.State.X -= 5.0f * Time.fixedDeltaTime;
+    if (command.Right)
+      this.State.X += 5.0f * Time.fixedDeltaTime;
+  }
+
+  protected override void Simulate()
+  {
   }
 }

@@ -39,15 +39,16 @@ namespace Railgun
     internal int LastAckedServerTick { get; set; }
 
     /// <summary>
-    /// The last client tick that the server processed from the client.
+    /// The last command tick that the server processed.
     /// </summary>
-    internal int LastReceivedClientTick { get; set; }
+    internal int LastProcessedCommandTick { get; set; }
 
     private RailClock clientClock;
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
       this.LastAckedServerTick = RailClock.INVALID_TICK;
+      this.LastProcessedCommandTick = RailClock.INVALID_TICK;
       this.clientClock = new RailClock();
 
       // We use no divisor for storing commands because commands are sent in
@@ -71,17 +72,18 @@ namespace Railgun
     {
       this.LastAckedServerTick = packet.LastReceivedServerTick;
       this.clientClock.UpdateLatest(packet.ClientTick);
-      this.LastReceivedClientTick = this.clientClock.LastReceivedRemote;
 
       foreach (RailCommand command in packet.Commands)
         this.commandBuffer.Store(command);
     }
 
-    internal T GetLatestCommand<T>()
-      where T : RailCommand
+    internal RailCommand GetLatestCommand()
     {
       int tick = this.clientClock.EstimatedRemote;
-      return (T)this.commandBuffer.GetLatest(tick);
+      RailCommand latest = this.commandBuffer.GetLatest(tick);
+      if (latest != null)
+        this.LastProcessedCommandTick = latest.Tick;
+      return latest;
     }
   }
 }

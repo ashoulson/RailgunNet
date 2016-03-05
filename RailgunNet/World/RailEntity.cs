@@ -40,9 +40,10 @@ namespace Railgun
     protected internal int Type { get { return this.State.Type; } }
     protected internal RailState State { get; set; }
 
-    protected virtual void OnUpdateServer() { }
-    protected virtual void OnUpdateClient() { }
     protected virtual void OnAddedToWorld() { }
+
+    protected virtual void Simulate() { }
+    internal virtual void SimulateCommand(RailCommand command) { }
 
     internal RailEntity()
     {
@@ -53,35 +54,44 @@ namespace Railgun
 
     internal void InitializeClient(RailState state)
     {
-      this.State = state;
+      this.State = state.Clone(RailClock.INVALID_TICK);
       this.IsMaster = false;
       this.StateDelta = new RailStateDelta();
     }
 
     internal void InitializeServer(RailState state)
     {
-      this.State = state;
+      this.State = state.Clone(RailClock.INVALID_TICK);
       this.IsMaster = true;
       this.StateDelta = null;
     }
 
     internal void UpdateServer()
     {
-      this.OnUpdateServer();
+      if (this.Owner != null)
+      {
+        RailCommand command = this.Owner.GetLatestCommand();
+        if (command != null)
+          this.SimulateCommand(command);
+      }
+      this.Simulate();
     }
 
     internal void UpdateClient(int serverTick)
     {
       this.StateDelta.Update(this.StateBuffer, serverTick);
-      this.State = this.StateDelta.Latest;
-      this.OnUpdateClient();
+      this.State.SetDataFrom(this.StateDelta.Latest);
+    }
+
+    internal void SetToLatest()
+    {
+      this.State.SetDataFrom(this.StateBuffer.Latest);
     }
 
     internal bool HasLatest(int serverTick)
     {
       this.StateDelta.Update(this.StateBuffer, serverTick);
-      this.State = this.StateDelta.Latest;
-      return (this.State != null);
+      return (this.StateDelta.Latest != null);
     }
 
     internal void AddedToWorld()
@@ -94,14 +104,6 @@ namespace Railgun
       this.Owner = owner;
     }
 
-    protected T GetLatestCommand<T>()
-      where T : RailCommand<T>, new()
-    {
-      if (this.Owner != null)
-        return this.Owner.GetLatestCommand<T>();
-      return null;
-    }
-
     internal void StoreState(int tick)
     {
       this.StateBuffer.Store(this.State.Clone(tick));
@@ -111,9 +113,24 @@ namespace Railgun
   /// <summary>
   /// Handy shortcut class for auto-casting the internal state.
   /// </summary>
-  public abstract class RailEntity<T> : RailEntity
-    where T : RailState
+  public abstract class RailEntity<TState> : RailEntity
+    where TState : RailState
   {
-    public new T State { get { return (T)base.State; } }
+    public new TState State { get { return (TState)base.State; } }
+  }
+
+  /// <summary>
+  /// Handy shortcut class for auto-casting the internal state and command.
+  /// </summary>
+  public abstract class RailEntity<TState, TCommand> : RailEntity<TState>
+    where TState : RailState
+    where TCommand : RailCommand
+  {
+    internal override void SimulateCommand(RailCommand command)
+    {
+      this.SimulateCommand((TCommand)command);
+    }
+
+    protected virtual void SimulateCommand(TCommand command) { }
   }
 }

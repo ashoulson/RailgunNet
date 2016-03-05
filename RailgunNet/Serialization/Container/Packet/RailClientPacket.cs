@@ -22,6 +22,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using System.Linq;
+
 using CommonTools;
 
 namespace Railgun
@@ -55,8 +57,8 @@ namespace Railgun
     {
       this.ClientTick = tick;
       this.LastReceivedServerTick = lastReceivedServerTick;
-      this.commands.Clear();
-      this.commands.AddRange(commands);
+
+      this.AddCommands(commands);
     }
 
     protected void Reset()
@@ -67,6 +69,17 @@ namespace Railgun
       foreach (RailCommand command in this.commands)
         RailPool.Free(command);
       this.commands.Clear();
+    }
+
+    private void AddCommands(IEnumerable<RailCommand> commands)
+    {
+      this.commands.Clear();
+      foreach (RailCommand command in commands.Reverse())
+      {
+        if (this.commands.Count >= RailConfig.COMMAND_SEND_COUNT)
+          break;
+        this.commands.Add(command);
+      }
     }
 
     #region Encode/Decode
