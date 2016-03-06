@@ -26,9 +26,13 @@ namespace Railgun
 {
   public class RailPeerClient : RailPeer
   {
+    private static int ID = 0;
+
+    public int id = RailPeerClient.ID++;
+
     public event Action<RailPeerClient> MessagesReady;
 
-    internal RailController Controller { get; private set; }
+    internal RailControllerServer Controller { get; private set; }
 
     /// <summary>
     /// The last tick that the client received a snapshot from the server.
@@ -44,7 +48,7 @@ namespace Railgun
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
-      this.Controller = new RailController();
+      this.Controller = new RailControllerServer();
       this.LastAckedServerTick = RailClock.INVALID_TICK;
       this.LastProcessedCommandTick = RailClock.INVALID_TICK;
       this.clientClock = new RailClock();
@@ -60,6 +64,7 @@ namespace Railgun
     {
       this.clientClock.Tick();
       this.Controller.Update(this.clientClock.EstimatedRemote);
+
       if (this.Controller.LatestCommand != null)
         this.LastProcessedCommandTick = this.Controller.LatestCommand.Tick;
     }
@@ -68,7 +73,10 @@ namespace Railgun
     {
       this.LastAckedServerTick = packet.LastReceivedServerTick;
       this.clientClock.UpdateLatest(packet.ClientTick);
+
       this.Controller.StoreIncoming(packet.Commands);
+      this.Controller.CleanReliableEvents(packet.LastReceivedEventId);
+      this.Controller.CleanUnreliableEvents();
     }
   }
 }

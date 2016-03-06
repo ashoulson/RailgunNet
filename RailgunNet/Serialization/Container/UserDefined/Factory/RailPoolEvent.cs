@@ -22,39 +22,26 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
-  /// <summary>
-  /// Server is the core executing class on the server. It is responsible for
-  /// managing connection contexts and payload I/O.
-  /// </summary>
-  public abstract class RailConnection
+  internal abstract class RailPoolEvent : RailPool<RailEvent>
   {
-    public RailWorld World { get { return this.world; } }
-    protected RailWorld world;
-    internal RailInterpreter interpreter;
+    internal RailPoolEvent() { }
 
-    public abstract void Update();
+    internal abstract override RailEvent Allocate();
+  }
 
-    protected RailConnection(
-      RailCommand commandToRegister, 
-      RailState[] statesToRegister,
-      RailEvent[] eventsToRegister)
+  internal class RailPoolEvent<T> : RailPoolEvent
+    where T : RailEvent, IRailPoolable, new()
+  {
+    internal override RailEvent Allocate()
     {
-      RailResource.Initialize(
-        commandToRegister,
-        statesToRegister,
-        eventsToRegister);
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
 
-      this.world = new RailWorld();
-      this.interpreter = new RailInterpreter();
-    }
-
-    protected bool ShouldSend(int tick)
-    {
-      return (tick % RailConfig.NETWORK_SEND_RATE) == 0;
+      T value = new T();
+      value.Pool = this;
+      return value;
     }
   }
 }

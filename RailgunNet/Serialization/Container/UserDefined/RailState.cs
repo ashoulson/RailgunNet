@@ -49,17 +49,17 @@ namespace Railgun
     /// <summary>
     /// The object's network ID.
     /// </summary>
-    public int Id { get; private set; }
+    public int Id { get; set; }
 
     /// <summary>
     /// The server tick this state was generated on.
     /// </summary>
-    internal int Tick { get; private set; }
+    internal int Tick { get; set; }
 
     /// <summary>
-    /// Should return an int code for this type of state.
+    /// The int index for the type of entity this state applies to.
     /// </summary>
-    protected internal abstract int Type { get; }
+    protected internal abstract int EntityType { get; }
 
     protected abstract void EncodeData(BitBuffer buffer);
     protected abstract void DecodeData(BitBuffer buffer);
@@ -69,7 +69,7 @@ namespace Railgun
 
     protected internal void Reset() 
     {
-      this.Id = RailWorld.INVALID_ID;
+      this.Id = RailEntity.INVALID_ID;
       this.Tick = RailClock.INVALID_TICK;
       this.ResetData();
     }
@@ -87,11 +87,11 @@ namespace Railgun
       return buffer.Peek(StandardEncoders.EntityId);
     }
 
-    internal RailState Clone(int tick)
+    internal RailState Clone()
     {
-      RailState clone = RailResource.Instance.AllocateState(this.Type);
+      RailState clone = RailResource.Instance.AllocateState(this.EntityType);
       clone.Id = this.Id;
-      clone.Tick = tick;
+      clone.Tick = this.Tick;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -103,7 +103,7 @@ namespace Railgun
       this.EncodeData(buffer);
 
       // Write: [Type]
-      buffer.Push(StandardEncoders.StateType, this.Type);
+      buffer.Push(StandardEncoders.EntityType, this.EntityType);
 
       // Write: [Id]
       buffer.Push(StandardEncoders.EntityId, this.Id);
@@ -130,9 +130,9 @@ namespace Railgun
       int stateId = buffer.Pop(StandardEncoders.EntityId);
 
       // Read: [Type]
-      int stateType = buffer.Pop(StandardEncoders.StateType);
+      int entityType = buffer.Pop(StandardEncoders.EntityType);
 
-      RailState state = RailResource.Instance.AllocateState(stateType);
+      RailState state = RailResource.Instance.AllocateState(entityType);
       state.Initialize(stateId, snapshotTick);
 
       // Read: [State Data]
@@ -151,7 +151,7 @@ namespace Railgun
 
       // (No [Type] for delta images)
 
-      RailState state = RailResource.Instance.AllocateState(basis.Type);
+      RailState state = RailResource.Instance.AllocateState(basis.EntityType);
       state.Initialize(stateId, snapshotTick);
 
       // Read: [State Data]

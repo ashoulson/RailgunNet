@@ -40,6 +40,7 @@ namespace Railgun
 
     internal int ClientTick { get; private set; }
     internal int LastReceivedServerTick { get; private set; }
+    internal int LastReceivedEventId { get; private set; }
     internal IEnumerable<RailCommand> Commands { get { return this.commands; } }
 
     private readonly List<RailCommand> commands;
@@ -53,11 +54,12 @@ namespace Railgun
     public void Initialize(
       int tick, 
       int lastReceivedServerTick, 
+      int lastReceivedEventId,
       IEnumerable<RailCommand> commands)
     {
       this.ClientTick = tick;
       this.LastReceivedServerTick = lastReceivedServerTick;
-
+      this.LastReceivedEventId = lastReceivedEventId;
       this.AddCommands(commands);
     }
 
@@ -83,7 +85,6 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    /// Packet encoding order: | TICK | LASTACKED | COMMAND COUNT | COMMAND | COMMAND | ... |
     internal void Encode(
       BitBuffer buffer)
     {
@@ -93,6 +94,9 @@ namespace Railgun
 
       // Write: [CommandCount]
       buffer.Push(StandardEncoders.CommandCount, this.commands.Count);
+
+      // Write: [LastReceivedEventId]
+      buffer.Push(StandardEncoders.EventId, this.LastReceivedEventId);
 
       // Write: [LastReceivedServerTick]
       buffer.Push(StandardEncoders.Tick, this.LastReceivedServerTick);
@@ -111,6 +115,9 @@ namespace Railgun
 
       // Read: [LastReceivedServerTick]
       packet.LastReceivedServerTick = buffer.Pop(StandardEncoders.Tick);
+
+      // Read: [LastReceivedEventId]
+      packet.LastReceivedEventId = buffer.Pop(StandardEncoders.EventId);
 
       // Read: [CommandCount]
       int commandCount = buffer.Pop(StandardEncoders.CommandCount);

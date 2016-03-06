@@ -42,8 +42,8 @@ namespace Example
       DemoState state = this.server.CreateState<DemoState>();
       state.ArchetypeId = 0;
       DemoEntity entity = this.server.CreateEntity<DemoEntity>(state);
-      entity.AssignController(controller);
       this.server.AddEntity(entity);
+      this.server.AssignControl(controller, entity);
     }
   }
 }

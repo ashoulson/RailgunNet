@@ -24,15 +24,10 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public enum SimulationMode
-  {
-    Replica,
-    Controller,
-    Master,
-  }
-
   public abstract class RailEntity
   {
+    public const int INVALID_ID = -1;
+
     internal RailController Controller { get; set; }
 
     internal RailStateBuffer StateBuffer { get; private set; }
@@ -40,17 +35,27 @@ namespace Railgun
     public RailStateDelta StateDelta { get; private set; }
     public int CurrentTick { get { return this.World.Tick; } }
 
-    protected internal SimulationMode SimulationMode { get; internal set; }
+    protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
 
     protected internal int Id { get { return this.State.Id; } }
-    protected internal int Type { get { return this.State.Type; } }
+    protected internal int Type { get { return this.State.EntityType; } }
     protected internal RailState State { get; set; }
+
+    /// <summary>
+    /// The server tick this entity was created on -- not synchronized.
+    /// </summary>
+    internal int TickCreated { get; set; }
 
     protected virtual void OnAddedToWorld() { }
 
     protected virtual void Simulate() { }
     internal virtual void SimulateCommand(RailCommand command) { }
+
+    public bool IsPredicted
+    {
+      get { return ((this.Controller != null) && (this.IsMaster == false)); }
+    }
 
     internal RailEntity()
     {
@@ -61,15 +66,19 @@ namespace Railgun
 
     internal void InitializeClient(RailState state)
     {
-      this.State = state.Clone(RailClock.INVALID_TICK);
-      this.SimulationMode = SimulationMode.Replica;
+      this.State = state.Clone();
+      this.State.Tick = RailClock.INVALID_TICK;
+
+      this.IsMaster = false;
       this.StateDelta = new RailStateDelta();
     }
 
     internal void InitializeServer(RailState state)
     {
-      this.State = state.Clone(RailClock.INVALID_TICK);
-      this.SimulationMode = SimulationMode.Master;
+      this.State = state.Clone();
+      this.State.Tick = RailClock.INVALID_TICK;
+
+      this.IsMaster = true;
       this.StateDelta = null;
     }
 
@@ -87,7 +96,11 @@ namespace Railgun
     internal void UpdateClient(int serverTick)
     {
       this.StateDelta.Update(this.StateBuffer, serverTick);
-      this.State.SetDataFrom(this.StateDelta.Latest);
+
+      if (this.Controller != null)
+        this.ForwardSimulate();
+      else
+        this.State.SetDataFrom(this.StateDelta.Latest);
     }
 
     internal void ForwardSimulate()
@@ -108,14 +121,11 @@ namespace Railgun
       this.OnAddedToWorld();
     }
 
-    public void AssignController(RailController controller)
-    {
-      this.Controller = controller;
-    }
-
     internal void StoreState(int tick)
     {
-      this.StateBuffer.Store(this.State.Clone(tick));
+      RailState state = this.State.Clone();
+      state.Tick = tick;
+      this.StateBuffer.Store(state);
     }
   }
 

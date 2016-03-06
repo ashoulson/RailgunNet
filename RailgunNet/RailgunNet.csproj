@@ -36,12 +36,18 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Connection\RailController.cs" />
+    <Compile Include="Connection\Controller\RailControllerClient.cs" />
+    <Compile Include="Connection\Controller\RailControllerServer.cs" />
+    <Compile Include="Connection\Events\RailControlEvent.cs" />
+    <Compile Include="Connection\Events\RailEventTypes.cs" />
+    <Compile Include="Connection\Controller\RailController.cs" />
     <Compile Include="Connection\Peers\RailPeerServer.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\Peers\RailPeer.cs" />
     <Compile Include="Connection\Peers\RailPeerClient.cs" />
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
+    <Compile Include="Serialization\Container\UserDefined\Factory\RailPoolEvent.cs" />
+    <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
     <Compile Include="World\Smoothing\RailStateBuffer.cs" />
     <Compile Include="World\Smoothing\RailStateDelta.cs" />
     <Compile Include="RailClock.cs" />
@@ -60,8 +66,8 @@
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\RingBuffer\IRailRingValue.cs" />
     <Compile Include="Util\RingBuffer\RailRingBuffer.cs" />
-    <Compile Include="Serialization\Container\Factory\RailPoolCommand.cs" />
-    <Compile Include="Serialization\Container\Factory\RailPoolState.cs" />
+    <Compile Include="Serialization\Container\UserDefined\Factory\RailPoolCommand.cs" />
+    <Compile Include="Serialization\Container\UserDefined\Factory\RailPoolState.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailCommand.cs" />
     <Compile Include="Serialization\Container\Packet\RailClientPacket.cs" />
     <Compile Include="World\RailEntity.cs" />

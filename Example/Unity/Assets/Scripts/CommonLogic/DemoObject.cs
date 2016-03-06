@@ -30,15 +30,14 @@ public class DemoObject : MonoBehaviour
 
   private void UpdatePosition()
   {
-    if (this.DoSmoothing)
+    if ((this.DoSmoothing) && (Entity.IsPredicted == false))
     {
       if (this.Entity.StateDelta.CanInterpolate())
       {
         this.Interpolate();
         this.color = Color.green;
       }
-      else 
-      if (this.Entity.StateDelta.CanExtrapolate())
+      else if (this.Entity.StateDelta.CanExtrapolate())
       {
         this.Extrapolate();
         this.color = Color.yellow;
@@ -54,7 +53,11 @@ public class DemoObject : MonoBehaviour
     {
       this.transform.position =
         new Vector2(this.Entity.State.X, this.Entity.State.Y);
-      this.color = Color.red;
+
+      if (Entity.IsPredicted)
+        this.color = Color.blue;
+      else
+        this.color = Color.red;
     }
   }
 

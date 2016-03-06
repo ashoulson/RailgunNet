@@ -33,10 +33,14 @@ namespace Railgun
 
     internal static void Initialize(
       RailCommand commandToRegister, 
-      RailState[] statestoRegister)
+      RailState[] statestoRegister,
+      RailEvent[] eventsToRegister)
     {
       RailResource.Instance =
-        new RailResource(commandToRegister, statestoRegister);
+        new RailResource(
+          commandToRegister, 
+          statestoRegister,
+          eventsToRegister);
     }
 
     private RailPoolGeneric<RailServerPacket> serverPacketPool;
@@ -45,19 +49,26 @@ namespace Railgun
     private RailPoolCommand commandPool;
 
     private Dictionary<int, RailPoolState> statePools;
+    private Dictionary<int, RailPoolEvent> eventPools;
 
     private RailResource(
       RailCommand commandToRegister, 
-      params RailState[] statestoRegister)
+      RailState[] statesToRegister,
+      RailEvent[] eventsToRegister)
     {
       this.serverPacketPool = new RailPoolGeneric<RailServerPacket>();
       this.clientPacketPool = new RailPoolGeneric<RailClientPacket>();
 
       this.commandPool = commandToRegister.CreatePool();
-
       this.statePools = new Dictionary<int, RailPoolState>();
-      foreach (RailState state in statestoRegister)
-        this.statePools[state.Type] = state.CreatePool();
+      this.eventPools = new Dictionary<int, RailPoolEvent>();
+
+      foreach (RailState state in statesToRegister)
+        this.statePools[state.EntityType] = state.CreatePool();
+      foreach (RailEvent evnt in eventsToRegister)
+        this.eventPools[evnt.EventType] = evnt.CreatePool();
+
+      this.CreateStandardEventPools();
     }
 
     internal RailServerPacket AllocateServerPacket()
@@ -79,5 +90,22 @@ namespace Railgun
     {
       return this.statePools[type].Allocate();
     }
+
+    internal RailEvent AllocateEvent(int type)
+    {
+      return this.eventPools[type].Allocate();
+    }
+
+    #region Event Shorthand
+    private void CreateStandardEventPools()
+    {
+      this.eventPools[RailEventTypes.TYPE_CONTROL] = new RailControlEvent().CreatePool();
+    }
+
+    internal RailControlEvent AllocateControlEvent()
+    {
+      return (RailControlEvent)this.eventPools[RailEventTypes.TYPE_CONTROL].Allocate();
+    }
+    #endregion
   }
 }
