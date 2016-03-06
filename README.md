@@ -13,9 +13,10 @@ Supported Networking Tasks:
 - Delta-compression for entity data
 - Network clock (frame number) sync
 - Smoothing and interpolation support
+- Reliable/Unreliable/Time-Synced event transmission (in progress)
+- Client-side prediction support (in progress)
 
 To-Do:
-- Client-side prediction support
 - Lag compensation support
 - ...and a lot more
 
