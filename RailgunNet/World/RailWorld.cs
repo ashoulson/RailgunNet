@@ -26,8 +26,6 @@ namespace Railgun
 {
   public class RailWorld
   {
-    public const int INVALID_ID = -1;
-
     public int Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities 
     { 

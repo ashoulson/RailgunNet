@@ -55,7 +55,9 @@ namespace Railgun
     internal int ServerTick { get; private set; }
     internal int BasisTick { get; private set; }
     internal int LastProcessedCommandTick { get; private set; }
+
     internal IEnumerable<RailState> States { get { return this.states; } }
+    internal IEnumerable<RailEvent> Events { get { return this.events; } }
 
     // State list, available after decoding on client
     private readonly List<RailState> states;
@@ -63,10 +65,14 @@ namespace Railgun
     // Entity list, used for encoding on server
     private readonly List<RailEntity> entities;
 
+    // Event list, includes both reliable and unreliable
+    private readonly List<RailEvent> events;
+
     public RailServerPacket()
     {
       this.states = new List<RailState>();
       this.entities = new List<RailEntity>();
+      this.events = new List<RailEvent>();
 
       this.Reset();
     }
@@ -75,13 +81,16 @@ namespace Railgun
       int serverTick,
       int basisTick,
       int lastProcessedCommandTick,
-      IEnumerable<RailEntity> entities)
+      IEnumerable<RailEntity> entities,
+      IEnumerable<RailEvent> events)
     {
       this.ServerTick = serverTick;
       this.BasisTick = 
         RailServerPacket.GetSafeBasisTick(serverTick, basisTick);
       this.LastProcessedCommandTick = lastProcessedCommandTick;
+
       this.entities.AddRange(entities);
+      this.events.AddRange(events);
     }
 
     protected void Reset()
@@ -92,17 +101,25 @@ namespace Railgun
 
       this.states.Clear();
       this.entities.Clear();
+      this.events.Clear();
     }
 
     #region Encode/Decode
     internal void Encode(
       BitBuffer buffer)
     {
+      // Write: [Events]
+      foreach (RailEvent evnt in this.events)
+        evnt.Encode(buffer);
+
+      // Write: [EventCount]
+      buffer.Push(StandardEncoders.EventCount, this.events.Count);
+
       // Write: [States]
       foreach (RailEntity entity in this.entities)
         RailInterpreter.EncodeState(buffer, this.BasisTick, entity);
 
-      // Write: [State Count]
+      // Write: [StateCount]
       buffer.Push(StandardEncoders.EntityCount, this.entities.Count);
 
       // Write: [LastProcessedCommandTick]
@@ -130,7 +147,7 @@ namespace Railgun
       // Read: [LastProcessedCommandTick]
       packet.LastProcessedCommandTick = buffer.Pop(StandardEncoders.Tick);
 
-      // Read: [State Count]
+      // Read: [StateCount]
       int stateCount = buffer.Pop(StandardEncoders.EntityCount);
 
       // Read: [States]
@@ -141,6 +158,16 @@ namespace Railgun
             packet.ServerTick,
             packet.BasisTick, 
             knownEntities));
+
+      // Read: [EventCount]
+      int eventCount = buffer.Pop(StandardEncoders.EventCount);
+
+      // Read: [Events]
+      for (int i = 0; i < eventCount; i++)
+        packet.events.Add(RailEvent.Decode(buffer));
+
+      // We need to reverse the events to restore the original order
+      packet.events.Reverse();
 
       return packet;
     }

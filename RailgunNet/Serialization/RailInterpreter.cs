@@ -109,9 +109,16 @@ namespace Railgun
       RailEntity entity)
     {
       if (basisTick != RailClock.INVALID_TICK)
-        entity.State.Encode(buffer, entity.StateBuffer.Get(basisTick));
+      {
+        if (entity.TickCreated < basisTick)
+          entity.State.Encode(buffer, entity.StateBuffer.Get(basisTick));
+        else
+          entity.State.Encode(buffer);
+      }
       else
+      {
         entity.State.Encode(buffer);
+      }
     }
 
     internal static RailState DecodeState(

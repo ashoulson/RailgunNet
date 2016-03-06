@@ -33,7 +33,7 @@ namespace Railgun
     private RailPeerServer serverPeer;
 
     private readonly RailClock serverClock;
-    private readonly RailController localController;
+    private readonly RailControllerClient localController;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -48,16 +48,21 @@ namespace Railgun
     // The local simulation tick, used for commands
     private int localTick;
 
+    // The last received event id, for reliable sequencing
+    private int lastReceivedEventId;
+
     public RailClient(
       RailCommand commandToRegister, 
-      params RailState[] statesToRegister)
-      : base(commandToRegister, statesToRegister)
+      RailState[] statesToRegister,
+      RailEvent[] eventsToRegister)
+      : base(commandToRegister, statesToRegister, eventsToRegister)
     {
       this.serverPeer = null;
       this.serverClock = new RailClock();
 
       this.localTick = 0;
-      this.localController = new RailController();
+      this.lastReceivedEventId = RailEvent.NO_EVENT_ID;
+      this.localController = new RailControllerClient();
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
       this.knownEntities = new Dictionary<int, RailEntity>();
@@ -73,9 +78,8 @@ namespace Railgun
     {
       this.localTick++;
 
-      this.UpdateWorld(this.serverClock.Tick());
       this.UpdateCommands();
-      this.ForwardSimulate();
+      this.UpdateWorld(this.serverClock.Tick());
 
       if ((this.serverPeer != null) && this.ShouldSend(this.localTick))
         this.SendPacket();
@@ -102,10 +106,8 @@ namespace Railgun
     private void UpdateCommands()
     {
       RailCommand command = RailResource.Instance.AllocateCommand();
-
       command.Populate();
       command.Tick = this.localTick;
-
       this.localController.QueueOutgoing(command);
     }
 
@@ -123,22 +125,12 @@ namespace Railgun
         if (entity.HasLatest(serverTick))
         {
           this.world.AddEntity(entity);
-
-          // TODO: TEMP
-          this.localController.AddControlled(entity);
-
           toRemove.Add(entity);
         }
       }
 
       foreach (RailEntity entity in toRemove)
         this.pendingEntities.Remove(entity.Id);
-    }
-
-    private void ForwardSimulate()
-    {
-      foreach (RailEntity entity in this.localController.ControlledEntities)
-        entity.ForwardSimulate();
     }
 
     /// <summary>
@@ -150,6 +142,7 @@ namespace Railgun
       packet.Initialize(
         this.localTick,
         this.serverClock.LastReceivedRemote,
+        this.lastReceivedEventId,
         this.localController.OutgoingCommands);
       this.interpreter.SendClientPacket(this.serverPeer, packet);
     }
@@ -171,15 +164,21 @@ namespace Railgun
     private void ProcessPacket(RailServerPacket packet)
     {
       foreach (RailState state in packet.States)
-      {
-        RailEntity entity;
-        if (this.World.TryGetEntity(state.Id, out entity) == false)
-          if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
-            entity = this.ReplicateEntity(state);
-        entity.StateBuffer.Store(state);
-      }
+        this.ProcessState(state);
+
+      foreach (RailEvent evnt in packet.Events)
+        this.ProcessEvent(evnt);
 
       this.localController.CleanCommands(packet.LastProcessedCommandTick);
+    }
+
+    private void ProcessState(RailState state)
+    {
+      RailEntity entity;
+      if (this.World.TryGetEntity(state.Id, out entity) == false)
+        if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
+          entity = this.ReplicateEntity(state);
+      entity.StateBuffer.Store(state);
     }
 
     /// <summary>
@@ -194,6 +193,42 @@ namespace Railgun
       this.knownEntities.Add(state.Id, entity);
 
       return entity;
+    }
+
+    private RailEntity GetEntity(int entityId)
+    {
+      RailEntity entity;
+      if (this.world.TryGetEntity(entityId, out entity) == true)
+        return entity;
+      if (this.pendingEntities.TryGetValue(entityId, out entity) == true)
+        return entity;
+      return null;
+    }
+
+    private void ProcessEvent(RailEvent evnt)
+    {
+      // Skip already processed events
+      if (evnt.EventId != RailEvent.NO_EVENT_ID)
+        if (evnt.EventId <= this.lastReceivedEventId)
+          return;
+
+      if (evnt.EventId > this.lastReceivedEventId)
+        this.lastReceivedEventId = evnt.EventId;
+
+      // TODO: Move this to a more comprehensive solution
+      switch (evnt.EventType)
+      {
+        case RailEventTypes.TYPE_CONTROL:
+          RailControlEvent controlEvent = (RailControlEvent)evnt;
+          RailEntity entity = this.GetEntity(controlEvent.EntityId);
+          if (entity != null)
+            this.localController.AddEntity(entity);
+          break;
+
+        default:
+          CommonDebug.LogWarning("Unrecognized event: " + evnt.EventType);
+          break;
+      }
     }
   }
 }

@@ -32,7 +32,7 @@ namespace Railgun
     {
       // Allocate and deallocate a dummy state to read and store its type
       RailState dummy = this.Allocate();
-      this.Type = dummy.Type;
+      this.Type = dummy.EntityType;
       this.Deallocate(dummy);
     }
 

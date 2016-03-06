@@ -65,7 +65,7 @@ public class DemoState : RailState<DemoState, DemoEntity>
       (state.Status == basis.Status ? 0 : FLAG_STATUS);
   }
 
-  protected override int Type { get { return DemoTypes.TYPE_DEMO; } }
+  protected override int EntityType { get { return DemoTypes.TYPE_DEMO; } }
 
   public int ArchetypeId { get; set; }
   public int UserId { get; set; }

@@ -27,8 +27,7 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// States are attached to entities and contain user-defined data. They are
-  /// responsible for encoding and decoding that data, and delta-compression.
+  /// Commands contain input data from the client to be applied to entities.
   /// </summary>
   public abstract class RailCommand : IRailPoolable, IRailRingValue
   {
@@ -36,19 +35,11 @@ namespace Railgun
     void IRailPoolable.Reset() { this.Reset(); }
     int IRailRingValue.Tick { get { return this.Tick; } }
 
-    internal RailCommand Clone()
-    {
-      RailCommand clone = RailResource.Instance.AllocateCommand();
-      clone.SetFrom(this);
-      return clone;
-    }
-
     /// <summary>
     /// The client tick this command was generated on.
     /// </summary>
     internal int Tick { get; set; }
 
-    internal abstract void SetFrom(RailCommand other);
     internal abstract RailPoolCommand CreatePool();
 
     protected abstract void EncodeData(BitBuffer buffer);
@@ -99,11 +90,6 @@ namespace Railgun
     where T : RailCommand<T>, new()
   {
     #region Casting Overrides
-    internal override void SetFrom(RailCommand other)
-    {
-      this.SetFrom((T)other);
-    }
-
     internal override RailPoolCommand CreatePool()
     {
       return new RailPoolCommand<T>();

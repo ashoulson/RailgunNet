@@ -26,10 +26,17 @@ namespace Railgun
 {
   internal static class StandardEncoders
   {
+    // Entity
     internal static readonly IntEncoder EntityCount = new IntEncoder(0, 4095);
     internal static readonly IntEncoder EntityId = StandardEncoders.EntityCount;
+    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
 
-    internal static readonly IntEncoder StateType = new IntEncoder(0, 31);
+    // Event
+    internal static readonly IntEncoder EventCount = new IntEncoder(-1, 65534);
+    internal static readonly IntEncoder EventId = StandardEncoders.EventCount;
+    internal static readonly IntEncoder EventType = new IntEncoder(-10, 117);
+
+
 
     internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
 

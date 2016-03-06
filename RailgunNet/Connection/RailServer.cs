@@ -49,8 +49,9 @@ namespace Railgun
 
     public RailServer(
       RailCommand commandToRegister,
-      params RailState[] statesToRegister)
-      : base(commandToRegister, statesToRegister)
+      RailState[] statesToRegister,
+      RailEvent[] eventsToRegister)
+      : base(commandToRegister, statesToRegister, eventsToRegister)
     {
       this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
     }
@@ -112,7 +113,7 @@ namespace Railgun
     public T CreateState<T>()
       where T : RailState, new()
     {
-      return (T)RailResource.Instance.AllocateState((new T()).Type);
+      return (T)RailResource.Instance.AllocateState((new T()).EntityType);
     }
 
     /// <summary>
@@ -136,6 +137,13 @@ namespace Railgun
     public void AddEntity(RailEntity entity)
     {
       this.world.AddEntity(entity);
+      entity.TickCreated = this.world.Tick;
+    }
+
+    public void AssignControl(RailController controller, RailEntity entity)
+    {
+      RailControllerServer serverController = (RailControllerServer)controller;
+      serverController.AddEntity(entity, this.world.Tick);
     }
 
     /// <summary>
@@ -147,11 +155,14 @@ namespace Railgun
       foreach (RailPeerClient clientPeer in this.clients.Values)
       {
         RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
+
         packet.Initialize(
           this.world.Tick,
           clientPeer.LastAckedServerTick,
           clientPeer.LastProcessedCommandTick,
-          this.world.Entities);
+          this.world.Entities,
+          clientPeer.Controller.AllEvents);
+
         this.interpreter.SendServerPacket(clientPeer, packet);
       }
     }
