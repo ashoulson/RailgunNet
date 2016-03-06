@@ -160,6 +160,10 @@ namespace Railgun
       return state;
     }
     #endregion
+
+    #region DEBUG
+    public virtual string DEBUG_FormatDebug() { return ""; }
+    #endregion
   }
 
   /// <summary>

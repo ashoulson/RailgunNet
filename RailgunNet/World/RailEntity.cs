@@ -127,6 +127,31 @@ namespace Railgun
       state.Tick = tick;
       this.StateBuffer.Store(state);
     }
+
+    #region DEBUG
+    public virtual string DEBUG_FormatDebug() 
+    {
+      string output = "[";
+      foreach (RailState state in this.StateBuffer.Values)
+        output += state.Tick + ":" + state.DEBUG_FormatDebug() + ",";
+      output = output.Remove(output.Length - 1, 1) + "] (";
+
+      if (this.StateDelta != null)
+      {
+        if (this.StateDelta.Prior != null)
+          output += this.StateDelta.Prior.Tick;
+        output += ",";
+        if (this.StateDelta.Latest != null)
+          output += this.StateDelta.Latest.Tick;
+        output += ",";
+        if (this.StateDelta.Next != null)
+          output += this.StateDelta.Next.Tick;
+        output += ")";
+      }
+
+      return output;
+    }
+    #endregion
   }
 
   /// <summary>

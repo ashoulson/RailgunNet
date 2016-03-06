@@ -28,6 +28,11 @@ namespace Railgun
   {
     internal RailState Latest { get { return this.latest; } }
 
+    internal IEnumerable<RailState> Values 
+    { 
+      get { return this.buffer.Values; } 
+    }
+
     private RailRingBuffer<RailState> buffer;
     private RailState latest;
 

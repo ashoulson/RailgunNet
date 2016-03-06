@@ -49,7 +49,7 @@ namespace Railgun
     /// <summary>
     /// Number of entries to store in a dejitter buffer.
     /// </summary>
-    internal const int DEJITTER_BUFFER_LENGTH = 20;
+    internal const int DEJITTER_BUFFER_LENGTH = 50;
 
     /// <summary>
     /// Data buffer size used for packet I/O. 

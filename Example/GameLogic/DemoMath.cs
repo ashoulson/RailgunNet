@@ -27,16 +27,16 @@ using UnityEngine;
 
 public static class DemoMath
 {
-  internal const float COORDINATE_EPSILON = 0.1f;
-  internal const float ANGLE_EPSILON = 0.5f;
+  internal const float COORDINATE_PRECISION = 0.01f;
+  internal const float ANGLE_PRECISION = 0.01f;
 
   internal static bool CoordinatesEqual(float a, float b)
   {
-    return Mathf.Abs(a - b) < DemoMath.COORDINATE_EPSILON;
+    return Mathf.Abs(a - b) < DemoMath.COORDINATE_PRECISION;
   }
 
   internal static bool AnglesEqual(float a, float b)
   {
-    return Mathf.Abs(a - b) < DemoMath.ANGLE_EPSILON;
+    return Mathf.Abs(a - b) < DemoMath.ANGLE_PRECISION;
   }
 }
