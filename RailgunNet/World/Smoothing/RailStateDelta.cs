@@ -47,6 +47,39 @@ namespace Railgun
       buffer.PopulateDelta(this.Delta, currentTick);
     }
 
+    internal void Clear()
+    {
+      this.Delta.Set(null, null, null);
+    }
+
+    internal RailState Push(RailState state)
+    {
+      RailState next = null;
+      RailState latest = null;
+      RailState prior = null;
+      RailState popped = null;
+
+      if (this.Next != null)
+      {
+        if (this.Latest != null)
+        {
+          if (this.Prior != null)
+          {
+            popped = this.Prior;
+          }
+
+          prior = this.Latest;
+        }
+
+        latest = this.Next;
+      }
+
+      next = state;
+
+      this.Delta.Set(prior, latest, next);
+      return popped;
+    }
+
     public bool CanInterpolate()
     {
       return (this.Latest != null) && (this.Next != null);
@@ -57,21 +90,6 @@ namespace Railgun
       return (this.Latest != null) && (this.Prior != null);
     }
 
-    public void GetInterpolationParams(
-      int currentTick, 
-      float frameDelta,
-      out float interpolationScalar,
-      float fixedDeltaTime = RailConfig.FIXED_DELTA_TIME)
-    {
-      float latestTime = this.Latest.Tick * fixedDeltaTime;
-      float nextTime = this.Next.Tick * fixedDeltaTime;
-      float currentTime = (currentTick * fixedDeltaTime) + frameDelta;
-
-      float place = currentTime - latestTime;
-      float span = nextTime - latestTime;
-
-      interpolationScalar = place / span;
-    }
 
     public void GetExtrapolationParams(
       int currentTick, 
@@ -80,6 +98,12 @@ namespace Railgun
       out float velocityScale,
       float fixedDeltaTime = RailConfig.FIXED_DELTA_TIME)
     {
+      // If we're predicting, advance to the prediction tick.
+      // Note that this assumes we'll only ever have a 1-tick difference
+      // between any two states in the delta when doing prediction.
+      if (this.Latest.IsPredicted)
+        currentTick = this.Latest.Tick;
+
       float priorTime = this.Prior.Tick * fixedDeltaTime;
       float latestTime = this.Latest.Tick * fixedDeltaTime;
       float currentTime = (currentTick * fixedDeltaTime) + frameDelta;

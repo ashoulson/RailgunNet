@@ -68,8 +68,8 @@ public class Client : MonoBehaviour
 
   private void OnPeerMessagesReady(NetPeer source)
   {
-    byte[] buffer = new byte[2048];
-    foreach (int length in source.ReadReceived(buffer))
-      Debug.Log("Received " + length + " bytes");
+    //byte[] buffer = new byte[2048];
+    //foreach (int length in source.ReadReceived(buffer))
+    //  Debug.Log("Received " + length + " bytes");
   }
 }

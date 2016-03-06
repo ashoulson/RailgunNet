@@ -61,6 +61,12 @@ namespace Railgun
     /// </summary>
     protected internal abstract int EntityType { get; }
 
+    /// <summary>
+    /// Whether or not this state is predicted. Always defaults to false and
+    /// must be manually set to true after a clone. Not synchronized.
+    /// </summary>
+    internal bool IsPredicted { get; set; }
+
     protected abstract void EncodeData(BitBuffer buffer);
     protected abstract void DecodeData(BitBuffer buffer);
     protected abstract void EncodeData(BitBuffer buffer, RailState basis);
@@ -71,6 +77,7 @@ namespace Railgun
     {
       this.Id = RailEntity.INVALID_ID;
       this.Tick = RailClock.INVALID_TICK;
+      this.IsPredicted = false;
       this.ResetData();
     }
 
@@ -78,6 +85,8 @@ namespace Railgun
     {
       this.Id = id;
       this.Tick = tick;
+      this.IsPredicted = false;
+      this.ResetData();
     }
 
     #region Encode/Decode/etc.
@@ -90,8 +99,9 @@ namespace Railgun
     internal RailState Clone()
     {
       RailState clone = RailResource.Instance.AllocateState(this.EntityType);
-      clone.Id = this.Id;
-      clone.Tick = this.Tick;
+      clone.Initialize(
+        this.Id,
+        this.Tick);
       clone.SetDataFrom(this);
       return clone;
     }

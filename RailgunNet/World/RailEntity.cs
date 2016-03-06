@@ -95,25 +95,23 @@ namespace Railgun
 
     internal void UpdateClient(int serverTick)
     {
-      this.StateDelta.Update(this.StateBuffer, serverTick);
-
       if (this.Controller != null)
         this.ForwardSimulate();
       else
-        this.State.SetDataFrom(this.StateDelta.Latest);
+        this.ReplicaSimulate(serverTick);
     }
 
-    internal void ForwardSimulate()
+    internal void ReplicaSimulate(int serverTick)
     {
-      this.State.SetDataFrom(this.StateBuffer.Latest);
-      foreach (RailCommand command in this.Controller.OutgoingCommands)
-        this.SimulateCommand(command);
+      this.ClearDelta();
+
+      this.StateDelta.Update(this.StateBuffer, serverTick);
+      this.State.SetDataFrom(this.StateDelta.Latest);
     }
 
     internal bool HasLatest(int serverTick)
     {
-      this.StateDelta.Update(this.StateBuffer, serverTick);
-      return (this.StateDelta.Latest != null);
+      return (this.StateBuffer.GetLatest(serverTick) != null);
     }
 
     internal void AddedToWorld()
@@ -127,6 +125,94 @@ namespace Railgun
       state.Tick = tick;
       this.StateBuffer.Store(state);
     }
+
+    #region Smoothing
+    public T GetSmoothedValue<T>(
+      float frameDelta, 
+      RailSmoother<T> smoother)
+    {
+      if ((this.StateDelta == null) || (this.StateDelta.Latest == null))
+        return default(T);
+
+      // If we're predicting, advance to the prediction tick. This is
+      // hacky in that it assumes that we'll only ever have a one-tick 
+      // difference between any two states in the delta when doing prediction.
+      int currentTick = this.CurrentTick;
+      if (this.StateDelta.Latest.IsPredicted)
+        currentTick = this.StateDelta.Latest.Tick;
+
+      if (this.StateDelta.Next != null)
+      {
+        return smoother.Smooth(
+          frameDelta,
+          currentTick,
+          this.StateDelta.Latest,
+          this.StateDelta.Next);
+      }
+      else if (this.StateDelta.Prior != null)
+      {
+        return smoother.Smooth(
+          frameDelta,
+          currentTick,
+          this.StateDelta.Prior,
+          this.StateDelta.Latest);
+      }
+      else
+      {
+        return smoother.Access(this.StateDelta.Latest);
+      }
+    }
+    #endregion
+
+    #region Prediction
+    private void ForwardSimulate()
+    {
+      if (this.StateDelta == null)
+        return;
+
+      this.ClearDelta();
+
+      RailState latest = this.StateBuffer.Latest.Clone();
+      latest.IsPredicted = true;
+      this.StateDelta.Set(null, latest, null);
+      this.State.SetDataFrom(latest);
+
+      int count = 1;
+      foreach (RailCommand command in this.Controller.OutgoingCommands)
+      {
+        this.SimulateCommand(command);
+        this.PushDelta(latest.Tick + count);
+        count++;
+      }
+    }
+
+    private void ClearDelta()
+    {
+      RailState prior = this.StateDelta.Prior;
+      RailState latest = this.StateDelta.Latest;
+      RailState next = this.StateDelta.Next;
+
+      if ((prior != null) && prior.IsPredicted)
+        RailPool.Free(prior);
+      if ((latest != null) && latest.IsPredicted)
+        RailPool.Free(latest);
+      if ((next != null) && next.IsPredicted)
+        RailPool.Free(next);
+
+      this.StateDelta.Clear();
+    }
+
+    private void PushDelta(int count)
+    {
+      RailState predicted = this.State.Clone();
+      predicted.Tick += count;
+      predicted.IsPredicted = true;
+
+      RailState popped = this.StateDelta.Push(predicted);
+      if ((popped != null) && popped.IsPredicted)
+        RailPool.Free(popped);
+    }
+    #endregion
 
     #region DEBUG
     public virtual string DEBUG_FormatDebug() 
