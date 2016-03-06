@@ -28,6 +28,12 @@ public class DemoObject : MonoBehaviour
     gameObject.GetComponent<Renderer>().material.color = this.color;
   }
 
+  void FixedUpdate()
+  {
+    if (Input.GetKey(KeyCode.Y))
+      Debug.Log(this.Entity.DEBUG_FormatDebug());
+  }
+
   private void UpdatePosition()
   {
     if ((this.DoSmoothing) && (Entity.IsPredicted == false))
@@ -51,8 +57,11 @@ public class DemoObject : MonoBehaviour
     }
     else
     {
+      
       this.transform.position =
         new Vector2(this.Entity.State.X, this.Entity.State.Y);
+      if (Input.GetKey(KeyCode.Y))
+        Debug.Log(this.Entity.State.X + " " + this.Entity.State.Y);
 
       if (Entity.IsPredicted)
         this.color = Color.blue;

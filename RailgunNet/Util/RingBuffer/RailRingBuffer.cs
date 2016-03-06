@@ -34,6 +34,16 @@ namespace Railgun
 
     private T[] data;
 
+    internal IEnumerable<T> Values
+    {
+      get
+      {
+        foreach (T value in this.data)
+          if (value != null)
+            yield return value;
+      }
+    }
+
     public RailRingBuffer(int capacity, int divisor = 1)
     {
       this.divisor = divisor;

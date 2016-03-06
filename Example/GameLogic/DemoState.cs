@@ -177,4 +177,11 @@ public class DemoState : RailState<DemoState, DemoEntity>
       buffer.PopIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, basis.Angle),
       buffer.PopIf(dirty, FLAG_STATUS, DemoEncoders.Status, basis.Status));
   }
+
+  #region DEBUG
+  public override string DEBUG_FormatDebug()
+  {
+    return "(" + this.X + "," + this.Y + ")";
+  }
+  #endregion
 }

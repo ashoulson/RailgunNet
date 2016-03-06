@@ -32,8 +32,8 @@ public static class DemoEncoders
   public static readonly IntEncoder UserId = new IntEncoder(0, 1023);
   public static readonly IntEncoder Status = new IntEncoder(0, 0x3F);
 
-  public static readonly FloatEncoder Coordinate = new FloatEncoder(-2048.0f, 2048.0f, 0.01f);
-  public static readonly FloatEncoder Angle = new FloatEncoder(0.0f, 360.0f, 0.01f);
+  public static readonly FloatEncoder Coordinate = new FloatEncoder(-512.0f, 512.0f, DemoMath.COORDINATE_PRECISION / 10.0f);
+  public static readonly FloatEncoder Angle = new FloatEncoder(0.0f, 360.0f, DemoMath.ANGLE_PRECISION / 10.0f);
 
   public static readonly BoolEncoder Bool = new BoolEncoder();
 }
