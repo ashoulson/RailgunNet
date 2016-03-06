@@ -31,12 +31,9 @@ namespace Railgun
   public class RailClient : RailConnection
   {
     private RailPeerServer serverPeer;
-    private RailClock serverClock;
 
-    /// <summary>
-    /// A history of commands sent (or waiting to be sent) to the client.
-    /// </summary>
-    internal readonly Queue<RailCommand> commandBuffer;
+    private readonly RailClock serverClock;
+    private readonly RailController localController;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -47,11 +44,6 @@ namespace Railgun
     /// All known entities, either in-world or pending.
     /// </summary>
     private Dictionary<int, RailEntity> knownEntities;
-
-    /// <summary>
-    /// All entities controlled by this client.
-    /// </summary>
-    private Dictionary<int, RailEntity> controlledEntities;
 
     // The local simulation tick, used for commands
     private int localTick;
@@ -65,12 +57,10 @@ namespace Railgun
       this.serverClock = new RailClock();
 
       this.localTick = 0;
-      this.commandBuffer = 
-        new Queue<RailCommand>(RailConfig.COMMAND_BUFFER_COUNT);
+      this.localController = new RailController();
 
       this.pendingEntities = new Dictionary<int, RailEntity>();
       this.knownEntities = new Dictionary<int, RailEntity>();
-      this.controlledEntities = new Dictionary<int, RailEntity>();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -115,10 +105,8 @@ namespace Railgun
 
       command.Populate();
       command.Tick = this.localTick;
-      command.ServerTick = this.serverClock.EstimatedRemoteActual;
 
-      if (this.commandBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
-        this.commandBuffer.Enqueue(command);
+      this.localController.QueueOutgoing(command);
     }
 
     /// <summary>
@@ -137,7 +125,7 @@ namespace Railgun
           this.world.AddEntity(entity);
 
           // TODO: TEMP
-          this.controlledEntities.Add(entity.Id, entity);
+          this.localController.AddControlled(entity);
 
           toRemove.Add(entity);
         }
@@ -149,14 +137,8 @@ namespace Railgun
 
     private void ForwardSimulate()
     {
-      foreach (RailEntity entity in this.controlledEntities.Values)
-      {
-        entity.SetToLatest();
-        foreach (RailCommand command in this.commandBuffer)
-          entity.SimulateCommand(command);
-
-        CommonDebug.Log(this.commandBuffer.Count);
-      }
+      foreach (RailEntity entity in this.localController.ControlledEntities)
+        entity.ForwardSimulate();
     }
 
     /// <summary>
@@ -168,7 +150,7 @@ namespace Railgun
       packet.Initialize(
         this.localTick,
         this.serverClock.LastReceivedRemote,
-        this.commandBuffer);
+        this.localController.OutgoingCommands);
       this.interpreter.SendClientPacket(this.serverPeer, packet);
     }
 
@@ -197,19 +179,7 @@ namespace Railgun
         entity.StateBuffer.Store(state);
       }
 
-      this.CleanCommands(packet.LastProcessedCommandTick);
-    }
-
-    private void CleanCommands(int lastReceivedTick)
-    {
-      while (true)
-      {
-        if (this.commandBuffer.Count == 0)
-          break;
-        if (this.commandBuffer.Peek().Tick > lastReceivedTick)
-          break;
-        RailPool.Free(this.commandBuffer.Dequeue());
-      }
+      this.localController.CleanCommands(packet.LastProcessedCommandTick);
     }
 
     /// <summary>

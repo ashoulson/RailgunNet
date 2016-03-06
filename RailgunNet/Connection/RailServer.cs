@@ -33,14 +33,14 @@ namespace Railgun
   public class RailServer : RailConnection
   {
     /// <summary>
-    /// Fired when a new peer has been added to the server.
+    /// Fired when a controller has been added (i.e. player join).
     /// </summary>
-    public event Action<RailPeerClient> ClientAdded;
+    public event Action<RailController> ControllerAdded;
 
     /// <summary>
-    /// Fired when a peer has been removed from the server.
+    /// Fired when a controller has been removed (i.e. player leave).
     /// </summary>
-    public event Action<RailPeerClient> ClientRemoved;
+    public event Action<RailController> ControllerRemoved;
 
     /// <summary>
     /// Collection of all participating clients.
@@ -65,8 +65,8 @@ namespace Railgun
         RailPeerClient railPeer = new RailPeerClient(peer);
         this.clients.Add(peer, railPeer);
 
-        if (this.ClientAdded != null)
-          this.ClientAdded.Invoke(railPeer);
+        if (this.ControllerAdded != null)
+          this.ControllerAdded.Invoke(railPeer.Controller);
 
         railPeer.MessagesReady += this.OnMessagesReady;
       }
@@ -82,8 +82,8 @@ namespace Railgun
         RailPeerClient client = this.clients[peer];
         this.clients.Remove(peer);
 
-        if (this.ClientRemoved != null)
-          this.ClientAdded.Invoke(client);
+        if (this.ControllerRemoved != null)
+          this.ControllerAdded.Invoke(client.Controller);
       }
     }
 

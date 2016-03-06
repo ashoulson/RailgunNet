@@ -28,10 +28,7 @@ namespace Railgun
   {
     public event Action<RailPeerClient> MessagesReady;
 
-    /// <summary>
-    /// A history of received packets from the client. Used for dejitter.
-    /// </summary>
-    internal readonly RailRingBuffer<RailCommand> commandBuffer;
+    internal RailController Controller { get; private set; }
 
     /// <summary>
     /// The last tick that the client received a snapshot from the server.
@@ -47,14 +44,10 @@ namespace Railgun
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
+      this.Controller = new RailController();
       this.LastAckedServerTick = RailClock.INVALID_TICK;
       this.LastProcessedCommandTick = RailClock.INVALID_TICK;
       this.clientClock = new RailClock();
-
-      // We use no divisor for storing commands because commands are sent in
-      // batches that we can use to fill in the holes between send frames
-      this.commandBuffer =
-        new RailRingBuffer<RailCommand>(RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
     protected override void OnMessagesReady(IRailNetPeer peer)
@@ -66,24 +59,16 @@ namespace Railgun
     internal void Update()
     {
       this.clientClock.Tick();
+      this.Controller.Update(this.clientClock.EstimatedRemote);
+      if (this.Controller.LatestCommand != null)
+        this.LastProcessedCommandTick = this.Controller.LatestCommand.Tick;
     }
 
     internal void ProcessPacket(RailClientPacket packet)
     {
       this.LastAckedServerTick = packet.LastReceivedServerTick;
       this.clientClock.UpdateLatest(packet.ClientTick);
-
-      foreach (RailCommand command in packet.Commands)
-        this.commandBuffer.Store(command);
-    }
-
-    internal RailCommand GetLatestCommand()
-    {
-      int tick = this.clientClock.EstimatedRemote;
-      RailCommand latest = this.commandBuffer.GetLatest(tick);
-      if (latest != null)
-        this.LastProcessedCommandTick = latest.Tick;
-      return latest;
+      this.Controller.StoreIncoming(packet.Commands);
     }
   }
 }
