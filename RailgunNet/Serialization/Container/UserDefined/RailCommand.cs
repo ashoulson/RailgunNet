@@ -47,7 +47,6 @@ namespace Railgun
     /// The client tick this command was generated on.
     /// </summary>
     internal int Tick { get; set; }
-    internal int ServerTick { get; set; }
 
     internal abstract void SetFrom(RailCommand other);
     internal abstract RailPoolCommand CreatePool();

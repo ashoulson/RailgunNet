@@ -24,16 +24,23 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
+  public enum SimulationMode
+  {
+    Replica,
+    Controller,
+    Master,
+  }
+
   public abstract class RailEntity
   {
-    internal RailPeerClient Owner { get; set; }
+    internal RailController Controller { get; set; }
 
     internal RailStateBuffer StateBuffer { get; private set; }
 
     public RailStateDelta StateDelta { get; private set; }
     public int CurrentTick { get { return this.World.Tick; } }
 
-    protected internal bool IsMaster { get; internal set; }
+    protected internal SimulationMode SimulationMode { get; internal set; }
     protected internal RailWorld World { get; internal set; }
 
     protected internal int Id { get { return this.State.Id; } }
@@ -47,7 +54,7 @@ namespace Railgun
 
     internal RailEntity()
     {
-      this.Owner = null;
+      this.Controller = null;
       this.World = null;
       this.StateBuffer = new RailStateBuffer();
     }
@@ -55,22 +62,22 @@ namespace Railgun
     internal void InitializeClient(RailState state)
     {
       this.State = state.Clone(RailClock.INVALID_TICK);
-      this.IsMaster = false;
+      this.SimulationMode = SimulationMode.Replica;
       this.StateDelta = new RailStateDelta();
     }
 
     internal void InitializeServer(RailState state)
     {
       this.State = state.Clone(RailClock.INVALID_TICK);
-      this.IsMaster = true;
+      this.SimulationMode = SimulationMode.Master;
       this.StateDelta = null;
     }
 
     internal void UpdateServer()
     {
-      if (this.Owner != null)
+      if (this.Controller != null)
       {
-        RailCommand command = this.Owner.GetLatestCommand();
+        RailCommand command = this.Controller.LatestCommand;
         if (command != null)
           this.SimulateCommand(command);
       }
@@ -83,9 +90,11 @@ namespace Railgun
       this.State.SetDataFrom(this.StateDelta.Latest);
     }
 
-    internal void SetToLatest()
+    internal void ForwardSimulate()
     {
       this.State.SetDataFrom(this.StateBuffer.Latest);
+      foreach (RailCommand command in this.Controller.OutgoingCommands)
+        this.SimulateCommand(command);
     }
 
     internal bool HasLatest(int serverTick)
@@ -99,9 +108,9 @@ namespace Railgun
       this.OnAddedToWorld();
     }
 
-    public void AssignOwner(RailPeerClient owner)
+    public void AssignController(RailController controller)
     {
-      this.Owner = owner;
+      this.Controller = controller;
     }
 
     internal void StoreState(int tick)

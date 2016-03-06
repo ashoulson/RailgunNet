@@ -36,6 +36,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Connection\RailController.cs" />
     <Compile Include="Connection\Peers\RailPeerServer.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\Peers\RailPeer.cs" />

@@ -34,15 +34,15 @@ namespace Example
     {
       this.server = server;
 
-      server.ClientAdded += this.OnPeerAdded;
+      server.ControllerAdded += this.OnControllerAdded;
     }
 
-    private void OnPeerAdded(RailPeerClient peer)
+    private void OnControllerAdded(RailController controller)
     {
       DemoState state = this.server.CreateState<DemoState>();
       state.ArchetypeId = 0;
       DemoEntity entity = this.server.CreateEntity<DemoEntity>(state);
-      entity.AssignOwner(peer);
+      entity.AssignController(controller);
       this.server.AddEntity(entity);
     }
   }
