@@ -24,51 +24,39 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailStateBuffer
+  public class RailSmootherFloat : RailSmoother<float>
   {
-    internal RailState Latest { get { return this.latest; } }
-
-    internal IEnumerable<RailState> Values 
-    { 
-      get { return this.buffer.Values; } 
+    private static float LerpUnclampedFloat(
+      float from, 
+      float to, 
+      float t)
+    {
+      return (from + ((to - from) * t));
     }
 
-    private RailRingBuffer<RailState> buffer;
-    private RailState latest;
-
-    public RailStateBuffer()
+    private static ShouldSnap<float> CreateShouldSnap(
+      float snappingDistance)
     {
-      this.buffer =
-        new RailRingBuffer<RailState>(
-          RailConfig.DEJITTER_BUFFER_LENGTH,
-          RailConfig.NETWORK_SEND_RATE);
+      return delegate(float a, float b)
+      {
+        if ((a - b) > snappingDistance)
+          return true;
+        if ((b - a) > snappingDistance)
+          return true;
+        return false;
+      };
     }
 
-    public void Store(RailState state)
+    public RailSmootherFloat(
+      Accessor<float> accessor,
+      float snappingDistance = float.MaxValue,
+      float maxExtrapolationTime = float.MaxValue)
+      : base(
+        accessor,
+        RailSmootherFloat.LerpUnclampedFloat,
+        RailSmootherFloat.CreateShouldSnap(snappingDistance),
+        maxExtrapolationTime)
     {
-      this.buffer.Store(state);
-      if ((this.latest == null) || (this.latest.Tick < state.Tick))
-        this.latest = state;
-    }
-
-    internal void PopulateDelta(RailRingDelta<RailState> delta, int currentTick)
-    {
-      this.buffer.PopulateDelta(delta, currentTick);
-    }
-
-    internal bool TryGet(int tick, out RailState state)
-    {
-      return this.buffer.TryGet(tick, out state);
-    }
-
-    internal RailState Get(int tick)
-    {
-      return this.buffer.Get(tick);
-    }
-
-    internal RailState GetLatest(int tick)
-    {
-      return this.buffer.GetLatest(tick);
     }
   }
 }

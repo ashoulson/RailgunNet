@@ -22,53 +22,45 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using UnityEngine;
+
 namespace Railgun
 {
-  public class RailStateBuffer
+  public class RailSmootherVector2 : RailSmoother<Vector2>
   {
-    internal RailState Latest { get { return this.latest; } }
-
-    internal IEnumerable<RailState> Values 
-    { 
-      get { return this.buffer.Values; } 
+    private static Vector2 LerpUnclampedVector2(
+      Vector2 from, 
+      Vector2 to, 
+      float t)
+    {
+      return 
+        new Vector2(
+          from.x + (to.x - from.x) * t,
+          from.y + (to.y - from.y) * t);
     }
 
-    private RailRingBuffer<RailState> buffer;
-    private RailState latest;
-
-    public RailStateBuffer()
+    private static ShouldSnap<Vector2> CreateShouldSnap(
+      float snappingDistance)
     {
-      this.buffer =
-        new RailRingBuffer<RailState>(
-          RailConfig.DEJITTER_BUFFER_LENGTH,
-          RailConfig.NETWORK_SEND_RATE);
+      float snappingDistanceSqr = snappingDistance * snappingDistance;
+      return delegate(Vector2 a, Vector2 b)
+      {
+        if ((a - b).sqrMagnitude > snappingDistanceSqr)
+          return true;
+        return false;
+      };
     }
 
-    public void Store(RailState state)
+    public RailSmootherVector2(
+      Accessor<Vector2> accessor,
+      float snappingDistance = float.MaxValue,
+      float maxExtrapolationTime = float.MaxValue)
+      : base(
+        accessor,
+        RailSmootherVector2.LerpUnclampedVector2,
+        RailSmootherVector2.CreateShouldSnap(snappingDistance),
+        maxExtrapolationTime)
     {
-      this.buffer.Store(state);
-      if ((this.latest == null) || (this.latest.Tick < state.Tick))
-        this.latest = state;
-    }
-
-    internal void PopulateDelta(RailRingDelta<RailState> delta, int currentTick)
-    {
-      this.buffer.PopulateDelta(delta, currentTick);
-    }
-
-    internal bool TryGet(int tick, out RailState state)
-    {
-      return this.buffer.TryGet(tick, out state);
-    }
-
-    internal RailState Get(int tick)
-    {
-      return this.buffer.Get(tick);
-    }
-
-    internal RailState GetLatest(int tick)
-    {
-      return this.buffer.GetLatest(tick);
     }
   }
 }

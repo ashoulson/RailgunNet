@@ -48,6 +48,7 @@
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
     <Compile Include="Serialization\Container\UserDefined\Factory\RailPoolEvent.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
+    <Compile Include="World\Smoothing\RailSmoother.cs" />
     <Compile Include="World\Smoothing\RailStateBuffer.cs" />
     <Compile Include="World\Smoothing\RailStateDelta.cs" />
     <Compile Include="RailClock.cs" />
@@ -80,6 +81,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\IntEncoder.cs" />
     <Compile Include="Serialization\Encoding\StandardEncoders.cs" />
+    <Compile Include="World\Smoothing\Smoothers\RailSmootherFloat.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

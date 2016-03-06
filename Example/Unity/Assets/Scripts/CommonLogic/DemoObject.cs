@@ -11,6 +11,22 @@ public class DemoObject : MonoBehaviour
   public bool DoSmoothing = false;
   public Color color = Color.white;
 
+  private RailSmootherVector2 smoother;
+
+  private static Vector2 GetCoordinates(RailState state)
+  {
+    DemoState demoState = (DemoState)state;
+    return new Vector2(demoState.X, demoState.Y);
+  }
+
+  void Awake()
+  {
+    this.smoother = new RailSmootherVector2(
+      DemoObject.GetCoordinates,
+      float.MaxValue,
+      2.0f);
+  }
+
   void Start()
   {
   }
@@ -36,75 +52,27 @@ public class DemoObject : MonoBehaviour
 
   private void UpdatePosition()
   {
-    if ((this.DoSmoothing) && (Entity.IsPredicted == false))
+    if (this.DoSmoothing)
     {
-      if (this.Entity.StateDelta.CanInterpolate())
-      {
-        this.Interpolate();
-        this.color = Color.green;
-      }
-      else if (this.Entity.StateDelta.CanExtrapolate())
-      {
-        this.Extrapolate();
-        this.color = Color.yellow;
-      }
+      this.transform.position =
+        this.Entity.GetSmoothedValue(
+          Time.time - Time.fixedTime, 
+          this.smoother);
+
+      if (Entity.IsPredicted)
+        this.color = Color.cyan;
       else
-      {
-        this.transform.position =
-          new Vector2(this.Entity.State.X, this.Entity.State.Y);
-        this.color = Color.red;
-      }
+        this.color = Color.green;
     }
     else
     {
-      
       this.transform.position =
         new Vector2(this.Entity.State.X, this.Entity.State.Y);
-      if (Input.GetKey(KeyCode.Y))
-        Debug.Log(this.Entity.State.X + " " + this.Entity.State.Y);
 
       if (Entity.IsPredicted)
-        this.color = Color.blue;
+        this.color = Color.magenta;
       else
         this.color = Color.red;
     }
-  }
-
-  private void Interpolate()
-  {
-    DemoState latest = (DemoState)this.Entity.StateDelta.Latest;
-    DemoState next = (DemoState)this.Entity.StateDelta.Next;
-
-    Vector2 latestPos = new Vector2(latest.X, latest.Y);
-    Vector2 nextPos = new Vector2(next.X, next.Y);
-
-    float interpolationScalar;
-    this.Entity.StateDelta.GetInterpolationParams(
-      this.Entity.CurrentTick,
-      Time.time - Time.fixedTime,
-      out interpolationScalar);
-
-    this.transform.position = 
-      Vector2.Lerp(latestPos, nextPos, interpolationScalar);
-  }
-
-  private void Extrapolate()
-  {
-    DemoState prior = (DemoState)this.Entity.StateDelta.Prior;
-    DemoState latest = (DemoState)this.Entity.StateDelta.Latest;
-
-    Vector2 priorPos = new Vector2(prior.X, prior.Y);
-    Vector2 latestPos = new Vector2(latest.X, latest.Y);
-
-    float timeSincePrior;
-    float velocityScale;
-    this.Entity.StateDelta.GetExtrapolationParams(
-      this.Entity.CurrentTick,
-      Time.time - Time.fixedTime,
-      out timeSincePrior,
-      out velocityScale);
-
-    Vector2 velocity = (latestPos - priorPos) / velocityScale;
-    this.transform.position = priorPos + (velocity * timeSincePrior);
   }
 }

@@ -64,6 +64,7 @@
     <Compile Include="DemoState.cs" />
     <Compile Include="DemoTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RailSmootherVector2.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UnityEngineStandalone\UnityEngineStandalone.csproj" Condition="('$(Configuration)'=='Server Debug') Or ('$(Configuration)'=='Server Release')">
