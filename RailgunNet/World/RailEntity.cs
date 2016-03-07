@@ -29,8 +29,8 @@ namespace Railgun
     public const int INVALID_ID = -1;
 
     internal RailController Controller { get; set; }
-
     internal RailStateBuffer StateBuffer { get; private set; }
+    internal bool IsAwake { get; private set; }
 
     public RailStateDelta StateDelta { get; private set; }
     public int CurrentTick { get { return this.World.Tick; } }
@@ -48,6 +48,7 @@ namespace Railgun
     internal int TickCreated { get; set; }
 
     protected virtual void OnAddedToWorld() { }
+    protected virtual void OnControllerChanged() { }
 
     protected virtual void Simulate() { }
     internal virtual void SimulateCommand(RailCommand command) { }
@@ -62,6 +63,7 @@ namespace Railgun
       this.Controller = null;
       this.World = null;
       this.StateBuffer = new RailStateBuffer();
+      this.IsAwake = false;
     }
 
     internal void InitializeClient(RailState state)
@@ -95,10 +97,13 @@ namespace Railgun
 
     internal void UpdateClient(int serverTick)
     {
-      if (this.Controller != null)
-        this.ForwardSimulate();
-      else
-        this.ReplicaSimulate(serverTick);
+      if (this.IsAwake)
+      {
+        if (this.Controller != null)
+          this.ForwardSimulate();
+        else
+          this.ReplicaSimulate(serverTick);
+      }
     }
 
     internal void ReplicaSimulate(int serverTick)
@@ -116,7 +121,15 @@ namespace Railgun
 
     internal void AddedToWorld()
     {
+      this.IsAwake = true;
       this.OnAddedToWorld();
+      this.OnControllerChanged();    
+    }
+
+    internal void ControllerChanged()
+    {
+      if (this.IsAwake)
+        this.OnControllerChanged();
     }
 
     internal void StoreState(int tick)
