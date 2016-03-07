@@ -34,7 +34,7 @@ namespace Railgun
       return (from + ((to - from) * t));
     }
 
-    private static ShouldSnap<float> CreateShouldSnap(
+    private static ShouldSnap CreateShouldSnap(
       float snappingDistance)
     {
       return delegate(float a, float b)
@@ -48,7 +48,7 @@ namespace Railgun
     }
 
     public RailSmootherFloat(
-      Accessor<float> accessor,
+      Accessor accessor,
       float snappingDistance = float.MaxValue,
       float maxExtrapolationTime = float.MaxValue)
       : base(

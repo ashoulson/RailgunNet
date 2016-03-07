@@ -26,20 +26,20 @@ namespace Railgun
 {
   public class RailSmoother<T>
   {
-    public delegate T Accessor<T>(RailState state);
-    public delegate T LerpUnclamped<T>(T from, T to, float t);
-    public delegate bool ShouldSnap<T>(T from, T to);
+    public delegate T Accessor(RailState state);
+    public delegate T LerpUnclamped(T from, T to, float t);
+    public delegate bool ShouldSnap(T from, T to);
 
-    private Accessor<T> accessor;
-    private LerpUnclamped<T> lerpUnclamped;
-    private ShouldSnap<T> shouldSnap;
+    private Accessor accessor;
+    private LerpUnclamped lerpUnclamped;
+    private ShouldSnap shouldSnap;
 
     private float maxExtrapolationTime;
 
     public RailSmoother(
-      Accessor<T> accessor,
-      LerpUnclamped<T> lerpUnclamped,
-      ShouldSnap<T> shouldSnap = null,
+      Accessor accessor,
+      LerpUnclamped lerpUnclamped,
+      ShouldSnap shouldSnap = null,
       float maxExtrapolationTime = float.MaxValue)
     {
       this.accessor = accessor;
