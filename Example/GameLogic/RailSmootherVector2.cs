@@ -39,7 +39,7 @@ namespace Railgun
           from.y + (to.y - from.y) * t);
     }
 
-    private static ShouldSnap<Vector2> CreateShouldSnap(
+    private static ShouldSnap CreateShouldSnap(
       float snappingDistance)
     {
       float snappingDistanceSqr = snappingDistance * snappingDistance;
@@ -52,7 +52,7 @@ namespace Railgun
     }
 
     public RailSmootherVector2(
-      Accessor<Vector2> accessor,
+      Accessor accessor,
       float snappingDistance = float.MaxValue,
       float maxExtrapolationTime = float.MaxValue)
       : base(
