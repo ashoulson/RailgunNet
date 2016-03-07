@@ -86,6 +86,8 @@ namespace Railgun
       get { throw new NotSupportedException(); }
     }
 
+    internal virtual void Shutdown() { }
+
     internal RailController()
     {
       this.controlledEntities = new HashSet<RailEntity>();

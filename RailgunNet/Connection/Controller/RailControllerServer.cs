@@ -76,21 +76,35 @@ namespace Railgun
 
       CommonDebug.Assert(entity.Controller == null);
       this.controlledEntities.Add(entity);
+
       entity.Controller = this;
+      entity.ControllerChanged();
 
       this.QueueControlEvent(entity.Id, true, tick);
     }
 
     /// <summary>
-    /// Removed an entity from being controlled by this controller.
+    /// Remove an entity from being controlled by this controller.
     /// </summary>
     internal void RemoveEntity(RailEntity entity, int tick)
     {
       CommonDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
+
       entity.Controller = null;
+      entity.ControllerChanged();
 
       this.QueueControlEvent(entity.Id, false, tick);
+    }
+
+    internal override void Shutdown()
+    {
+      foreach (RailEntity entity in this.controlledEntities)
+      {
+        entity.Controller = null;
+        entity.ControllerChanged();
+      }
+      this.controlledEntities.Clear();
     }
 
     private void QueueControlEvent(int entityId, bool granted, int tick)

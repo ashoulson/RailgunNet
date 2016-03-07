@@ -39,6 +39,8 @@ namespace Railgun
 
     /// <summary>
     /// Fired when a controller has been removed (i.e. player leave).
+    /// This event fires before the controller has control of its entities
+    /// revoked (this is done immediately afterwards).
     /// </summary>
     public event Action<RailController> ControllerRemoved;
 
@@ -84,7 +86,10 @@ namespace Railgun
         this.clients.Remove(peer);
 
         if (this.ControllerRemoved != null)
-          this.ControllerAdded.Invoke(client.Controller);
+          this.ControllerRemoved.Invoke(client.Controller);
+
+        // Revoke control of all the entities controlled by that controller
+        client.Controller.Shutdown();
       }
     }
 
