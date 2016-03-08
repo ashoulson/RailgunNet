@@ -39,8 +39,6 @@ namespace Railgun
   /// </summary>
   public abstract class RailEvent : IRailPoolable, IRailRingValue
   {
-    public const int NO_EVENT_ID = -1;
-
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
     int IRailRingValue.Tick { get { return this.Tick; } }
@@ -53,7 +51,7 @@ namespace Railgun
     /// <summary>
     /// An optional id assigned to this event, used for reliability.
     /// </summary>
-    internal int EventId { get; private set; }
+    internal EventId EventId { get; private set; }
 
     /// <summary>
     /// The int index for the type of event.
@@ -69,7 +67,7 @@ namespace Railgun
 
     internal void Initialize(
       int tick,
-      int eventId)
+      EventId eventId)
     {
       this.Tick = tick;
       this.EventId = eventId;
@@ -87,7 +85,7 @@ namespace Railgun
     protected internal void Reset()
     {
       this.Tick = RailClock.INVALID_TICK;
-      this.EventId = RailEvent.NO_EVENT_ID;
+      this.EventId = EventId.INVALID;
       this.ResetData();
     }
 

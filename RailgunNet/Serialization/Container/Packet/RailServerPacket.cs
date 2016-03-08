@@ -134,7 +134,7 @@ namespace Railgun
 
     internal static RailServerPacket Decode(
       BitBuffer buffer,
-      IDictionary<int, RailEntity> knownEntities)
+      IDictionary<EntityId, RailEntity> knownEntities)
     {
       RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
 

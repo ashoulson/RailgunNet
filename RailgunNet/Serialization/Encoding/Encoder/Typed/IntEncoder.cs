@@ -34,8 +34,8 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    internal int MinValue { get { return this.minValue; } }
-    internal int MaxValue { get { return this.maxValue; } }
+    internal override int MinValue { get { return this.minValue; } }
+    internal override int MaxValue { get { return this.maxValue; } }
     internal override int RequiredBits { get { return this.requiredBits; } }
 
     public IntEncoder(int minValue, int maxValue)

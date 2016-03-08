@@ -41,8 +41,8 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    internal float MinValue { get { return this.minValue; } }
-    internal float MaxValue { get { return this.maxValue; } }
+    internal override float MinValue { get { return this.minValue; } }
+    internal override float MaxValue { get { return this.maxValue; } }
     internal override int RequiredBits { get { return this.requiredBits; } }
 
     public FloatEncoder(float minValue, float maxValue, float precision)

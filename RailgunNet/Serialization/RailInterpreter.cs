@@ -86,7 +86,7 @@ namespace Railgun
 
     internal IEnumerable<RailServerPacket> ReceiveServerPackets(
       RailPeerServer sourcePeer,
-      IDictionary<int, RailEntity> knownEntities)
+      IDictionary<EntityId, RailEntity> knownEntities)
     {
       foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
       {
@@ -124,8 +124,8 @@ namespace Railgun
     internal static RailState DecodeState(
       BitBuffer buffer, 
       int currentTick,
-      int basisTick, 
-      IDictionary<int, RailEntity> knownEntities)
+      int basisTick,
+      IDictionary<EntityId, RailEntity> knownEntities)
     {
       RailEntity entity = null;
       RailState basis = null;

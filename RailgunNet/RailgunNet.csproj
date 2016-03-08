@@ -48,6 +48,10 @@
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
     <Compile Include="Serialization\Container\UserDefined\Factory\RailPoolEvent.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
+    <Compile Include="Serialization\Encoding\Encoder\Typed\EntityIdEncoder.cs" />
+    <Compile Include="Serialization\Encoding\Encoder\Typed\EventIdEncoder.cs" />
+    <Compile Include="System\Types\EntityId.cs" />
+    <Compile Include="System\Types\EventId.cs" />
     <Compile Include="World\Smoothing\RailSmoother.cs" />
     <Compile Include="World\Smoothing\RailStateBuffer.cs" />
     <Compile Include="World\Smoothing\RailStateDelta.cs" />

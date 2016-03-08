@@ -24,26 +24,38 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal static class StandardEncoders
+  public class EntityIdEncoder : Encoder<EntityId>
   {
-    // Entity
-    internal static readonly EntityIdEncoder EntityId = new EntityIdEncoder();
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
-    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
+    private IntEncoder encoder;
 
-    // Event
-    internal static readonly EventIdEncoder EventId = new EventIdEncoder();
-    internal static readonly IntEncoder EventCount = new IntEncoder(0, RailConfig.MAX_EVENT_COUNT);
-    internal static readonly IntEncoder EventType = new IntEncoder(-10, 117);
+    internal override EntityId MinValue 
+    { 
+      get { return EntityId.Create(this.encoder.MinValue); } 
+    }
 
+    internal override EntityId MaxValue 
+    { 
+      get { return EntityId.Create(this.encoder.MaxValue); } 
+    }
 
+    internal override int RequiredBits 
+    { 
+      get { return this.encoder.RequiredBits; } 
+    }
 
-    internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
+    public EntityIdEncoder()
+    {
+      this.encoder = EntityId.GetIdEncoder();
+    }
 
-    internal static readonly IntEncoder Tick = new IntEncoder(-1, 1048574);
+    internal override uint Pack(EntityId value)
+    {
+      return this.encoder.Pack(value.Raw);
+    }
 
-    internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
-
-    internal static readonly BoolEncoder Bool = new BoolEncoder();
+    internal override EntityId Unpack(uint data)
+    {
+      return EntityId.Create(this.encoder.Unpack(data));
+    }
   }
 }

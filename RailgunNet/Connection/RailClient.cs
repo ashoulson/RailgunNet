@@ -38,18 +38,18 @@ namespace Railgun
     /// <summary>
     /// Entities that are waiting to be added to the world.
     /// </summary>
-    private Dictionary<int, RailEntity> pendingEntities;
+    private Dictionary<EntityId, RailEntity> pendingEntities;
 
     /// <summary>
     /// All known entities, either in-world or pending.
     /// </summary>
-    private Dictionary<int, RailEntity> knownEntities;
+    private Dictionary<EntityId, RailEntity> knownEntities;
 
     // The local simulation tick, used for commands
     private int localTick;
 
     // The last received event id, for reliable sequencing
-    private int lastReceivedEventId;
+    private EventId lastReceivedEventId;
 
     public RailClient(
       RailCommand commandToRegister, 
@@ -61,11 +61,13 @@ namespace Railgun
       this.serverClock = new RailClock();
 
       this.localTick = 0;
-      this.lastReceivedEventId = RailEvent.NO_EVENT_ID;
+      this.lastReceivedEventId = EventId.INVALID;
       this.localController = new RailControllerClient();
 
-      this.pendingEntities = new Dictionary<int, RailEntity>();
-      this.knownEntities = new Dictionary<int, RailEntity>();
+      this.pendingEntities = 
+        new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
+      this.knownEntities =
+        new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -195,7 +197,7 @@ namespace Railgun
       return entity;
     }
 
-    private RailEntity GetEntity(int entityId)
+    private RailEntity GetEntity(EntityId entityId)
     {
       RailEntity entity;
       if (this.world.TryGetEntity(entityId, out entity) == true)
@@ -208,12 +210,15 @@ namespace Railgun
     private void ProcessEvent(RailEvent evnt)
     {
       // Skip already processed events
-      if (evnt.EventId != RailEvent.NO_EVENT_ID)
-        if (evnt.EventId <= this.lastReceivedEventId)
+      if (evnt.EventId.IsReliable)
+      {
+        if (this.lastReceivedEventId.IsValid == false)
+          this.lastReceivedEventId = evnt.EventId;
+        else if (evnt.EventId.IsNewerThan(this.lastReceivedEventId))
+          this.lastReceivedEventId = evnt.EventId;
+        else
           return;
-
-      if (evnt.EventId > this.lastReceivedEventId)
-        this.lastReceivedEventId = evnt.EventId;
+      }
 
       // TODO: Move this to a more comprehensive solution
       switch (evnt.EventType)

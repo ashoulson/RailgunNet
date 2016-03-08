@@ -31,11 +31,11 @@ namespace Railgun
       get { return RailEventTypes.TYPE_CONTROL; }
     }
 
-    internal int EntityId { get; set; }
+    internal EntityId EntityId { get; set; }
     internal bool Granted { get; set; }
 
     internal void SetData(
-      int entityId,
+      EntityId entityId,
       bool granted)
     {
       this.EntityId = entityId;
@@ -44,7 +44,7 @@ namespace Railgun
 
     protected override void ResetData()
     {
-      this.EntityId = RailEntity.INVALID_ID;
+      this.EntityId = EntityId.INVALID;
       this.Granted = false;
     }
 

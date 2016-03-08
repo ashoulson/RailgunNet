@@ -49,7 +49,7 @@ namespace Railgun
     /// <summary>
     /// The object's network ID.
     /// </summary>
-    public int Id { get; set; }
+    public EntityId Id { get; set; }
 
     /// <summary>
     /// The server tick this state was generated on.
@@ -75,13 +75,13 @@ namespace Railgun
 
     protected internal void Reset() 
     {
-      this.Id = RailEntity.INVALID_ID;
+      this.Id = EntityId.INVALID;
       this.Tick = RailClock.INVALID_TICK;
       this.IsPredicted = false;
       this.ResetData();
     }
 
-    internal void Initialize(int id, int tick)
+    internal void Initialize(EntityId id, int tick)
     {
       this.Id = id;
       this.Tick = tick;
@@ -90,7 +90,7 @@ namespace Railgun
     }
 
     #region Encode/Decode/etc.
-    internal static int PeekId(
+    internal static EntityId PeekId(
       BitBuffer buffer)
     {
       return buffer.Peek(StandardEncoders.EntityId);
@@ -137,7 +137,7 @@ namespace Railgun
       int snapshotTick)
     {
       // Read: [Id]
-      int stateId = buffer.Pop(StandardEncoders.EntityId);
+      EntityId stateId = buffer.Pop(StandardEncoders.EntityId);
 
       // Read: [Type]
       int entityType = buffer.Pop(StandardEncoders.EntityType);
@@ -157,7 +157,7 @@ namespace Railgun
       RailState basis)
     {
       // Read: [Id]
-      int stateId = buffer.Pop(StandardEncoders.EntityId);
+      EntityId stateId = buffer.Pop(StandardEncoders.EntityId);
 
       // (No [Type] for delta images)
 

@@ -26,8 +26,6 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
-    public const int INVALID_ID = -1;
-
     internal RailController Controller { get; set; }
     internal RailStateBuffer StateBuffer { get; private set; }
     internal bool IsAwake { get; private set; }
@@ -38,7 +36,7 @@ namespace Railgun
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
 
-    protected internal int Id { get { return this.State.Id; } }
+    protected internal EntityId Id { get { return this.State.Id; } }
     protected internal int Type { get { return this.State.EntityType; } }
     protected internal RailState State { get; set; }
 

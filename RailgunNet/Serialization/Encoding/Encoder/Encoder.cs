@@ -26,6 +26,8 @@ namespace Railgun
 {
   public abstract class Encoder<T>
   {
+    internal abstract T MinValue { get; }
+    internal abstract T MaxValue { get; }
     internal abstract int RequiredBits { get; }
 
     internal abstract uint Pack(T value);
