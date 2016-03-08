@@ -107,7 +107,7 @@ namespace Railgun
       this.controlledEntities.Clear();
     }
 
-    private void QueueControlEvent(int entityId, bool granted, int tick)
+    private void QueueControlEvent(EntityId entityId, bool granted, int tick)
     {
       RailControlEvent controlEvent =
         RailResource.Instance.AllocateControlEvent();

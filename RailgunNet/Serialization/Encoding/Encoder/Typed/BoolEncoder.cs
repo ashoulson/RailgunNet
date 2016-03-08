@@ -28,6 +28,8 @@ namespace Railgun
 {
   public class BoolEncoder : Encoder<bool>
   {
+    internal override bool MinValue { get { return false; } }
+    internal override bool MaxValue { get { return true; } }
     internal override int RequiredBits { get { return 1; } }
 
     public BoolEncoder() {}

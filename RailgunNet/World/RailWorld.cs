@@ -33,25 +33,25 @@ namespace Railgun
     }
 
     // TODO: Rollover? Free list?
-    private int nextEntityId;
+    private EntityId lastEntityId;
 
-    private Dictionary<int, RailEntity> entities;
+    private Dictionary<EntityId, RailEntity> entities;
 
-    public bool TryGetEntity(int id, out RailEntity value)
+    public bool TryGetEntity(EntityId id, out RailEntity value)
     {
       return this.entities.TryGetValue(id, out value);
     }
 
     internal RailWorld()
     {
-      this.entities = new Dictionary<int, RailEntity>();
-      this.nextEntityId = 1;
+      this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
+      this.lastEntityId = EntityId.INVALID;
       this.Tick = 0;
     }
 
-    internal int GetEntityId()
+    internal EntityId GetEntityId()
     {
-      return this.nextEntityId++;
+      return EntityId.Increment(ref this.lastEntityId);
     }
 
     /// <summary>

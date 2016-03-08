@@ -40,7 +40,7 @@ namespace Railgun
 
     internal int ClientTick { get; private set; }
     internal int LastReceivedServerTick { get; private set; }
-    internal int LastReceivedEventId { get; private set; }
+    internal EventId LastReceivedEventId { get; private set; }
     internal IEnumerable<RailCommand> Commands { get { return this.commands; } }
 
     private readonly List<RailCommand> commands;
@@ -53,8 +53,8 @@ namespace Railgun
 
     public void Initialize(
       int tick, 
-      int lastReceivedServerTick, 
-      int lastReceivedEventId,
+      int lastReceivedServerTick,
+      EventId lastReceivedEventId,
       IEnumerable<RailCommand> commands)
     {
       this.ClientTick = tick;

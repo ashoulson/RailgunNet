@@ -63,5 +63,18 @@ namespace Railgun
     /// </summary>
     internal const int MAX_MESSAGE_SIZE = 1400;
 
+    #region Encoding Parameters
+    /// <summary>
+    /// Maximum number of entities supported. For best results. Make this
+    /// two less than a power of two (i.e. 64 -> 62, 1024 -> 1022, etc.).
+    /// </summary>
+    internal const int MAX_ENTITY_COUNT = 4094;
+
+    /// <summary>
+    /// The number of events to label before doing a rollover. Make this
+    /// three less than a power of two (i.e. 64 -> 61, 1024 -> 1021, etc.).
+    /// </summary>
+    internal const int MAX_EVENT_COUNT = 65533;
+    #endregion
   }
 }

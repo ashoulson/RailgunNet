@@ -38,17 +38,17 @@ namespace Railgun
     /// <summary>
     /// A rolling queue for outgoing reliable events, in order.
     /// </summary>
-    private readonly Queue<RailEvent> outgoingReliableEvents;
+    private readonly Queue<RailEvent> outgoingReliable;
 
     /// <summary>
     /// A buffer for outgoing unreliable events, cleared each send.
     /// </summary>
-    private readonly List<RailEvent> outgoingUnreliableEvents;
+    private readonly List<RailEvent> outgoingUnreliable;
 
     /// <summary>
     /// Used for uniquely identifying and ordering reliable events.
     /// </summary>
-    private int nextEventId;
+    private EventId lastEventId;
 
     internal IEnumerable<RailEntity> ControlledEntities 
     { 
@@ -57,12 +57,12 @@ namespace Railgun
 
     internal IEnumerable<RailEvent> ReliableEvents
     {
-      get { return this.outgoingReliableEvents; }
+      get { return this.outgoingReliable; }
     }
 
     internal IEnumerable<RailEvent> UnreliableEvents
     {
-      get { return this.outgoingUnreliableEvents; }
+      get { return this.outgoingUnreliable; }
     }
 
     internal IEnumerable<RailEvent> AllEvents
@@ -91,10 +91,10 @@ namespace Railgun
     internal RailController()
     {
       this.controlledEntities = new HashSet<RailEntity>();
-      this.outgoingReliableEvents = new Queue<RailEvent>();
-      this.outgoingUnreliableEvents = new List<RailEvent>();
+      this.outgoingReliable = new Queue<RailEvent>();
+      this.outgoingUnreliable = new List<RailEvent>();
 
-      this.nextEventId = 0;
+      this.lastEventId = EventId.INVALID;
     }
 
     internal void QueueUnreliable(RailEvent evnt, int tick)
@@ -102,8 +102,8 @@ namespace Railgun
       RailEvent clone = evnt.Clone();
       clone.Initialize(
         tick,
-        RailEvent.NO_EVENT_ID);
-      this.outgoingUnreliableEvents.Add(clone);
+        EventId.UNRELIABLE);
+      this.outgoingUnreliable.Add(clone);
     }
 
     internal void QueueReliable(RailEvent evnt, int tick)
@@ -111,27 +111,29 @@ namespace Railgun
       RailEvent clone = evnt.Clone();
       clone.Initialize(
         tick,
-        this.nextEventId++);
-      this.outgoingReliableEvents.Enqueue(clone);
+        EventId.Increment(ref this.lastEventId));
+      this.outgoingReliable.Enqueue(clone);
     }
 
-    internal void CleanReliableEvents(int lastReceivedId)
+    internal void CleanReliableEvents(EventId lastReceivedId)
     {
       while (true)
       {
-        if (this.outgoingReliableEvents.Count == 0)
+        if (lastReceivedId.IsValid == false) // They haven't received anything
           break;
-        if (this.outgoingReliableEvents.Peek().EventId > lastReceivedId)
+        if (this.outgoingReliable.Count == 0)
           break;
-        RailPool.Free(this.outgoingReliableEvents.Dequeue());
+        if (this.outgoingReliable.Peek().EventId.IsNewerThan(lastReceivedId))
+          break;
+        RailPool.Free(this.outgoingReliable.Dequeue());
       }
     }
 
     internal void CleanUnreliableEvents()
     {
-      foreach (RailEvent evnt in this.outgoingUnreliableEvents)
+      foreach (RailEvent evnt in this.outgoingUnreliable)
         RailPool.Free(evnt);
-      this.outgoingUnreliableEvents.Clear();
+      this.outgoingUnreliable.Clear();
     }
   }
 }
