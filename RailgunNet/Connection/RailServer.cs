@@ -108,6 +108,9 @@ namespace Railgun
       if (this.ShouldSend(this.world.Tick))
       {
         this.BroadcastPackets();
+
+        // We want to store as late as possible in the process -- see the
+        // notes in the description of RailStateBuffer.cs for an explanation
         this.world.StoreStates();
       }
     }

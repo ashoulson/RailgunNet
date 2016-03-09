@@ -24,6 +24,50 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
+  /// <summary>
+  /// Some notes about state buffering on the client and server:
+  /// 
+  /// ---
+  /// WHAT IS THE OLDEST "SAFE" STATE TO DELTA AGAINST FOR THE CLIENT?
+  /// ---
+  /// Note that we have to decode before we store the state on the client.
+  /// This means that the oldest "safe" theoretical packet tick available
+  /// at decode time in the buffer is (ServerTick - DEJITTER_BUFFER_LENGTH).
+  ///
+  /// As long as you never send a delta packet with a basis older than
+  /// (ServerTick - DEJITTER_BUFFER_LENGTH) you can count on it not being
+  /// replaced before your send arrives. If you try to delta against an
+  /// older packet than (ServerTick - DEJITTER_BUFFER_LENGTH) and your lag
+  /// is (admittedly, very) high, then there's a chance that the state you
+  /// encoded against may be overwritten on the client before the state you
+  /// just sent will arrive.
+  ///
+  /// Worked out worst case example with buffer length 10 and send rate 2:
+  /// [00] [02] [04] [06] [08] -> Ack 8
+  /// [00] [02] [04] [06] [08] <- 10 Basis 8
+  /// [10] [02] [04] [06] [08] -> Ack 10 (LOST)
+  /// [10] [02] [04] [06] [08] <- 12 Basis 8
+  /// [10] [12] [04] [06] [08] -> Ack 12 (LOST)
+  /// [10] [12] [04] [06] [08] <- 14 Basis 8
+  /// [10] [12] [14] [06] [08] -> Ack 14 (LOST)
+  /// [10] [12] [14] [06] [08] <- 16 Basis 8
+  /// [10] [12] [14] [16] [08] -> Ack 16 (LOST)
+  /// [10] [12] [14] [16] [08] <- 18 Basis 8    // 8 still in buffer
+  /// [10] [12] [14] [16] [18] -> Ack 18 (LOST) // 8 replaced after receive
+  /// [10] [12] [14] [16] [18] <- 20 Full       // 8 < 20 - 10
+  /// [20] [12] [14] [16] [18] -> Ack 20
+  /// 
+  /// 
+  /// ---
+  /// WHAT IS THE OLDEST STATE AVAILABLE ON THE SERVER?
+  /// ---
+  /// Assuming states are always stored for every tick (or send), the oldest
+  /// tick available will be (ServerTick - DEJITTER_BUFFER_LENGTH) before you
+  /// store a state, and (ServerTick - (DEJITTER_BUFFER_LENGTH - SEND_RATE))
+  /// after you store a state. Because of this discrepancy, it's a good idea
+  /// to not store the state on the server until after you're done processing
+  /// everything and are about to send.
+  /// </summary>
   public class RailStateBuffer
   {
     internal RailState Latest { get { return this.latest; } }
