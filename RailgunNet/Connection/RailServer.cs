@@ -109,8 +109,8 @@ namespace Railgun
       {
         this.BroadcastPackets();
 
-        // We want to store as late as possible in the process -- see the
-        // notes in the description of RailStateBuffer.cs for an explanation
+        // Store only after everything else, this lets us keep the full
+        // history for reference for as long as we need to process it
         this.world.StoreStates();
       }
     }
