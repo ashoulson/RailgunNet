@@ -46,7 +46,7 @@ namespace Railgun
     private Dictionary<EntityId, RailEntity> knownEntities;
 
     // The local simulation tick, used for commands
-    private int localTick;
+    private Tick localTick;
 
     // The last received event id, for reliable sequencing
     private EventId lastReceivedEventId;
@@ -60,7 +60,7 @@ namespace Railgun
       this.serverPeer = null;
       this.serverClock = new RailClock();
 
-      this.localTick = 0;
+      this.localTick = Tick.INVALID;
       this.lastReceivedEventId = EventId.INVALID;
       this.localController = new RailControllerClient();
 
@@ -78,12 +78,12 @@ namespace Railgun
 
     public override void Update()
     {
-      this.localTick++;
+      this.localTick = this.localTick.GetNext();
 
       this.UpdateCommands();
-      this.UpdateWorld(this.serverClock.Tick());
+      this.UpdateWorld(this.serverClock.Update());
 
-      if ((this.serverPeer != null) && this.ShouldSend(this.localTick))
+      if ((this.serverPeer != null) && this.localTick.CanSend)
         this.SendPacket();
     }
 
@@ -95,7 +95,7 @@ namespace Railgun
     {
       for (; numTicks > 0; numTicks--)
       {
-        int serverTick = (this.serverClock.EstimatedRemote - numTicks) + 1;
+        Tick serverTick = (this.serverClock.EstimatedRemote - numTicks) + 1;
         this.UpdatePending(serverTick);
         this.world.UpdateClient(serverTick);
       }
@@ -117,7 +117,7 @@ namespace Railgun
     /// Checks to see if any pending entities can be added to the world and
     /// adds them if applicable.
     /// </summary>
-    private void UpdatePending(int serverTick)
+    private void UpdatePending(Tick serverTick)
     {
       // TODO: This list could be pre-allocated
       List<RailEntity> toRemove = new List<RailEntity>();
@@ -177,8 +177,8 @@ namespace Railgun
     private void ProcessState(RailState state)
     {
       RailEntity entity;
-      if (this.World.TryGetEntity(state.Id, out entity) == false)
-        if (this.pendingEntities.TryGetValue(state.Id, out entity) == false)
+      if (this.World.TryGetEntity(state.EntityId, out entity) == false)
+        if (this.pendingEntities.TryGetValue(state.EntityId, out entity) == false)
           entity = this.ReplicateEntity(state);
       entity.StateBuffer.Store(state);
     }
@@ -191,8 +191,8 @@ namespace Railgun
       RailEntity entity = state.CreateEntity();
       entity.InitializeClient(state);
 
-      this.pendingEntities.Add(state.Id, entity);
-      this.knownEntities.Add(state.Id, entity);
+      this.pendingEntities.Add(state.EntityId, entity);
+      this.knownEntities.Add(state.EntityId, entity);
 
       return entity;
     }

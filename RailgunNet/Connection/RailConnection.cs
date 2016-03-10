@@ -51,10 +51,5 @@ namespace Railgun
       this.world = new RailWorld();
       this.interpreter = new RailInterpreter();
     }
-
-    protected bool ShouldSend(int tick)
-    {
-      return (tick % RailConfig.NETWORK_SEND_RATE) == 0;
-    }
   }
 }

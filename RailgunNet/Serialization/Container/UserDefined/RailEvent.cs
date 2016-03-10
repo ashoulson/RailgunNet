@@ -41,12 +41,12 @@ namespace Railgun
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Tick { get { return this.Tick; } }
+    Tick IRailRingValue.Tick { get { return this.Tick; } }
 
     /// <summary>
     /// The tick this command was generated on (client or server).
     /// </summary>
-    internal int Tick { get; private set; }
+    internal Tick Tick { get; private set; }
 
     /// <summary>
     /// An optional id assigned to this event, used for reliability.
@@ -66,7 +66,7 @@ namespace Railgun
     protected abstract void ResetData();
 
     internal void Initialize(
-      int tick,
+      Tick tick,
       EventId eventId)
     {
       this.Tick = tick;
@@ -84,7 +84,7 @@ namespace Railgun
 
     protected internal void Reset()
     {
-      this.Tick = RailClock.INVALID_TICK;
+      this.Tick = Tick.INVALID;
       this.EventId = EventId.INVALID;
       this.ResetData();
     }

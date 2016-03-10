@@ -34,7 +34,7 @@ namespace Railgun
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Tick { get { return this.Tick; } }
+    Tick IRailRingValue.Tick { get { return this.Tick; } }
 
     public RailState()
     {
@@ -49,12 +49,12 @@ namespace Railgun
     /// <summary>
     /// The object's network ID.
     /// </summary>
-    public EntityId Id { get; set; }
+    public EntityId EntityId { get; set; }
 
     /// <summary>
     /// The server tick this state was generated on.
     /// </summary>
-    internal int Tick { get; set; }
+    internal Tick Tick { get; set; }
 
     /// <summary>
     /// The int index for the type of entity this state applies to.
@@ -75,15 +75,15 @@ namespace Railgun
 
     protected internal void Reset() 
     {
-      this.Id = EntityId.INVALID;
-      this.Tick = RailClock.INVALID_TICK;
+      this.EntityId = EntityId.INVALID;
+      this.Tick = Tick.INVALID;
       this.IsPredicted = false;
       this.ResetData();
     }
 
-    internal void Initialize(EntityId id, int tick)
+    internal void Initialize(EntityId entityId, Tick tick)
     {
-      this.Id = id;
+      this.EntityId = entityId;
       this.Tick = tick;
       this.IsPredicted = false;
       this.ResetData();
@@ -100,7 +100,7 @@ namespace Railgun
     {
       RailState clone = RailResource.Instance.AllocateState(this.EntityType);
       clone.Initialize(
-        this.Id,
+        this.EntityId,
         this.Tick);
       clone.SetDataFrom(this);
       return clone;
@@ -116,7 +116,7 @@ namespace Railgun
       buffer.Push(StandardEncoders.EntityType, this.EntityType);
 
       // Write: [Id]
-      buffer.Push(StandardEncoders.EntityId, this.Id);
+      buffer.Push(StandardEncoders.EntityId, this.EntityId);
     }
 
     internal void Encode(
@@ -129,12 +129,12 @@ namespace Railgun
       // (No [Type] for delta states)
 
       // Write: [Id]
-      buffer.Push(StandardEncoders.EntityId, this.Id);
+      buffer.Push(StandardEncoders.EntityId, this.EntityId);
     }
 
     internal static RailState Decode(
       BitBuffer buffer,
-      int snapshotTick)
+      Tick snapshotTick)
     {
       // Read: [Id]
       EntityId stateId = buffer.Pop(StandardEncoders.EntityId);
@@ -153,7 +153,7 @@ namespace Railgun
 
     internal static RailState Decode(
       BitBuffer buffer,
-      int snapshotTick,
+      Tick snapshotTick,
       RailState basis)
     {
       // Read: [Id]

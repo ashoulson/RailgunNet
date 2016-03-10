@@ -60,9 +60,9 @@ namespace Railgun
       this.data[index] = value;
     }
 
-    public T Get(int tick)
+    public T Get(Tick tick)
     {
-      if (tick == RailClock.INVALID_TICK)
+      if (tick == Tick.INVALID)
         return null;
 
       T result = this.data[this.TickToIndex(tick)];
@@ -71,9 +71,9 @@ namespace Railgun
       return null;
     }
 
-    public void PopulateDelta(RailRingDelta<T> delta, int currentTick)
+    public void PopulateDelta(RailRingDelta<T> delta, Tick currentTick)
     {
-      if (currentTick == RailClock.INVALID_TICK)
+      if (currentTick == Tick.INVALID)
       {
         delta.Set(null, null, null);
         return;
@@ -111,9 +111,9 @@ namespace Railgun
       delta.Set(prior, latest, next);
     }
 
-    public T GetLatest(int tick)
+    public T GetLatest(Tick tick)
     {
-      if (tick == RailClock.INVALID_TICK)
+      if (tick == Tick.INVALID)
         return null;
 
       T result = this.Get(tick);
@@ -136,9 +136,9 @@ namespace Railgun
       return result;
     }
 
-    public bool Contains(int tick)
+    public bool Contains(Tick tick)
     {
-      if (tick == RailClock.INVALID_TICK)
+      if (tick == Tick.INVALID)
         return false;
 
       T result = this.data[this.TickToIndex(tick)];
@@ -147,9 +147,9 @@ namespace Railgun
       return false;
     }
 
-    public bool TryGet(int tick, out T value)
+    public bool TryGet(Tick tick, out T value)
     {
-      if (tick == RailClock.INVALID_TICK)
+      if (tick == Tick.INVALID)
       {
         value = null;
         return false;
@@ -159,9 +159,9 @@ namespace Railgun
       return (value != null);
     }
 
-    private int TickToIndex(int tick)
+    private int TickToIndex(Tick tick)
     {
-      return (tick / this.divisor) % this.data.Length;
+      return (tick.ToInt / this.divisor) % this.data.Length;
     }
   }
 }

@@ -97,7 +97,7 @@ namespace Railgun
       this.lastEventId = EventId.INVALID;
     }
 
-    internal void QueueUnreliable(RailEvent evnt, int tick)
+    internal void QueueUnreliable(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();
       clone.Initialize(
@@ -106,7 +106,7 @@ namespace Railgun
       this.outgoingUnreliable.Add(clone);
     }
 
-    internal void QueueReliable(RailEvent evnt, int tick)
+    internal void QueueReliable(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();
       clone.Initialize(

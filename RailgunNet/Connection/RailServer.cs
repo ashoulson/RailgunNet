@@ -105,7 +105,7 @@ namespace Railgun
 
       this.world.UpdateServer();
 
-      if (this.ShouldSend(this.world.Tick))
+      if (this.world.Tick.CanSend)
       {
         this.BroadcastPackets();
 
@@ -131,7 +131,7 @@ namespace Railgun
       where T : RailEntity
     {
       // Entity states don't have a tick since they are reused every frame
-      state.Initialize(this.world.GetEntityId(), RailClock.INVALID_TICK);
+      state.Initialize(this.world.GetNewEntityId(), Tick.INVALID);
 
       RailEntity entity = state.CreateEntity();
       entity.InitializeServer(state);

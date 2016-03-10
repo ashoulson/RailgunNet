@@ -42,7 +42,7 @@ namespace Railgun
       this.Delta.Set(prior, latest, next);
     }
 
-    public void Update(RailStateBuffer buffer, int currentTick)
+    public void Update(RailStateBuffer buffer, Tick currentTick)
     {
       buffer.PopulateDelta(this.Delta, currentTick);
     }
@@ -88,28 +88,6 @@ namespace Railgun
     public bool CanExtrapolate()
     {
       return (this.Latest != null) && (this.Prior != null);
-    }
-
-
-    public void GetExtrapolationParams(
-      int currentTick, 
-      float frameDelta,
-      out float timeSincePrior,
-      out float velocityScale,
-      float fixedDeltaTime = RailConfig.FIXED_DELTA_TIME)
-    {
-      // If we're predicting, advance to the prediction tick.
-      // Note that this assumes we'll only ever have a 1-tick difference
-      // between any two states in the delta when doing prediction.
-      if (this.Latest.IsPredicted)
-        currentTick = this.Latest.Tick;
-
-      float priorTime = this.Prior.Tick * fixedDeltaTime;
-      float latestTime = this.Latest.Tick * fixedDeltaTime;
-      float currentTime = (currentTick * fixedDeltaTime) + frameDelta;
-
-      timeSincePrior = currentTime - priorTime;
-      velocityScale = latestTime - priorTime;
     }
   }
 }

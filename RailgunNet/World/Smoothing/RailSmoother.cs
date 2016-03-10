@@ -56,7 +56,7 @@ namespace Railgun
 
     internal T Smooth(
       float frameDelta,
-      int tick,
+      Tick tick,
       RailState first,
       RailState second)
     {
@@ -65,9 +65,9 @@ namespace Railgun
       if ((this.shouldSnap != null) && this.shouldSnap(priorVal, latestVal))
         return latestVal;
 
-      float priorTime = first.Tick * RailConfig.FIXED_DELTA_TIME;
-      float latestTime = second.Tick * RailConfig.FIXED_DELTA_TIME;
-      float time = (tick * RailConfig.FIXED_DELTA_TIME) + frameDelta;
+      float priorTime = first.Tick.Time;
+      float latestTime = second.Tick.Time;
+      float time = tick.Time + frameDelta;
 
       float place = time - priorTime;
       if (place > this.maxExtrapolationTime)

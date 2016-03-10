@@ -37,20 +37,20 @@ namespace Railgun
     /// <summary>
     /// The last tick that the client received a snapshot from the server.
     /// </summary>
-    internal int LastAckedServerTick { get; set; }
+    internal Tick LastAckedServerTick { get; set; }
 
     /// <summary>
     /// The last command tick that the server processed.
     /// </summary>
-    internal int LastProcessedCommandTick { get; set; }
+    internal Tick LastProcessedCommandTick { get; set; }
 
     private RailClock clientClock;
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
       this.Controller = new RailControllerServer();
-      this.LastAckedServerTick = RailClock.INVALID_TICK;
-      this.LastProcessedCommandTick = RailClock.INVALID_TICK;
+      this.LastAckedServerTick = Tick.INVALID;
+      this.LastProcessedCommandTick = Tick.INVALID;
       this.clientClock = new RailClock();
     }
 
@@ -62,7 +62,7 @@ namespace Railgun
 
     internal void Update()
     {
-      this.clientClock.Tick();
+      this.clientClock.Update();
       this.Controller.Update(this.clientClock.EstimatedRemote);
 
       if (this.Controller.LatestCommand != null)
