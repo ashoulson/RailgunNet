@@ -67,7 +67,7 @@ namespace Railgun
         this.outgoingBuffer.Enqueue(command);
     }
 
-    internal void CleanCommands(int lastReceivedTick)
+    internal void CleanCommands(Tick lastReceivedTick)
     {
       while (true)
       {

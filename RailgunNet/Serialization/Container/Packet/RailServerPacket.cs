@@ -32,29 +32,16 @@ namespace Railgun
   /// </summary>
   internal class RailServerPacket : IRailPoolable, IRailRingValue
   {
-    // TODO: This will probably be obsolete once we get to scope/views
-    private static int GetSafeBasisTick(int serverTick, int basisTick)
-    {
-      if (basisTick < 0)
-        return RailClock.INVALID_TICK;
-
-      int delta = serverTick - basisTick;
-      int maxDelta = 
-        RailConfig.DEJITTER_BUFFER_LENGTH - 
-        RailConfig.NETWORK_SEND_RATE;
-
-      if (delta > maxDelta)
-        return RailClock.INVALID_TICK;
-      return basisTick;
-    }
-
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Tick { get { return this.ServerTick; } }
+    Tick IRailRingValue.Tick { get { return this.ServerTick; } }
 
-    internal int ServerTick { get; private set; }
-    internal int BasisTick { get; private set; }
-    internal int LastProcessedCommandTick { get; private set; }
+    internal Tick ServerTick { get; private set; }
+
+    // TODO: This will be obsolete when we do entity ticks
+    internal Tick BasisTick { get; private set; }
+
+    internal Tick LastProcessedCommandTick { get; private set; }
 
     internal IEnumerable<RailState> States { get { return this.states; } }
     internal IEnumerable<RailEvent> Events { get { return this.events; } }
@@ -78,15 +65,14 @@ namespace Railgun
     }
 
     public void Initialize(
-      int serverTick,
-      int basisTick,
-      int lastProcessedCommandTick,
+      Tick serverTick,
+      Tick basisTick,
+      Tick lastProcessedCommandTick,
       IEnumerable<RailEntity> entities,
       IEnumerable<RailEvent> events)
     {
       this.ServerTick = serverTick;
-      this.BasisTick = 
-        RailServerPacket.GetSafeBasisTick(serverTick, basisTick);
+      this.BasisTick = basisTick;
       this.LastProcessedCommandTick = lastProcessedCommandTick;
 
       this.entities.AddRange(entities);
@@ -95,9 +81,9 @@ namespace Railgun
 
     protected void Reset()
     {
-      this.ServerTick = RailClock.INVALID_TICK;
-      this.BasisTick = RailClock.INVALID_TICK;
-      this.LastProcessedCommandTick = RailClock.INVALID_TICK;
+      this.ServerTick = Tick.INVALID;
+      this.BasisTick = Tick.INVALID;
+      this.LastProcessedCommandTick = Tick.INVALID;
 
       this.states.Clear();
       this.entities.Clear();

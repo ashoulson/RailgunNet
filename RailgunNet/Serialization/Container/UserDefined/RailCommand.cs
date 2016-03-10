@@ -33,12 +33,12 @@ namespace Railgun
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Tick { get { return this.Tick; } }
+    Tick IRailRingValue.Tick { get { return this.Tick; } }
 
     /// <summary>
     /// The client tick this command was generated on.
     /// </summary>
-    internal int Tick { get; set; }
+    internal Tick Tick { get; set; }
 
     internal abstract RailPoolCommand CreatePool();
 
@@ -50,7 +50,7 @@ namespace Railgun
 
     protected internal void Reset()
     {
-      this.Tick = RailClock.INVALID_TICK;
+      this.Tick = Tick.INVALID;
       this.ResetData();
     }
 

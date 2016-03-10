@@ -22,10 +22,35 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
-  internal interface IRailRingValue
+  /// <summary>
+  /// A typesafe wrapping encoder for Tick.
+  /// </summary>
+  public class TickEncoder : Encoder<Tick>
   {
-    Tick Tick { get; }
+    internal override int GetCost(Tick value)
+    {
+      return 1;
+    }
+
+    internal TickEncoder() { }
+
+    internal override void Write(BitBuffer buffer, Tick value)
+    {
+      value.Write(buffer);
+    }
+
+    internal override Tick Read(BitBuffer buffer)
+    {
+      return Tick.Read(buffer);
+    }
+
+    internal override Tick Peek(BitBuffer buffer)
+    {
+      return Tick.Peek(buffer);
+    }
   }
 }

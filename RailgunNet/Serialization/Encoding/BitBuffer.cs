@@ -299,8 +299,7 @@ namespace Railgun
     /// </summary>
     public void Push<T>(Encoder<T> encoder, T value)
     {
-      uint encoded = encoder.Pack(value);
-      this.Push(encoder.RequiredBits, encoded);
+      encoder.Write(this, value);
     }
 
     /// <summary>
@@ -308,8 +307,7 @@ namespace Railgun
     /// </summary>
     public T Pop<T>(Encoder<T> encoder)
     {
-      uint data = this.Pop(encoder.RequiredBits);
-      return encoder.Unpack(data);
+      return encoder.Read(this);
     }
 
     /// <summary>
@@ -317,8 +315,7 @@ namespace Railgun
     /// </summary>
     public T Peek<T>(Encoder<T> encoder)
     {
-      uint data = this.Peek(encoder.RequiredBits);
-      return encoder.Unpack(data);
+      return encoder.Peek(this);
     }
 
     #region Conditional Serialization Helpers

@@ -51,22 +51,22 @@ namespace Railgun
         this.latest = state;
     }
 
-    internal void PopulateDelta(RailRingDelta<RailState> delta, int currentTick)
+    internal void PopulateDelta(RailRingDelta<RailState> delta, Tick currentTick)
     {
       this.buffer.PopulateDelta(delta, currentTick);
     }
 
-    internal bool TryGet(int tick, out RailState state)
+    internal bool TryGet(Tick tick, out RailState state)
     {
       return this.buffer.TryGet(tick, out state);
     }
 
-    internal RailState Get(int tick)
+    internal RailState Get(Tick tick)
     {
       return this.buffer.Get(tick);
     }
 
-    internal RailState GetLatest(int tick)
+    internal RailState GetLatest(Tick tick)
     {
       return this.buffer.GetLatest(tick);
     }

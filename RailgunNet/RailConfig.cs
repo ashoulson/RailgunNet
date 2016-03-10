@@ -75,6 +75,11 @@ namespace Railgun
     /// three less than a power of two (i.e. 64 -> 61, 1024 -> 1021, etc.).
     /// </summary>
     internal const int MAX_EVENT_COUNT = 65533;
+
+    /// <summary>
+    /// Maximum tick available. Make this two less than a power of two.
+    /// </summary>
+    internal const int MAX_TICK = 1048573; // 5.8hrs at 20Hz
     #endregion
   }
 }

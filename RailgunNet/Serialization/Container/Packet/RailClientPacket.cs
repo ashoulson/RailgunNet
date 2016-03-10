@@ -36,10 +36,10 @@ namespace Railgun
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    int IRailRingValue.Tick { get { return this.ClientTick; } }
+    Tick IRailRingValue.Tick { get { return this.ClientTick; } }
 
-    internal int ClientTick { get; private set; }
-    internal int LastReceivedServerTick { get; private set; }
+    internal Tick ClientTick { get; private set; }
+    internal Tick LastReceivedServerTick { get; private set; }
     internal EventId LastReceivedEventId { get; private set; }
     internal IEnumerable<RailCommand> Commands { get { return this.commands; } }
 
@@ -52,8 +52,8 @@ namespace Railgun
     }
 
     public void Initialize(
-      int tick, 
-      int lastReceivedServerTick,
+      Tick tick,
+      Tick lastReceivedServerTick,
       EventId lastReceivedEventId,
       IEnumerable<RailCommand> commands)
     {
@@ -65,8 +65,8 @@ namespace Railgun
 
     protected void Reset()
     {
-      this.ClientTick = RailClock.INVALID_TICK;
-      this.LastReceivedServerTick = RailClock.INVALID_TICK;
+      this.ClientTick = Tick.INVALID;
+      this.LastReceivedServerTick = Tick.INVALID;
 
       foreach (RailCommand command in this.commands)
         RailPool.Free(command);

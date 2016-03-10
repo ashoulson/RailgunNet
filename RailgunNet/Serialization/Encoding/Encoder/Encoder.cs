@@ -26,11 +26,9 @@ namespace Railgun
 {
   public abstract class Encoder<T>
   {
-    internal abstract T MinValue { get; }
-    internal abstract T MaxValue { get; }
-    internal abstract int RequiredBits { get; }
-
-    internal abstract uint Pack(T value);
-    internal abstract T Unpack(uint data);
+    internal abstract int GetCost(T value);
+    internal abstract void Write(BitBuffer buffer, T value);
+    internal abstract T Read(BitBuffer buffer);
+    internal abstract T Peek(BitBuffer buffer);
   }
 }

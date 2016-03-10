@@ -41,15 +41,15 @@ namespace Railgun
     private int delayMin;
     private int delayMax;
 
-    private int lastReceivedRemote;
-    private int estimatedRemote;
+    private Tick lastReceivedRemote;
+    private Tick estimatedRemote;
 
     private bool shouldUpdateEstimate;
     private bool shouldTick;
 
     public bool ShouldTick { get { return this.shouldTick; } }
-    public int EstimatedRemote { get { return this.estimatedRemote; } }
-    public int LastReceivedRemote { get { return this.lastReceivedRemote; } }
+    public Tick EstimatedRemote { get { return this.estimatedRemote; } }
+    public Tick LastReceivedRemote { get { return this.lastReceivedRemote; } }
 
     internal RailClock(
       int remoteSendRate = RailConfig.NETWORK_SEND_RATE,
@@ -57,8 +57,8 @@ namespace Railgun
       int delayMax = RailClock.DELAY_MAX)
     {
       this.remoteRate = remoteSendRate;
-      this.estimatedRemote = 0;
-      this.lastReceivedRemote = RailClock.INVALID_TICK;
+      this.estimatedRemote = Tick.INVALID;
+      this.lastReceivedRemote = Tick.INVALID;
 
       this.delayMin = delayMin;
       this.delayMax = delayMax;
@@ -68,7 +68,7 @@ namespace Railgun
       this.shouldTick = false;
     }
 
-    public void UpdateLatest(int latestTick)
+    public void UpdateLatest(Tick latestTick)
     {
       if (latestTick > this.lastReceivedRemote)
       {
@@ -79,12 +79,12 @@ namespace Railgun
     }
 
     // See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
-    public int Tick()
+    public int Update()
     {
       if (this.shouldTick == false)
         return 0;
 
-      this.estimatedRemote++;
+      this.estimatedRemote = this.estimatedRemote + 1;
       if (this.shouldUpdateEstimate == false)
         return 1;
 
@@ -99,13 +99,13 @@ namespace Railgun
       else if (delta > this.delayMax)
       {
         // Jump 1
-        this.estimatedRemote++;
+        this.estimatedRemote = this.estimatedRemote + 1;
         return 2;
       }
       else if (delta < this.delayMin)
       {
         // Stall 1
-        this.estimatedRemote--;
+        this.estimatedRemote = this.estimatedRemote - 1;
         return 0;
       }
 

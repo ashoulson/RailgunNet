@@ -104,11 +104,11 @@ namespace Railgun
 
     #region High-Level State Encode/Decode Helpers
     internal static void EncodeState(
-      BitBuffer buffer, 
-      int basisTick, 
+      BitBuffer buffer,
+      Tick basisTick, 
       RailEntity entity)
     {
-      if (basisTick != RailClock.INVALID_TICK)
+      if (basisTick.IsValid)
       {
         if (entity.TickCreated < basisTick)
           entity.State.Encode(buffer, entity.StateBuffer.Get(basisTick));
@@ -122,9 +122,9 @@ namespace Railgun
     }
 
     internal static RailState DecodeState(
-      BitBuffer buffer, 
-      int currentTick,
-      int basisTick,
+      BitBuffer buffer,
+      Tick currentTick,
+      Tick basisTick,
       IDictionary<EntityId, RailEntity> knownEntities)
     {
       RailEntity entity = null;

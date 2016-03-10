@@ -26,24 +26,22 @@ namespace Railgun
 {
   internal static class StandardEncoders
   {
-    // Entity
+    // Special Types
     internal static readonly EntityIdEncoder EntityId = new EntityIdEncoder();
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
-    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
-
-    // Event
     internal static readonly EventIdEncoder EventId = new EventIdEncoder();
-    internal static readonly IntEncoder EventCount = new IntEncoder(0, RailConfig.MAX_EVENT_COUNT);
+    internal static readonly TickEncoder Tick = new TickEncoder();
+
+    // Types
+    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
     internal static readonly IntEncoder EventType = new IntEncoder(-10, 117);
 
-
-
+    // Counts
+    internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
+    internal static readonly IntEncoder EventCount = new IntEncoder(0, RailConfig.MAX_EVENT_COUNT);
     internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
 
-    internal static readonly IntEncoder Tick = new IntEncoder(-1, 1048574);
-
+    // Misc
     internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
-
     internal static readonly BoolEncoder Bool = new BoolEncoder();
   }
 }

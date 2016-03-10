@@ -31,19 +31,19 @@ namespace Railgun
     internal bool IsAwake { get; private set; }
 
     public RailStateDelta StateDelta { get; private set; }
-    public int CurrentTick { get { return this.World.Tick; } }
+    public Tick CurrentTick { get { return this.World.Tick; } }
 
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
 
-    protected internal EntityId Id { get { return this.State.Id; } }
+    protected internal EntityId Id { get { return this.State.EntityId; } }
     protected internal int Type { get { return this.State.EntityType; } }
     protected internal RailState State { get; set; }
 
     /// <summary>
     /// The server tick this entity was created on -- not synchronized.
     /// </summary>
-    internal int TickCreated { get; set; }
+    internal Tick TickCreated { get; set; }
 
     protected virtual void OnAddedToWorld() { }
     protected virtual void OnControllerChanged() { }
@@ -67,7 +67,7 @@ namespace Railgun
     internal void InitializeClient(RailState state)
     {
       this.State = state.Clone();
-      this.State.Tick = RailClock.INVALID_TICK;
+      this.State.Tick = Tick.INVALID;
 
       this.IsMaster = false;
       this.StateDelta = new RailStateDelta();
@@ -76,7 +76,7 @@ namespace Railgun
     internal void InitializeServer(RailState state)
     {
       this.State = state.Clone();
-      this.State.Tick = RailClock.INVALID_TICK;
+      this.State.Tick = Tick.INVALID;
 
       this.IsMaster = true;
       this.StateDelta = null;
@@ -93,7 +93,7 @@ namespace Railgun
       this.Simulate();
     }
 
-    internal void UpdateClient(int serverTick)
+    internal void UpdateClient(Tick serverTick)
     {
       if (this.IsAwake)
       {
@@ -104,7 +104,7 @@ namespace Railgun
       }
     }
 
-    internal void ReplicaSimulate(int serverTick)
+    internal void ReplicaSimulate(Tick serverTick)
     {
       this.ClearDelta();
 
@@ -112,7 +112,7 @@ namespace Railgun
       this.State.SetDataFrom(this.StateDelta.Latest);
     }
 
-    internal bool HasLatest(int serverTick)
+    internal bool HasLatest(Tick serverTick)
     {
       return (this.StateBuffer.GetLatest(serverTick) != null);
     }
@@ -130,7 +130,7 @@ namespace Railgun
         this.OnControllerChanged();
     }
 
-    internal void StoreState(int tick)
+    internal void StoreState(Tick tick)
     {
       RailState state = this.State.Clone();
       state.Tick = tick;
@@ -148,7 +148,7 @@ namespace Railgun
       // If we're predicting, advance to the prediction tick. This is
       // hacky in that it assumes that we'll only ever have a one-tick 
       // difference between any two states in the delta when doing prediction.
-      int currentTick = this.CurrentTick;
+      Tick currentTick = this.CurrentTick;
       if (this.StateDelta.Latest.IsPredicted)
         currentTick = this.StateDelta.Latest.Tick;
 
@@ -187,14 +187,7 @@ namespace Railgun
       latest.IsPredicted = true;
       this.StateDelta.Set(null, latest, null);
       this.State.SetDataFrom(latest);
-
-      int count = 1;
-      foreach (RailCommand command in this.Controller.OutgoingCommands)
-      {
-        this.SimulateCommand(command);
-        this.PushDelta(latest.Tick + count);
-        count++;
-      }
+      this.ApplyCommands();
     }
 
     private void ClearDelta()
@@ -213,10 +206,22 @@ namespace Railgun
       this.StateDelta.Clear();
     }
 
-    private void PushDelta(int count)
+    private void ApplyCommands()
+    {
+      int offset = 1;
+      foreach (RailCommand command in this.Controller.OutgoingCommands)
+      {
+        this.SimulateCommand(command);
+        this.PushDelta(offset);
+
+        offset++;
+      }
+    }
+
+    private void PushDelta(int offset)
     {
       RailState predicted = this.State.Clone();
-      predicted.Tick += count;
+      predicted.Tick = predicted.Tick + offset;
       predicted.IsPredicted = true;
 
       RailState popped = this.StateDelta.Push(predicted);

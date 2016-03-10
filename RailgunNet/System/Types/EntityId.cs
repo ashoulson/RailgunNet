@@ -22,6 +22,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
   public struct EntityId
@@ -40,26 +42,20 @@ namespace Railgun
     }
 
     internal static readonly EntityId INVALID = new EntityId(0);
-    internal static readonly EntityIdComparer Comparer = new EntityIdComparer();
 
-    internal static IntEncoder GetIdEncoder()
+    internal static readonly EntityIdComparer Comparer = 
+      new EntityIdComparer();
+
+    internal static readonly IntEncoder Encoder =
+      new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT + 1); // ID 0 is invalid
+
+    /// <summary>
+    /// Cost is static for all possible values within range.
+    /// </summary>
+    internal static int Cost
     {
-      // Add +1 to the max because the first value is an invalid ID
-      return new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT + 1);
+      get { return EntityId.Encoder.GetCost(EntityId.INVALID.entityId); }
     }
-
-    internal static EntityId Increment(ref EntityId current)
-    {
-      current = new EntityId(current.entityId + 1);
-      return current;
-    }
-
-    internal static EntityId Create(int entityId)
-    {
-      return new EntityId(entityId);
-    }
-
-    internal int Raw { get { return this.entityId; } }
 
     public bool IsValid 
     { 
@@ -68,9 +64,14 @@ namespace Railgun
 
     private readonly int entityId;
 
-    private EntityId(int entityId)
+    internal EntityId(int entityId)
     {
       this.entityId = entityId;
+    }
+
+    public EntityId GetNext()
+    {
+      return new EntityId(this.entityId + 1);
     }
 
     public override int GetHashCode()
@@ -83,6 +84,21 @@ namespace Railgun
       if (obj is EntityId)
         return (((EntityId)obj).entityId == this.entityId);
       return false;
+    }
+
+    internal void Write(BitBuffer buffer)
+    {
+      EntityId.Encoder.Write(buffer, this.entityId);
+    }
+
+    internal static EntityId Read(BitBuffer buffer)
+    {
+      return new EntityId(EntityId.Encoder.Read(buffer));
+    }
+
+    internal static EntityId Peek(BitBuffer buffer)
+    {
+      return new EntityId(EntityId.Encoder.Peek(buffer));
     }
   }
 }

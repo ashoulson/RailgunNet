@@ -44,13 +44,18 @@ namespace Railgun
     internal static readonly EventId UNRELIABLE = new EventId(-1);
     internal static readonly EventId INVALID = new EventId(0);
 
-    internal static readonly EventIdComparer Comparer = new EventIdComparer();
+    internal static readonly IntEncoder Encoder =
+      new IntEncoder(0, RailConfig.MAX_EVENT_COUNT + 1); // ID 0 is invalid
 
-    internal static IntEncoder GetIdEncoder()
+    /// <summary>
+    /// Cost is static for all possible values within range.
+    /// </summary>
+    internal static int Cost
     {
-      // Add +1 to the max because the first value is an invalid ID
-      return new IntEncoder(-1, RailConfig.MAX_EVENT_COUNT + 1);
+      get { return EventId.Encoder.GetCost(EventId.INVALID.eventId); }
     }
+
+    internal static readonly EventIdComparer Comparer = new EventIdComparer();
 
     internal static EventId Increment(ref EventId current)
     {
@@ -58,13 +63,6 @@ namespace Railgun
       current = new EventId(current.eventId + 1);
       return current;
     }
-
-    internal static EventId Create(int EventId)
-    {
-      return new EventId(EventId);
-    }
-
-    internal int Raw { get { return this.eventId; } }
 
     public bool IsValid
     {
@@ -78,7 +76,7 @@ namespace Railgun
 
     private readonly int eventId;
 
-    private EventId(int EventId)
+    internal EventId(int EventId)
     {
       this.eventId = EventId;
     }
@@ -102,6 +100,21 @@ namespace Railgun
       if (obj is EventId)
         return (((EventId)obj).eventId == this.eventId);
       return false;
+    }
+
+    internal void Write(BitBuffer buffer)
+    {
+      EventId.Encoder.Write(buffer, this.eventId);
+    }
+
+    internal static EventId Read(BitBuffer buffer)
+    {
+      return new EventId(EventId.Encoder.Read(buffer));
+    }
+
+    internal static EventId Peek(BitBuffer buffer)
+    {
+      return new EventId(EventId.Encoder.Peek(buffer));
     }
   }
 }

@@ -41,9 +41,10 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    internal override float MinValue { get { return this.minValue; } }
-    internal override float MaxValue { get { return this.maxValue; } }
-    internal override int RequiredBits { get { return this.requiredBits; } }
+    internal override int GetCost(float value)
+    {
+      return this.requiredBits;
+    }
 
     public FloatEncoder(float minValue, float maxValue, float precision)
     {
@@ -56,14 +57,29 @@ namespace Railgun
       this.mask = (uint)((1L << requiredBits) - 1);
     }
 
-    internal override uint Pack(float value)
+    internal override void Write(BitBuffer buffer, float value)
+    {
+      buffer.Push(this.requiredBits, this.Pack(value));
+    }
+
+    internal override float Read(BitBuffer buffer)
+    {
+      return this.Unpack(buffer.Pop(this.requiredBits));
+    }
+
+    internal override float Peek(BitBuffer buffer)
+    {
+      return this.Unpack(buffer.Peek(this.requiredBits));
+    }
+
+    private uint Pack(float value)
     {
       value = RailMath.Clamp(value, this.minValue, this.maxValue);
       float adjusted = (value - this.minValue) * this.invPrecision;
       return (uint)(adjusted + 0.5f) & this.mask;
     }
 
-    internal override float Unpack(uint data)
+    private float Unpack(uint data)
     {
       float adjusted = ((float)data * this.precision) + this.minValue;
       return RailMath.Clamp(adjusted, this.minValue, this.maxValue);

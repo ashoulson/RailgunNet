@@ -52,7 +52,7 @@ namespace Railgun
       this.latestCommand = null;
     }
 
-    internal void Update(int tick)
+    internal void Update(Tick tick)
     {
       this.latestCommand = this.incomingBuffer.GetLatest(tick);
     }
@@ -69,7 +69,7 @@ namespace Railgun
     /// <summary>
     /// Adds an entity to be controlled by this controller.
     /// </summary>
-    internal void AddEntity(RailEntity entity, int tick)
+    internal void AddEntity(RailEntity entity, Tick tick)
     {
       if (entity.Controller == this)
         return;
@@ -86,7 +86,7 @@ namespace Railgun
     /// <summary>
     /// Remove an entity from being controlled by this controller.
     /// </summary>
-    internal void RemoveEntity(RailEntity entity, int tick)
+    internal void RemoveEntity(RailEntity entity, Tick tick)
     {
       CommonDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
@@ -107,7 +107,7 @@ namespace Railgun
       this.controlledEntities.Clear();
     }
 
-    private void QueueControlEvent(EntityId entityId, bool granted, int tick)
+    private void QueueControlEvent(EntityId entityId, bool granted, Tick tick)
     {
       RailControlEvent controlEvent =
         RailResource.Instance.AllocateControlEvent();

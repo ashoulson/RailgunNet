@@ -22,40 +22,35 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
+  /// <summary>
+  /// A typesafe wrapping encoder for EntityIds.
+  /// </summary>
   public class EntityIdEncoder : Encoder<EntityId>
   {
-    private IntEncoder encoder;
+    internal EntityIdEncoder() { }
 
-    internal override EntityId MinValue 
-    { 
-      get { return EntityId.Create(this.encoder.MinValue); } 
-    }
-
-    internal override EntityId MaxValue 
-    { 
-      get { return EntityId.Create(this.encoder.MaxValue); } 
-    }
-
-    internal override int RequiredBits 
-    { 
-      get { return this.encoder.RequiredBits; } 
-    }
-
-    public EntityIdEncoder()
+    internal override int GetCost(EntityId value)
     {
-      this.encoder = EntityId.GetIdEncoder();
+      return EntityId.Cost;
     }
 
-    internal override uint Pack(EntityId value)
+    internal override void Write(BitBuffer buffer, EntityId value)
     {
-      return this.encoder.Pack(value.Raw);
+      value.Write(buffer);
     }
 
-    internal override EntityId Unpack(uint data)
+    internal override EntityId Read(BitBuffer buffer)
     {
-      return EntityId.Create(this.encoder.Unpack(data));
+      return EntityId.Read(buffer);
+    }
+
+    internal override EntityId Peek(BitBuffer buffer)
+    {
+      return EntityId.Peek(buffer);
     }
   }
 }

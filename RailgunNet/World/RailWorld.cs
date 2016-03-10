@@ -26,7 +26,7 @@ namespace Railgun
 {
   public class RailWorld
   {
-    public int Tick { get; internal protected set; }
+    public Tick Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities 
     { 
       get { return this.entities.Values; } 
@@ -46,12 +46,13 @@ namespace Railgun
     {
       this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.lastEntityId = EntityId.INVALID;
-      this.Tick = 0;
+      this.Tick = Tick.INVALID;
     }
 
-    internal EntityId GetEntityId()
+    internal EntityId GetNewEntityId()
     {
-      return EntityId.Increment(ref this.lastEntityId);
+      this.lastEntityId = this.lastEntityId.GetNext();
+      return this.lastEntityId;
     }
 
     /// <summary>
@@ -71,7 +72,7 @@ namespace Railgun
     
     internal void UpdateServer()
     {
-      this.Tick++;
+      this.Tick = this.Tick.GetNext();
       foreach (RailEntity entity in this.entities.Values)
         entity.UpdateServer();
     }
@@ -82,7 +83,7 @@ namespace Railgun
         entity.StoreState(this.Tick);
     }
 
-    internal void UpdateClient(int serverTick)
+    internal void UpdateClient(Tick serverTick)
     {
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
