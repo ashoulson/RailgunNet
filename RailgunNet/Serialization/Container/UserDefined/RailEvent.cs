@@ -37,11 +37,10 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailEvent : IRailPoolable, IRailRingValue
+  public abstract class RailEvent : IRailPoolable
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    Tick IRailRingValue.Tick { get { return this.Tick; } }
 
     /// <summary>
     /// The tick this command was generated on (client or server).
