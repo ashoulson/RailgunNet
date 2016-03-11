@@ -49,6 +49,16 @@ namespace Railgun
       this.Tick = Tick.INVALID;
     }
 
+    internal void InitializeServer()
+    {
+      this.Tick = Tick.START;
+    }
+
+    internal void InitializeClient()
+    {
+      this.Tick = Tick.INVALID;
+    }
+
     internal EntityId GetNewEntityId()
     {
       this.lastEntityId = this.lastEntityId.GetNext();

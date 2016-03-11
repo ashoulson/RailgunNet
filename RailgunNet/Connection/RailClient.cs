@@ -57,10 +57,11 @@ namespace Railgun
       RailEvent[] eventsToRegister)
       : base(commandToRegister, statesToRegister, eventsToRegister)
     {
+      this.world.InitializeClient();
       this.serverPeer = null;
       this.serverClock = new RailClock();
 
-      this.localTick = Tick.INVALID;
+      this.localTick = Tick.START;
       this.lastReceivedEventId = EventId.INVALID;
       this.localController = new RailControllerClient();
 
@@ -78,13 +79,13 @@ namespace Railgun
 
     public override void Update()
     {
-      this.localTick = this.localTick.GetNext();
-
       this.UpdateCommands();
       this.UpdateWorld(this.serverClock.Update());
 
-      if ((this.serverPeer != null) && this.localTick.CanSend)
+      if ((this.serverPeer != null) && this.localTick.IsSendTick)
         this.SendPacket();
+
+      this.localTick = this.localTick.GetNext();
     }
 
     /// <summary>

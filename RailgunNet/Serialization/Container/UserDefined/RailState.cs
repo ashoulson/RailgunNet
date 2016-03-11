@@ -93,7 +93,7 @@ namespace Railgun
     internal static EntityId PeekId(
       BitBuffer buffer)
     {
-      return buffer.Peek(StandardEncoders.EntityId);
+      return buffer.Peek(RailEncoders.EntityId);
     }
 
     internal RailState Clone()
@@ -113,10 +113,10 @@ namespace Railgun
       this.EncodeData(buffer);
 
       // Write: [Type]
-      buffer.Push(StandardEncoders.EntityType, this.EntityType);
+      buffer.Push(RailEncoders.EntityType, this.EntityType);
 
       // Write: [Id]
-      buffer.Push(StandardEncoders.EntityId, this.EntityId);
+      buffer.Push(RailEncoders.EntityId, this.EntityId);
     }
 
     internal void Encode(
@@ -129,7 +129,7 @@ namespace Railgun
       // (No [Type] for delta states)
 
       // Write: [Id]
-      buffer.Push(StandardEncoders.EntityId, this.EntityId);
+      buffer.Push(RailEncoders.EntityId, this.EntityId);
     }
 
     internal static RailState Decode(
@@ -137,10 +137,10 @@ namespace Railgun
       Tick snapshotTick)
     {
       // Read: [Id]
-      EntityId stateId = buffer.Pop(StandardEncoders.EntityId);
+      EntityId stateId = buffer.Pop(RailEncoders.EntityId);
 
       // Read: [Type]
-      int entityType = buffer.Pop(StandardEncoders.EntityType);
+      int entityType = buffer.Pop(RailEncoders.EntityType);
 
       RailState state = RailResource.Instance.AllocateState(entityType);
       state.Initialize(stateId, snapshotTick);
@@ -157,7 +157,7 @@ namespace Railgun
       RailState basis)
     {
       // Read: [Id]
-      EntityId stateId = buffer.Pop(StandardEncoders.EntityId);
+      EntityId stateId = buffer.Pop(RailEncoders.EntityId);
 
       // (No [Type] for delta images)
 

@@ -64,7 +64,7 @@ namespace Railgun
       this.EncodeData(buffer);
 
       // Write: [Tick]
-      buffer.Push(StandardEncoders.Tick, this.Tick);
+      buffer.Push(RailEncoders.Tick, this.Tick);
     }
 
     internal static RailCommand Decode(
@@ -73,7 +73,7 @@ namespace Railgun
       RailCommand command = RailResource.Instance.AllocateCommand();
 
       // Read: [Tick]
-      command.Tick = buffer.Pop(StandardEncoders.Tick);
+      command.Tick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [Command Data]
       command.DecodeData(buffer);

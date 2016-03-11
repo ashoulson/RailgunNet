@@ -22,35 +22,27 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
-  /// <summary>
-  /// A typesafe wrapping encoder for EventIds.
-  /// </summary>
-  public class EventIdEncoder : Encoder<EventId>
+  internal static class RailEncoders
   {
-    internal EventIdEncoder() { }
+    // Misc
+    public static readonly IntEncoder Bit = new IntEncoder(0, 1);
+    public static readonly BoolEncoder Bool = new BoolEncoder();
 
-    internal override int GetCost(EventId value)
-    {
-      return value.GetCost();
-    }
+    // Special Types
+    public static readonly EntityIdEncoder EntityId = new EntityIdEncoder();
+    public static readonly TickEncoder Tick = new TickEncoder();
+    internal static readonly EventIdEncoder EventId = new EventIdEncoder();
+    internal static readonly OffsetEncoder Offset = new OffsetEncoder();
 
-    internal override void Write(BitBuffer buffer, EventId value)
-    {
-      value.Write(buffer);
-    }
+    // Types
+    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
+    internal static readonly IntEncoder EventType = new IntEncoder(-10, 117);
 
-    internal override EventId Read(BitBuffer buffer)
-    {
-      return EventId.Read(buffer);
-    }
-
-    internal override EventId Peek(BitBuffer buffer)
-    {
-      return EventId.Peek(buffer);
-    }
+    // Counts
+    internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
+    internal static readonly IntEncoder EventCount = new IntEncoder(0, RailConfig.MAX_EVENT_COUNT);
+    internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
   }
 }

@@ -93,16 +93,16 @@ namespace Railgun
         command.Encode(buffer);
 
       // Write: [CommandCount]
-      buffer.Push(StandardEncoders.CommandCount, this.commands.Count);
+      buffer.Push(RailEncoders.CommandCount, this.commands.Count);
 
       // Write: [LastReceivedEventId]
-      buffer.Push(StandardEncoders.EventId, this.LastReceivedEventId);
+      buffer.Push(RailEncoders.EventId, this.LastReceivedEventId);
 
       // Write: [LastReceivedServerTick]
-      buffer.Push(StandardEncoders.Tick, this.LastReceivedServerTick);
+      buffer.Push(RailEncoders.Tick, this.LastReceivedServerTick);
 
       // Write: [Tick]
-      buffer.Push(StandardEncoders.Tick, this.ClientTick);
+      buffer.Push(RailEncoders.Tick, this.ClientTick);
     }
 
     internal static RailClientPacket Decode(
@@ -111,16 +111,16 @@ namespace Railgun
       RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
 
       // Read: [Tick]
-      packet.ClientTick = buffer.Pop(StandardEncoders.Tick);
+      packet.ClientTick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [LastReceivedServerTick]
-      packet.LastReceivedServerTick = buffer.Pop(StandardEncoders.Tick);
+      packet.LastReceivedServerTick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [LastReceivedEventId]
-      packet.LastReceivedEventId = buffer.Pop(StandardEncoders.EventId);
+      packet.LastReceivedEventId = buffer.Pop(RailEncoders.EventId);
 
       // Read: [CommandCount]
-      int commandCount = buffer.Pop(StandardEncoders.CommandCount);
+      int commandCount = buffer.Pop(RailEncoders.CommandCount);
 
       // Read: [Commands]
       for (int i = 0; i < commandCount; i++)

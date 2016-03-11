@@ -99,23 +99,23 @@ namespace Railgun
         evnt.Encode(buffer);
 
       // Write: [EventCount]
-      buffer.Push(StandardEncoders.EventCount, this.events.Count);
+      buffer.Push(RailEncoders.EventCount, this.events.Count);
 
       // Write: [States]
       foreach (RailEntity entity in this.entities)
         RailInterpreter.EncodeState(buffer, this.BasisTick, entity);
 
       // Write: [StateCount]
-      buffer.Push(StandardEncoders.EntityCount, this.entities.Count);
+      buffer.Push(RailEncoders.EntityCount, this.entities.Count);
 
       // Write: [LastProcessedCommandTick]
-      buffer.Push(StandardEncoders.Tick, this.LastProcessedCommandTick);
+      buffer.Push(RailEncoders.Tick, this.LastProcessedCommandTick);
 
       // Write: [LastAckedServerTick]
-      buffer.Push(StandardEncoders.Tick, this.BasisTick);
+      buffer.Push(RailEncoders.Tick, this.BasisTick);
 
       // Write: [ServerTick]
-      buffer.Push(StandardEncoders.Tick, this.ServerTick);
+      buffer.Push(RailEncoders.Tick, this.ServerTick);
     }
 
     internal static RailServerPacket Decode(
@@ -125,16 +125,16 @@ namespace Railgun
       RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
 
       // Read: [ServerTick]
-      packet.ServerTick = buffer.Pop(StandardEncoders.Tick);
+      packet.ServerTick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [LastAckedServerTick]
-      packet.BasisTick = buffer.Pop(StandardEncoders.Tick);
+      packet.BasisTick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [LastProcessedCommandTick]
-      packet.LastProcessedCommandTick = buffer.Pop(StandardEncoders.Tick);
+      packet.LastProcessedCommandTick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [StateCount]
-      int stateCount = buffer.Pop(StandardEncoders.EntityCount);
+      int stateCount = buffer.Pop(RailEncoders.EntityCount);
 
       // Read: [States]
       for (int i = 0; i < stateCount; i++)
@@ -146,7 +146,7 @@ namespace Railgun
             knownEntities));
 
       // Read: [EventCount]
-      int eventCount = buffer.Pop(StandardEncoders.EventCount);
+      int eventCount = buffer.Pop(RailEncoders.EventCount);
 
       // Read: [Events]
       for (int i = 0; i < eventCount; i++)

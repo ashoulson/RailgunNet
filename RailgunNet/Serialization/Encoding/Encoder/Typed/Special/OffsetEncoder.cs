@@ -22,26 +22,35 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
-  internal static class StandardEncoders
+  /// <summary>
+  /// A typesafe wrapping encoder for Offset.
+  /// </summary>
+  internal class OffsetEncoder : Encoder<Offset>
   {
-    // Special Types
-    internal static readonly EntityIdEncoder EntityId = new EntityIdEncoder();
-    internal static readonly EventIdEncoder EventId = new EventIdEncoder();
-    internal static readonly TickEncoder Tick = new TickEncoder();
+    internal override int GetCost(Offset value)
+    {
+      return value.GetCost();
+    }
 
-    // Types
-    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
-    internal static readonly IntEncoder EventType = new IntEncoder(-10, 117);
+    internal OffsetEncoder() { }
 
-    // Counts
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
-    internal static readonly IntEncoder EventCount = new IntEncoder(0, RailConfig.MAX_EVENT_COUNT);
-    internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
+    internal override void Write(BitBuffer buffer, Offset value)
+    {
+      value.Write(buffer);
+    }
 
-    // Misc
-    internal static readonly IntEncoder Bit = new IntEncoder(0, 1);
-    internal static readonly BoolEncoder Bool = new BoolEncoder();
+    internal override Offset Read(BitBuffer buffer)
+    {
+      return Offset.Read(buffer);
+    }
+
+    internal override Offset Peek(BitBuffer buffer)
+    {
+      return Offset.Peek(buffer);
+    }
   }
 }
