@@ -32,11 +32,10 @@ namespace Railgun
   /// <summary>
   /// Packet sent from client to server
   /// </summary>
-  internal class RailClientPacket : IRailPoolable, IRailRingValue
+  internal class RailClientPacket : IRailPoolable
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    Tick IRailRingValue.Tick { get { return this.ClientTick; } }
 
     internal Tick ClientTick { get; private set; }
     internal Tick LastReceivedServerTick { get; private set; }
