@@ -57,19 +57,19 @@ namespace Railgun
     protected override void EncodeData(BitBuffer buffer)
     {
       // Write: [EntityId]
-      buffer.Push(StandardEncoders.EntityId, this.EntityId);
+      buffer.Push(RailEncoders.EntityId, this.EntityId);
 
       // Write: [Granted]
-      buffer.Push(StandardEncoders.Bool, this.Granted);
+      buffer.Push(RailEncoders.Bool, this.Granted);
     }
 
     protected override void DecodeData(BitBuffer buffer)
     {
       // Write: [Granted]
-      this.Granted = buffer.Pop(StandardEncoders.Bool);
+      this.Granted = buffer.Pop(RailEncoders.Bool);
 
       // Write: [EntityId]
-      this.EntityId = buffer.Pop(StandardEncoders.EntityId);
+      this.EntityId = buffer.Pop(RailEncoders.EntityId);
     }
   }
 }

@@ -33,7 +33,7 @@ namespace Railgun
   {
     internal override int GetCost(Tick value)
     {
-      return 1;
+      return value.GetCost();
     }
 
     internal TickEncoder() { }

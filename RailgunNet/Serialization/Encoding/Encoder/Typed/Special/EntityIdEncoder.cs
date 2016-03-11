@@ -35,7 +35,7 @@ namespace Railgun
 
     internal override int GetCost(EntityId value)
     {
-      return EntityId.Cost;
+      return value.GetCost();
     }
 
     internal override void Write(BitBuffer buffer, EntityId value)

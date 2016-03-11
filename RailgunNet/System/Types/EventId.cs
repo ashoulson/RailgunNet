@@ -32,12 +32,12 @@ namespace Railgun
     {
       public bool Equals(EventId x, EventId y)
       {
-        return (x.eventId == y.eventId);
+        return (x.idValue == y.idValue);
       }
 
       public int GetHashCode(EventId x)
       {
-        return x.eventId;
+        return x.idValue;
       }
     }
 
@@ -45,45 +45,39 @@ namespace Railgun
     internal static readonly EventId INVALID = new EventId(0);
 
     internal static readonly IntEncoder Encoder =
-      new IntEncoder(0, RailConfig.MAX_EVENT_COUNT + 1); // ID 0 is invalid
-
-    /// <summary>
-    /// Cost is static for all possible values within range.
-    /// </summary>
-    internal static int Cost
-    {
-      get { return EventId.Encoder.GetCost(EventId.INVALID.eventId); }
-    }
+      new IntEncoder(
+        0, 
+        RailConfig.MAX_EVENT_COUNT + 1); // ID 0 is invalid
 
     internal static readonly EventIdComparer Comparer = new EventIdComparer();
 
     internal static EventId Increment(ref EventId current)
     {
       // TODO: Wrap-around arithmetic
-      current = new EventId(current.eventId + 1);
+      current = new EventId(current.idValue + 1);
       return current;
     }
 
     public bool IsValid
     {
-      get { return (this.eventId > 0) || (this.eventId == -1); }
+      get { return (this.idValue > 0) || (this.idValue == -1); }
     }
 
     public bool IsReliable
     {
-      get { return this.eventId > 0; }
+      get { return this.idValue > 0; }
     }
 
-    private readonly int eventId;
+    private readonly int idValue;
 
     internal EventId(int EventId)
     {
-      this.eventId = EventId;
+      this.idValue = EventId;
     }
 
     public override int GetHashCode()
     {
-      return this.eventId;
+      return this.idValue;
     }
 
     internal bool IsNewerThan(EventId other)
@@ -92,19 +86,24 @@ namespace Railgun
       CommonDebug.Assert(other.IsReliable);
 
       // TODO: Wrap-around arithmetic
-      return (this.eventId > other.eventId);
+      return (this.idValue > other.idValue);
     }
 
     public override bool Equals(object obj)
     {
       if (obj is EventId)
-        return (((EventId)obj).eventId == this.eventId);
+        return (((EventId)obj).idValue == this.idValue);
       return false;
+    }
+
+    internal int GetCost()
+    {
+      return EventId.Encoder.GetCost(this.idValue);
     }
 
     internal void Write(BitBuffer buffer)
     {
-      EventId.Encoder.Write(buffer, this.eventId);
+      EventId.Encoder.Write(buffer, this.idValue);
     }
 
     internal static EventId Read(BitBuffer buffer)

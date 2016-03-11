@@ -161,7 +161,7 @@ namespace Railgun
 
     private int TickToIndex(Tick tick)
     {
-      return (tick.ToInt / this.divisor) % this.data.Length;
+      return (tick.RawValue / this.divisor) % this.data.Length;
     }
   }
 }

@@ -26,107 +26,155 @@ using CommonTools;
 
 namespace Railgun
 {
+  /// <summary>
+  /// A type-safe and zero-safe wrapper for a tick int. Supports basic
+  /// operations and encoding. All internal values are offset by +1 (zero
+  /// is invalid, 1 is tick zero, etc.).
+  /// </summary>
   public struct Tick
   {
+    internal static Tick Create(Tick latest, Offset offset)
+    {
+      return latest - offset.RawValue;
+    }
+
     internal static readonly Tick INVALID = new Tick(0);
+    internal static readonly Tick START = new Tick(1);
 
     internal static readonly IntEncoder Encoder = 
-      new IntEncoder(0, RailConfig.MAX_TICK + 1); // Tick 0 is invalid
-
-    internal static int Cost 
-    {
-      get { return Tick.Encoder.GetCost(Tick.INVALID.tick); } 
-    }
+      new IntEncoder(
+        0, 
+        RailConfig.MAX_TICK + 1); // Tick 0 is invalid
 
     #region Operators
     // Can't find references on these, so just delete and build to find uses
 
-    public static bool operator <(Tick a, Tick b)
-    {
-      return (a.tick < b.tick);
-    }
-
-    public static bool operator >(Tick a, Tick b)
-    {
-      return (a.tick > b.tick);
-    }
-
     public static bool operator ==(Tick a, Tick b)
     {
-      return (a.tick == b.tick);
+      return (a.tickValue == b.tickValue);
     }
 
     public static bool operator !=(Tick a, Tick b)
     {
-      return (a.tick != b.tick);
+      return (a.tickValue != b.tickValue);
+    }
+
+    public static bool operator <(Tick a, Tick b)
+    {
+      CommonDebug.Assert(a.IsValid && b.IsValid);
+      return (a.tickValue < b.tickValue);
+    }
+
+    public static bool operator <=(Tick a, Tick b)
+    {
+      CommonDebug.Assert(a.IsValid && b.IsValid);
+      return (a.tickValue <= b.tickValue);
+    }
+
+    public static bool operator >(Tick a, Tick b)
+    {
+      CommonDebug.Assert(a.IsValid && b.IsValid);
+      return (a.tickValue > b.tickValue);
+    }
+
+    public static bool operator >=(Tick a, Tick b)
+    {
+      CommonDebug.Assert(a.IsValid && b.IsValid);
+      return (a.tickValue >= b.tickValue);
     }
 
     public static int operator -(Tick a, Tick b)
     {
-      return (a.tick - b.tick);
+      CommonDebug.Assert(a.IsValid && b.IsValid);
+      return (a.tickValue - b.tickValue);
     }
 
     public static Tick operator +(Tick a, int b)
     {
-      return new Tick(a.tick + b);
+      CommonDebug.Assert(a.IsValid);
+      return new Tick(a.tickValue + b);
     }
 
     public static Tick operator -(Tick a, int b)
     {
-      return new Tick(a.tick - b);
+      int result = a.tickValue - b;
+      if (result < 1)
+      {
+        CommonDebug.LogWarning("Clamping tick subtraction");
+        result = 1;
+      }
+
+      return new Tick(result);
     }
     #endregion
 
+    #region Properties
     public bool IsValid
     {
-      get { return (this.tick > 0); }
+      get { return (this.tickValue > 0); }
     }
 
     public float Time
     {
-      get { return (this.tick * RailConfig.FIXED_DELTA_TIME); }
+      get { return ((this.tickValue - 1) * RailConfig.FIXED_DELTA_TIME); }
     }
-
-    internal bool CanSend
-    {
-      get { return ((this.tick % RailConfig.NETWORK_SEND_RATE) == 0); }
-    }
+    #endregion
 
     /// <summary>
     /// Should be used very sparingly. Otherwise it defeats type safety.
     /// </summary>
-    internal int ToInt
+    internal int RawValue
     {
-      get { return this.tick; }
+      get 
+      {
+        CommonDebug.Assert(this.IsValid);
+        return this.tickValue - 1; 
+      }
     }
 
-    private readonly int tick;
+    internal bool IsSendTick
+    {
+      get
+      {
+        if (this.IsValid)
+          return ((this.RawValue % RailConfig.NETWORK_SEND_RATE) == 0);
+        return false;
+      }
+    }
+
+    private readonly int tickValue;
 
     private Tick(int tick)
     {
-      this.tick = tick;
+      this.tickValue = tick;
     }
 
     public Tick GetNext()
     {
-      return new Tick(this.tick + 1);
+      CommonDebug.Assert(this.IsValid);
+      return new Tick(this.tickValue + 1);
     }
 
     public override int GetHashCode()
     {
-      return this.tick;
+      return this.tickValue;
     }
 
     public override bool Equals(object obj)
     {
       if (obj is Tick)
-        return (((Tick)obj).tick == this.tick);
+        return (((Tick)obj).tickValue == this.tickValue);
       return false;
+    }
+
+    internal int GetCost()
+    {
+      return Tick.Encoder.GetCost(this.tickValue);
     }
 
     internal void Write(BitBuffer buffer)
     {
-      Tick.Encoder.Write(buffer, this.tick);
+      Tick.Encoder.Write(buffer, this.tickValue);
     }
 
     internal static Tick Read(BitBuffer buffer)

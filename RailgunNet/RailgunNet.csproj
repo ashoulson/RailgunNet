@@ -50,9 +50,11 @@
     <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\Special\EntityIdEncoder.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\Special\EventIdEncoder.cs" />
+    <Compile Include="Serialization\Encoding\Encoder\Typed\Special\OffsetEncoder.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\Special\TickEncoder.cs" />
     <Compile Include="System\Types\EntityId.cs" />
     <Compile Include="System\Types\EventId.cs" />
+    <Compile Include="System\Types\Offset.cs" />
     <Compile Include="System\Types\Tick.cs" />
     <Compile Include="World\Smoothing\RailSmoother.cs" />
     <Compile Include="World\Smoothing\RailStateBuffer.cs" />
@@ -86,7 +88,7 @@
     <Compile Include="Serialization\Encoding\Encoder\Typed\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\IntEncoder.cs" />
-    <Compile Include="Serialization\Encoding\StandardEncoders.cs" />
+    <Compile Include="Serialization\Encoding\RailEncoders.cs" />
     <Compile Include="World\Smoothing\Smoothers\RailSmootherFloat.cs" />
   </ItemGroup>
   <ItemGroup />

@@ -55,6 +55,7 @@ namespace Railgun
       RailEvent[] eventsToRegister)
       : base(commandToRegister, statesToRegister, eventsToRegister)
     {
+      this.world.InitializeServer();
       this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
     }
 
@@ -105,7 +106,7 @@ namespace Railgun
 
       this.world.UpdateServer();
 
-      if (this.world.Tick.CanSend)
+      if (this.world.Tick.IsSendTick)
       {
         this.BroadcastPackets();
 

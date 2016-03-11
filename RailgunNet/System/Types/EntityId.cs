@@ -32,12 +32,12 @@ namespace Railgun
     {
       public bool Equals(EntityId x, EntityId y)
       {
-        return (x.entityId == y.entityId);
+        return (x.idValue == y.idValue);
       }
 
       public int GetHashCode(EntityId x)
       {
-        return x.entityId;
+        return x.idValue;
       }
     }
 
@@ -47,48 +47,47 @@ namespace Railgun
       new EntityIdComparer();
 
     internal static readonly IntEncoder Encoder =
-      new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT + 1); // ID 0 is invalid
-
-    /// <summary>
-    /// Cost is static for all possible values within range.
-    /// </summary>
-    internal static int Cost
-    {
-      get { return EntityId.Encoder.GetCost(EntityId.INVALID.entityId); }
-    }
+      new IntEncoder(
+        0, 
+        RailConfig.MAX_ENTITY_COUNT + 1); // ID 0 is invalid
 
     public bool IsValid 
     { 
-      get { return this.entityId > 0; } 
+      get { return this.idValue > 0; } 
     }
 
-    private readonly int entityId;
+    private readonly int idValue;
 
     internal EntityId(int entityId)
     {
-      this.entityId = entityId;
+      this.idValue = entityId;
     }
 
     public EntityId GetNext()
     {
-      return new EntityId(this.entityId + 1);
+      return new EntityId(this.idValue + 1);
     }
 
     public override int GetHashCode()
     {
-      return this.entityId;
+      return this.idValue;
     }
 
     public override bool Equals(object obj)
     {
       if (obj is EntityId)
-        return (((EntityId)obj).entityId == this.entityId);
+        return (((EntityId)obj).idValue == this.idValue);
       return false;
+    }
+
+    internal int GetCost()
+    {
+      return EntityId.Encoder.GetCost(this.idValue);
     }
 
     internal void Write(BitBuffer buffer)
     {
-      EntityId.Encoder.Write(buffer, this.entityId);
+      EntityId.Encoder.Write(buffer, this.idValue);
     }
 
     internal static EntityId Read(BitBuffer buffer)
