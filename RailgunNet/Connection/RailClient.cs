@@ -53,6 +53,7 @@ namespace Railgun
 
     public RailClient()
     {
+      RailConnection.IsServer = false;
       this.world.InitializeClient();
       this.serverPeer = null;
       this.serverClock = new RailClock();

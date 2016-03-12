@@ -52,6 +52,7 @@ namespace Railgun
       CommonDebug.Assert(entity.Controller == null);
       this.controlledEntities.Add(entity);
       entity.Controller = this;
+      entity.ControllerChanged();
     }
 
     internal virtual void RemoveEntity(RailEntity entity)
@@ -59,6 +60,7 @@ namespace Railgun
       CommonDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
       entity.Controller = null;
+      entity.ControllerChanged();
     }
 
     internal void QueueOutgoing(RailCommand command)

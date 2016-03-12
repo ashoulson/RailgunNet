@@ -32,6 +32,8 @@ namespace Railgun
   /// </summary>
   public abstract class RailConnection
   {
+    public static bool IsServer { get; protected set; }
+
     public RailWorld World { get { return this.world; } }
     protected RailWorld world;
     internal RailInterpreter interpreter;

@@ -51,6 +51,7 @@ namespace Railgun
 
     public RailServer()
     {
+      RailConnection.IsServer = true;
       this.world.InitializeServer();
       this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
     }
@@ -119,7 +120,6 @@ namespace Railgun
       where T : RailEntity
     {
       RailEntity entity = RailResource.Instance.CreateEntity(type);
-      entity.IsMaster = true;
       this.world.AddEntity(entity);
       return (T)entity;
     }

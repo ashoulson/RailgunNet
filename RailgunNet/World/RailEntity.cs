@@ -50,21 +50,53 @@ namespace Railgun
     /// </summary>
     internal int Type { get; private set; }
 
-    protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
     protected internal RailState State { get; private set; }
 
-    protected virtual void OnStart() { }
+    /// <summary>
+    /// SERVER: Called when the entity has a new controller. 
+    /// CLIENT: Called when local control is granted or revoked.
+    /// 
+    /// Always called once right after OnStart().
+    /// </summary>
     protected virtual void OnControllerChanged() { }
 
-    protected virtual void Simulate() { }
+    /// <summary>
+    /// SERVER: Called before the first update tick.
+    /// CLIENT: Called before the first update tick.
+    /// </summary>
+    protected virtual void Start() { }
+
+    /// <summary>
+    /// SERVER: Called every tick.
+    /// CLIENT: Called during prediction (multiple times per frame).
+    /// 
+    /// Includes the most recent command available from the controller.
+    /// </summary>
     internal virtual void SimulateCommand(RailCommand command) { }
+
+    /// <summary>
+    /// SERVER: Called every update tick.
+    /// CLIENT: Called during prediction (multiple times per frame).
+    /// 
+    /// Called after SimulateCommand().
+    /// </summary>
+    protected virtual void Simulate() { }
+
+    #region Client Callbacks
+
+    #endregion
 
     private bool hadFirstTick;
 
     public bool IsPredicted
     {       
-      get { return ((this.Controller != null) && (this.IsMaster == false)); }
+      get 
+      { 
+        return 
+          (this.Controller != null) && 
+          (RailConnection.IsServer == false);
+      }
     }
 
     internal RailEntity()
@@ -74,7 +106,6 @@ namespace Railgun
       this.StateBuffer = new RailStateBuffer();
       this.StateDelta = new RailStateDelta();
 
-      this.IsMaster = false;
       this.World = null;
       this.State = null;
 
@@ -93,7 +124,7 @@ namespace Railgun
       {
         if (this.hadFirstTick == false)
         {
-          this.OnStart();
+          this.Start();
           this.OnControllerChanged();
           this.hadFirstTick = true;
         }
@@ -112,6 +143,13 @@ namespace Railgun
     {
       if (this.World != null)
       {
+        if (this.hadFirstTick == false)
+        {
+          this.Start();
+          this.OnControllerChanged();
+          this.hadFirstTick = true;
+        }
+
         if (this.Controller != null)
           this.ForwardSimulate();
         else
@@ -396,6 +434,7 @@ namespace Railgun
       foreach (RailCommand command in this.Controller.OutgoingCommands)
       {
         this.SimulateCommand(command);
+        this.Simulate();
         this.PushDelta(offset);
 
         offset++;
