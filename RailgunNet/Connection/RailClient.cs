@@ -51,11 +51,7 @@ namespace Railgun
     // The last received event id, for reliable sequencing
     private EventId lastReceivedEventId;
 
-    public RailClient(
-      RailCommand commandToRegister, 
-      RailState[] statesToRegister,
-      RailEvent[] eventsToRegister)
-      : base(commandToRegister, statesToRegister, eventsToRegister)
+    public RailClient()
     {
       this.world.InitializeClient();
       this.serverPeer = null;
@@ -144,7 +140,7 @@ namespace Railgun
       RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
       packet.Initialize(
         this.localTick,
-        this.serverClock.LastReceivedRemote,
+        this.serverClock.LatestRemote,
         this.lastReceivedEventId,
         this.localController.OutgoingCommands);
       this.interpreter.SendClientPacket(this.serverPeer, packet);
@@ -160,7 +156,7 @@ namespace Railgun
       foreach (RailServerPacket packet in decode)
       {
         this.ProcessPacket(packet);
-        this.serverClock.UpdateLatest(packet.ServerTick);
+        this.serverClock.UpdateLatest(packet.LatestTick);
       }
     }
 
@@ -172,30 +168,21 @@ namespace Railgun
       foreach (RailEvent evnt in packet.Events)
         this.ProcessEvent(evnt);
 
-      this.localController.CleanCommands(packet.LastProcessedCommandTick);
+      if (packet.LastProcessedCommandTick.IsValid)
+        this.localController.CleanCommands(packet.LastProcessedCommandTick);
     }
 
     private void ProcessState(RailState state)
     {
       RailEntity entity;
-      if (this.World.TryGetEntity(state.EntityId, out entity) == false)
-        if (this.pendingEntities.TryGetValue(state.EntityId, out entity) == false)
-          entity = this.ReplicateEntity(state);
+      if (this.knownEntities.TryGetValue(state.EntityId, out entity) == false)
+      {
+        entity = RailResource.Instance.CreateEntity(state.EntityType);
+        this.pendingEntities.Add(state.EntityId, entity);
+        this.knownEntities.Add(state.EntityId, entity);
+      }
+
       entity.StateBuffer.Store(state);
-    }
-
-    /// <summary>
-    /// Creates an entity and adds it to the pending entity list.
-    /// </summary>
-    private RailEntity ReplicateEntity(RailState state)
-    {
-      RailEntity entity = state.CreateEntity();
-      entity.InitializeClient(state);
-
-      this.pendingEntities.Add(state.EntityId, entity);
-      this.knownEntities.Add(state.EntityId, entity);
-
-      return entity;
     }
 
     private RailEntity GetEntity(EntityId entityId)

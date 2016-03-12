@@ -31,44 +31,62 @@ namespace Railgun
     // TODO: Make this thread-safe (like [ThreadStatic])
     internal static RailResource Instance { get; private set; }
 
-    internal static void Initialize(
-      RailCommand commandToRegister, 
-      RailState[] statestoRegister,
-      RailEvent[] eventsToRegister)
+    internal static void Initialize()
     {
-      RailResource.Instance =
-        new RailResource(
-          commandToRegister, 
-          statestoRegister,
-          eventsToRegister);
+      RailResource.Instance = new RailResource();
     }
 
-    private RailPoolGeneric<RailServerPacket> serverPacketPool;
-    private RailPoolGeneric<RailClientPacket> clientPacketPool;
+    private RailPool<RailServerPacket> serverPacketPool;
+    private RailPool<RailClientPacket> clientPacketPool;
 
-    private RailPoolCommand commandPool;
+    private RailPool<RailCommand> commandPool;
 
-    private Dictionary<int, RailPoolState> statePools;
-    private Dictionary<int, RailPoolEvent> eventPools;
+    private Dictionary<int, RailPool<RailState>> statePools;
+    private Dictionary<int, RailPool<RailEvent>> eventPools;
 
-    private RailResource(
-      RailCommand commandToRegister, 
-      RailState[] statesToRegister,
-      RailEvent[] eventsToRegister)
+    private Dictionary<int, RailFactory<RailEntity>> entityFactories;
+
+    private RailResource()
     {
-      this.serverPacketPool = new RailPoolGeneric<RailServerPacket>();
-      this.clientPacketPool = new RailPoolGeneric<RailClientPacket>();
+      this.serverPacketPool = 
+        new RailPool<RailServerPacket, RailServerPacket>();
+      this.clientPacketPool = 
+        new RailPool<RailClientPacket, RailClientPacket>();
 
-      this.commandPool = commandToRegister.CreatePool();
-      this.statePools = new Dictionary<int, RailPoolState>();
-      this.eventPools = new Dictionary<int, RailPoolEvent>();
-
-      foreach (RailState state in statesToRegister)
-        this.statePools[state.EntityType] = state.CreatePool();
-      foreach (RailEvent evnt in eventsToRegister)
-        this.eventPools[evnt.EventType] = evnt.CreatePool();
+      this.commandPool = null;
+      this.statePools = new Dictionary<int, RailPool<RailState>>();
+      this.eventPools = new Dictionary<int, RailPool<RailEvent>>();
+      this.entityFactories = new Dictionary<int, RailFactory<RailEntity>>();
 
       this.CreateStandardEventPools();
+    }
+
+    internal void RegisterEntityType<TEntity, TState>(int type)
+      where TEntity : RailEntity<TState>, new()
+      where TState : RailState, new()
+    {
+      this.entityFactories[type] = new RailFactory<RailEntity, TEntity>();
+      this.statePools[type] = new RailPool<RailState, TState>();
+    }
+
+    internal void RegisterEventType<TEvent>(int type)
+      where TEvent : RailEvent, new()
+    {
+      this.eventPools[type] = new RailPool<RailEvent, TEvent>();
+    }
+
+    internal void RegisterCommandType<TCommand>()
+      where TCommand : RailCommand, new()
+    {
+      CommonDebug.Assert(this.commandPool == null);
+      this.commandPool = new RailPool<RailCommand, TCommand>();
+    }
+
+    internal RailEntity CreateEntity(int type)
+    {
+      RailEntity entity = this.entityFactories[type].Create();
+      entity.Initialize(type);
+      return entity;
     }
 
     internal RailServerPacket AllocateServerPacket()
@@ -99,7 +117,7 @@ namespace Railgun
     #region Event Shorthand
     private void CreateStandardEventPools()
     {
-      this.eventPools[RailEventTypes.TYPE_CONTROL] = new RailControlEvent().CreatePool();
+      this.RegisterEventType<RailControlEvent>(RailEventTypes.TYPE_CONTROL);
     }
 
     internal RailControlEvent AllocateControlEvent()

@@ -54,7 +54,7 @@ namespace Railgun
 
     internal void Update(Tick tick)
     {
-      this.latestCommand = this.incomingBuffer.GetLatest(tick);
+      this.latestCommand = this.incomingBuffer.GetLatestAt(tick);
     }
 
     /// <summary>

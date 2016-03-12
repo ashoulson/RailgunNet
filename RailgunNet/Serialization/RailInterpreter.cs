@@ -93,50 +93,14 @@ namespace Railgun
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
         // Read: [Packet]
-        RailServerPacket result =
-          RailServerPacket.Decode(this.bitBuffer, knownEntities);
+        RailServerPacket result = 
+          RailServerPacket.Decode(
+            this.bitBuffer,
+            knownEntities);
 
         CommonDebug.Assert(this.bitBuffer.BitsUsed == 0, "Bad packet read");
         yield return result;
       }
-    }
-    #endregion
-
-    #region High-Level State Encode/Decode Helpers
-    internal static void EncodeState(
-      BitBuffer buffer,
-      Tick basisTick, 
-      RailEntity entity)
-    {
-      if (basisTick.IsValid)
-      {
-        if (entity.TickCreated < basisTick)
-          entity.State.Encode(buffer, entity.StateBuffer.Get(basisTick));
-        else
-          entity.State.Encode(buffer);
-      }
-      else
-      {
-        entity.State.Encode(buffer);
-      }
-    }
-
-    internal static RailState DecodeState(
-      BitBuffer buffer,
-      Tick currentTick,
-      Tick basisTick,
-      IDictionary<EntityId, RailEntity> knownEntities)
-    {
-      RailEntity entity = null;
-      RailState basis = null;
-
-      if (knownEntities.TryGetValue(RailState.PeekId(buffer), out entity))
-        basis = entity.StateBuffer.Get(basisTick);
-
-      if (basis != null)
-        return RailState.Decode(buffer, currentTick, basis);
-      else
-        return RailState.Decode(buffer, currentTick);
     }
     #endregion
   }

@@ -26,7 +26,8 @@ namespace Railgun
 {
   public class RailStateBuffer
   {
-    internal RailState Latest { get { return this.latest; } }
+    internal RailState Earliest { get { return this.buffer.Earliest; } }
+    internal RailState Latest { get { return this.buffer.Latest; } }
 
     internal IEnumerable<RailState> Values 
     { 
@@ -34,7 +35,6 @@ namespace Railgun
     }
 
     private RailRingBuffer<RailState> buffer;
-    private RailState latest;
 
     public RailStateBuffer()
     {
@@ -47,8 +47,6 @@ namespace Railgun
     public void Store(RailState state)
     {
       this.buffer.Store(state);
-      if ((this.latest == null) || (this.latest.Tick < state.Tick))
-        this.latest = state;
     }
 
     internal void PopulateDelta(RailRingDelta<RailState> delta, Tick currentTick)
@@ -66,9 +64,9 @@ namespace Railgun
       return this.buffer.Get(tick);
     }
 
-    internal RailState GetLatest(Tick tick)
+    internal RailState GetLatestAt(Tick tick)
     {
-      return this.buffer.GetLatest(tick);
+      return this.buffer.GetLatestAt(tick);
     }
   }
 }

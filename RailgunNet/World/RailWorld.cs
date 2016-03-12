@@ -72,7 +72,6 @@ namespace Railgun
     {
       this.entities.Add(entity.Id, entity);
       entity.World = this;
-      entity.AddedToWorld();
     }
 
     internal void RemoveEntity(RailEntity entity)

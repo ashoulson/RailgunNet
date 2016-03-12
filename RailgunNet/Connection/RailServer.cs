@@ -49,11 +49,7 @@ namespace Railgun
     /// </summary>
     private Dictionary<IRailNetPeer, RailPeerClient> clients;
 
-    public RailServer(
-      RailCommand commandToRegister,
-      RailState[] statesToRegister,
-      RailEvent[] eventsToRegister)
-      : base(commandToRegister, statesToRegister, eventsToRegister)
+    public RailServer()
     {
       this.world.InitializeServer();
       this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
@@ -117,36 +113,15 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Creates a state of a given type for use in creating an entity.
+    /// Creates an entity of a given type and adds it to the world.
     /// </summary>
-    public T CreateState<T>()
-      where T : RailState, new()
-    {
-      return (T)RailResource.Instance.AllocateState((new T()).EntityType);
-    }
-
-    /// <summary>
-    /// Creates an entity of a given type. Does not add ie to the world.
-    /// </summary>
-    public T CreateEntity<T>(RailState state)
+    public T CreateEntity<T>(int type)
       where T : RailEntity
     {
-      // Entity states don't have a tick since they are reused every frame
-      state.Initialize(this.world.GetNewEntityId(), Tick.INVALID);
-
-      RailEntity entity = state.CreateEntity();
-      entity.InitializeServer(state);
-
-      return (T)entity;
-    }
-
-    /// <summary>
-    /// Adds an entity to the server's world.
-    /// </summary>
-    public void AddEntity(RailEntity entity)
-    {
+      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      entity.IsMaster = true;
       this.world.AddEntity(entity);
-      entity.TickCreated = this.world.Tick;
+      return (T)entity;
     }
 
     public void AssignControl(RailController controller, RailEntity entity)
@@ -167,10 +142,12 @@ namespace Railgun
 
         packet.Initialize(
           this.world.Tick,
-          clientPeer.LastAckedServerTick,
           clientPeer.LastProcessedCommandTick,
-          this.world.Entities,
           clientPeer.Controller.AllEvents);
+
+        // TODO: Scoping, budgeting, etc.
+        foreach (RailEntity entity in this.world.Entities)
+          packet.AddEntity(entity, clientPeer.LastAckedServerTick);
 
         this.interpreter.SendServerPacket(clientPeer, packet);
       }

@@ -30,20 +30,20 @@ namespace Railgun
   /// A type-safe and zero-safe wrapper for a tick offset. All internal values\
   /// are offset by +1 (zero is invalid, 1 is tick zero, etc.).
   /// </summary>
-  internal struct Offset
+  internal struct TickSpan
   {
-    internal static Offset Create(Tick latest, Tick basis)
+    internal static TickSpan Create(Tick latest, Tick basis)
     {
       CommonDebug.Assert(latest >= basis);
 
       int delta = latest - basis;
       if (delta > RailConfig.DEJITTER_BUFFER_LENGTH)
-        return Offset.OUT_OF_RANGE;
-      return new Offset(delta + 1);
+        return TickSpan.OUT_OF_RANGE;
+      return new TickSpan(delta + 1);
     }
 
-    internal static readonly Offset OUT_OF_RANGE = new Offset(-1);
-    internal static readonly Offset INVALID = new Offset(0);
+    internal static readonly TickSpan OUT_OF_RANGE = new TickSpan(-1);
+    internal static readonly TickSpan INVALID = new TickSpan(0);
 
     internal static readonly IntEncoder Encoder =
       new IntEncoder(
@@ -81,7 +81,7 @@ namespace Railgun
 
     private readonly int offsetValue;
 
-    private Offset(int offsetValue)
+    private TickSpan(int offsetValue)
     {
       this.offsetValue = offsetValue;
     }
@@ -93,29 +93,38 @@ namespace Railgun
 
     public override bool Equals(object obj)
     {
-      if (obj is Offset)
-        return (((Offset)obj).offsetValue == this.offsetValue);
+      if (obj is TickSpan)
+        return (((TickSpan)obj).offsetValue == this.offsetValue);
       return false;
     }
 
     internal int GetCost()
     {
-      return Offset.Encoder.GetCost(this.offsetValue);
+      return TickSpan.Encoder.GetCost(this.offsetValue);
     }
 
     internal void Write(BitBuffer buffer)
     {
-      Offset.Encoder.Write(buffer, this.offsetValue);
+      TickSpan.Encoder.Write(buffer, this.offsetValue);
     }
 
-    internal static Offset Read(BitBuffer buffer)
+    internal static TickSpan Read(BitBuffer buffer)
     {
-      return new Offset(Offset.Encoder.Read(buffer));
+      return new TickSpan(TickSpan.Encoder.Read(buffer));
     }
 
-    internal static Offset Peek(BitBuffer buffer)
+    internal static TickSpan Peek(BitBuffer buffer)
     {
-      return new Offset(Offset.Encoder.Peek(buffer));
+      return new TickSpan(TickSpan.Encoder.Peek(buffer));
+    }
+
+    public override string ToString()
+    {
+      if (this.offsetValue == 0)
+        return "TickSpan:INVALID";
+      if (this.offsetValue == -1)
+        return "TickSpan:OUTOFRANGE";
+      return "TickSpan:" + (this.offsetValue - 1);
     }
   }
 }

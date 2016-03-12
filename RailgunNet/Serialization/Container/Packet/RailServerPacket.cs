@@ -32,68 +32,83 @@ namespace Railgun
   /// </summary>
   internal class RailServerPacket : IRailPoolable, IRailRingValue
   {
+    private struct EntityUpdate
+    {
+      internal RailEntity Entity { get { return this.entity; } }
+      internal Tick BasisTick { get { return this.basisTick; } }
+
+      private readonly RailEntity entity;
+      private readonly Tick basisTick;
+
+      internal EntityUpdate(RailEntity entity, Tick basisTick)
+      {
+        this.entity = entity;
+        this.basisTick = basisTick;
+      }
+    }
+
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    Tick IRailRingValue.Tick { get { return this.ServerTick; } }
+    Tick IRailRingValue.Tick { get { return this.LatestTick; } }
 
-    internal Tick ServerTick { get; private set; }
-
-    // TODO: This will be obsolete when we do entity ticks
-    internal Tick BasisTick { get; private set; }
-
+    internal Tick LatestTick { get; private set; }
     internal Tick LastProcessedCommandTick { get; private set; }
 
-    internal IEnumerable<RailState> States { get { return this.states; } }
     internal IEnumerable<RailEvent> Events { get { return this.events; } }
 
-    // State list, available after decoding on client
-    private readonly List<RailState> states;
-
-    // Entity list, used for encoding on server
-    private readonly List<RailEntity> entities;
-
-    // Event list, includes both reliable and unreliable
     private readonly List<RailEvent> events;
+
+    // Server-only
+    private readonly List<EntityUpdate> updates;
+
+    // Client-only
+    internal IEnumerable<RailState> States { get { return this.states; } }
+    private readonly List<RailState> states;
 
     public RailServerPacket()
     {
-      this.states = new List<RailState>();
-      this.entities = new List<RailEntity>();
       this.events = new List<RailEvent>();
-
+      this.updates = new List<EntityUpdate>();
+      this.states = new List<RailState>();
       this.Reset();
     }
 
-    public void Initialize(
-      Tick serverTick,
-      Tick basisTick,
+    internal void Initialize(
+      Tick latestTick,
       Tick lastProcessedCommandTick,
-      IEnumerable<RailEntity> entities,
       IEnumerable<RailEvent> events)
     {
-      this.ServerTick = serverTick;
-      this.BasisTick = basisTick;
+      this.LatestTick = latestTick;
       this.LastProcessedCommandTick = lastProcessedCommandTick;
-
-      this.entities.AddRange(entities);
       this.events.AddRange(events);
+    }
+
+    internal void AddEntity(RailEntity entity, Tick basisTick)
+    {
+      this.updates.Add(new EntityUpdate(entity, basisTick));
     }
 
     protected void Reset()
     {
-      this.ServerTick = Tick.INVALID;
-      this.BasisTick = Tick.INVALID;
+      this.LatestTick = Tick.INVALID;
       this.LastProcessedCommandTick = Tick.INVALID;
 
-      this.states.Clear();
-      this.entities.Clear();
       this.events.Clear();
+      this.updates.Clear();
+      this.states.Clear();
     }
 
     #region Encode/Decode
     internal void Encode(
       BitBuffer buffer)
     {
+      // Write: [Entity States]
+      foreach (EntityUpdate pair in this.updates)
+        pair.Entity.EncodeState(buffer, this.LatestTick, pair.BasisTick);
+
+      // Write: [Entity Count]
+      buffer.Push(RailEncoders.EntityCount, this.updates.Count);
+
       // Write: [Events]
       foreach (RailEvent evnt in this.events)
         evnt.Encode(buffer);
@@ -101,21 +116,11 @@ namespace Railgun
       // Write: [EventCount]
       buffer.Push(RailEncoders.EventCount, this.events.Count);
 
-      // Write: [States]
-      foreach (RailEntity entity in this.entities)
-        RailInterpreter.EncodeState(buffer, this.BasisTick, entity);
-
-      // Write: [StateCount]
-      buffer.Push(RailEncoders.EntityCount, this.entities.Count);
-
       // Write: [LastProcessedCommandTick]
       buffer.Push(RailEncoders.Tick, this.LastProcessedCommandTick);
 
-      // Write: [LastAckedServerTick]
-      buffer.Push(RailEncoders.Tick, this.BasisTick);
-
-      // Write: [ServerTick]
-      buffer.Push(RailEncoders.Tick, this.ServerTick);
+      // Write: [LatestTick]
+      buffer.Push(RailEncoders.Tick, this.LatestTick);
     }
 
     internal static RailServerPacket Decode(
@@ -124,26 +129,11 @@ namespace Railgun
     {
       RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
 
-      // Read: [ServerTick]
-      packet.ServerTick = buffer.Pop(RailEncoders.Tick);
-
-      // Read: [LastAckedServerTick]
-      packet.BasisTick = buffer.Pop(RailEncoders.Tick);
+      // Read: [LatestTick]
+      packet.LatestTick = buffer.Pop(RailEncoders.Tick);
 
       // Read: [LastProcessedCommandTick]
       packet.LastProcessedCommandTick = buffer.Pop(RailEncoders.Tick);
-
-      // Read: [StateCount]
-      int stateCount = buffer.Pop(RailEncoders.EntityCount);
-
-      // Read: [States]
-      for (int i = 0; i < stateCount; i++)
-        packet.states.Add(
-          RailInterpreter.DecodeState(
-            buffer,
-            packet.ServerTick,
-            packet.BasisTick, 
-            knownEntities));
 
       // Read: [EventCount]
       int eventCount = buffer.Pop(RailEncoders.EventCount);
@@ -152,8 +142,32 @@ namespace Railgun
       for (int i = 0; i < eventCount; i++)
         packet.events.Add(RailEvent.Decode(buffer));
 
-      // We need to reverse the events to restore the original order
+      // We need to reverse the events to restore the send order
       packet.events.Reverse();
+
+      // Read: [Entity Count]
+      int count = buffer.Pop(RailEncoders.EntityCount);
+
+      // Read: [Entity States]
+      RailState state = null;
+      for (int i = 0; i < count; i++)
+      {
+        try
+        {
+          state = 
+            RailEntity.DecodeState(
+              buffer, 
+              packet.LatestTick, 
+              knownEntities);
+          if (state != null)
+            packet.states.Add(state);
+        }
+        catch (BasisNotFoundException bnfe)
+        {
+          CommonDebug.LogWarning(bnfe);
+          break;
+        }
+      }
 
       return packet;
     }
