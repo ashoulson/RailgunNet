@@ -58,8 +58,9 @@
   <ItemGroup>
     <Compile Include="Demo.cs" />
     <Compile Include="DemoCommand.cs" />
+    <Compile Include="DemoDummy.cs" />
     <Compile Include="DemoEncoders.cs" />
-    <Compile Include="DemoEntity.cs" />
+    <Compile Include="DemoControlled.cs" />
     <Compile Include="DemoEvents.cs" />
     <Compile Include="DemoMath.cs" />
     <Compile Include="DemoState.cs" />

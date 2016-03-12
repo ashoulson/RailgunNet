@@ -24,11 +24,18 @@ using System.Collections.Generic;
 
 public class DemoEvents
 {
-  public static event Action<DemoEntity> EntityCreated;
+  public static event Action<DemoControlled> ControlledCreated;
+  public static event Action<DemoDummy> DummyCreated;
 
-  public static void OnEntityAdded(DemoEntity entity)
+  public static void OnControlledAdded(DemoControlled entity)
   {
-    if (DemoEvents.EntityCreated != null)
-      DemoEvents.EntityCreated.Invoke(entity);
+    if (DemoEvents.ControlledCreated != null)
+      DemoEvents.ControlledCreated.Invoke(entity);
+  }
+
+  public static void OnDummyAdded(DemoDummy entity)
+  {
+    if (DemoEvents.DummyCreated != null)
+      DemoEvents.DummyCreated.Invoke(entity);
   }
 }

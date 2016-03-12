@@ -7,7 +7,8 @@ public class Spawner : MonoBehaviour
 {
   void Awake()
   {
-    DemoEvents.EntityCreated += this.OnEntityCreated;
+    DemoEvents.ControlledCreated += this.OnControlledCreated;
+    DemoEvents.DummyCreated += this.OnDummyCreated;
   }
 
   void Start()
@@ -18,13 +19,25 @@ public class Spawner : MonoBehaviour
   {
   }
 
-  private void OnEntityCreated(DemoEntity entity)
+  private void OnControlledCreated(DemoControlled entity)
   {
     GameObject go = 
       ArchetypeLibrary.Instance.Instantiate(
         entity.State.ArchetypeId);
 
-    DemoObject obj = go.GetComponent<DemoObject>();
+    DemoObjectControlled obj = go.GetComponent<DemoObjectControlled>();
+    obj.Entity = entity;
+  }
+
+  private void OnDummyCreated(DemoDummy entity)
+  {
+    Debug.Log(entity.State.ArchetypeId);
+
+    GameObject go =
+      ArchetypeLibrary.Instance.Instantiate(
+        entity.State.ArchetypeId);
+
+    DemoObjectDummy obj = go.GetComponent<DemoObjectDummy>();
     obj.Entity = entity;
   }
 }

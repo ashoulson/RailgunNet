@@ -23,38 +23,28 @@ using System.Collections;
 using System.Collections.Generic;
 
 using Railgun;
+using UnityEngine;
 
-namespace Example
+public class DemoControlled : RailEntity<DemoState, DemoCommand>
 {
-  public class Arena
+  protected override void Start()
   {
-    private RailServer server;
+    DemoEvents.OnControlledAdded(this);
+  }
 
-    public Arena(RailServer server)
-    {
-      this.server = server;
+  protected override void SimulateCommand(DemoCommand command)
+  {
+    if (command.Up)
+      this.State.Y += 5.0f * Time.fixedDeltaTime;
+    if (command.Down)
+      this.State.Y -= 5.0f * Time.fixedDeltaTime;
+    if (command.Left)
+      this.State.X -= 5.0f * Time.fixedDeltaTime;
+    if (command.Right)
+      this.State.X += 5.0f * Time.fixedDeltaTime;
+  }
 
-      server.ControllerAdded += this.OnControllerAdded;
-
-      for (int i = 0; i < 15; i++)
-      {
-        for (int j = 0; j < 15; j++)
-        {
-          DemoDummy dummy =
-            this.server.AddNewEntity<DemoDummy>(1);
-          dummy.State.ArchetypeId = 1;
-          dummy.State.X = i * 5;
-          dummy.State.Y = j * 5;
-        }
-      }
-    }
-
-    private void OnControllerAdded(RailController controller)
-    {
-      DemoControlled controlled =
-        this.server.AddNewEntity<DemoControlled>(0);
-      controlled.State.ArchetypeId = 0;
-      this.server.AssignControl(controller, controlled);
-    }
+  protected override void Simulate()
+  {
   }
 }

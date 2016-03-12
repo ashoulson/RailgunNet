@@ -25,26 +25,31 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
-public class DemoEntity : RailEntity<DemoState, DemoCommand>
+public class DemoDummy : RailEntity<DemoState>
 {
+  private int ticks = 0;
+
+  private float startX = 0.0f;
+  private float direction = 1.0f;
+  private float speed = 0.1f;
+
   protected override void Start()
   {
-    DemoEvents.OnEntityAdded(this);
-  }
+    DemoEvents.OnDummyAdded(this);
 
-  protected override void SimulateCommand(DemoCommand command)
-  {
-    if (command.Up)
-      this.State.Y += 5.0f * Time.fixedDeltaTime;
-    if (command.Down)
-      this.State.Y -= 5.0f * Time.fixedDeltaTime;
-    if (command.Left)
-      this.State.X -= 5.0f * Time.fixedDeltaTime;
-    if (command.Right)
-      this.State.X += 5.0f * Time.fixedDeltaTime;
+    this.startX = this.State.X;
   }
 
   protected override void Simulate()
   {
+    this.ticks++;
+    if (this.ticks >= 40)
+    {
+      this.direction *= -1.0f;
+      this.ticks = 0;
+    }
+
+    this.State.X += this.speed * this.direction;
+    this.State.Y += this.speed * this.direction;
   }
 }
