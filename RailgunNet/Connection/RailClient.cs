@@ -178,12 +178,24 @@ namespace Railgun
       RailEntity entity;
       if (this.knownEntities.TryGetValue(state.EntityId, out entity) == false)
       {
-        entity = RailResource.Instance.CreateEntity(state.EntityType);
+        entity = 
+          this.world.CreateEntity<RailEntity>(
+            state.EntityType, 
+            state.EntityId);
         this.pendingEntities.Add(state.EntityId, entity);
         this.knownEntities.Add(state.EntityId, entity);
       }
 
       entity.StateBuffer.Store(state);
+      this.UpdateControlStatus(entity, state);
+    }
+
+    private void UpdateControlStatus(RailEntity entity, RailState state)
+    {
+      if (state.IsController && (entity.Controller == null))
+        this.localController.AddEntity(entity);
+      if ((state.IsController == false) && (entity.Controller != null))
+        this.localController.RemoveEntity(entity);
     }
 
     private RailEntity GetEntity(EntityId entityId)
@@ -212,13 +224,6 @@ namespace Railgun
       // TODO: Move this to a more comprehensive solution
       switch (evnt.EventType)
       {
-        case RailEventTypes.TYPE_CONTROL:
-          RailControlEvent controlEvent = (RailControlEvent)evnt;
-          RailEntity entity = this.GetEntity(controlEvent.EntityId);
-          if (entity != null)
-            this.localController.AddEntity(entity);
-          break;
-
         default:
           CommonDebug.LogWarning("Unrecognized event: " + evnt.EventType);
           break;

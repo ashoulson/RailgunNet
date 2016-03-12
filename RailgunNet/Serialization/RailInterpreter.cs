@@ -78,7 +78,7 @@ namespace Railgun
       this.bitBuffer.Clear();
 
       // Write: [Packet]
-      packet.Encode(this.bitBuffer);
+      packet.Encode(this.bitBuffer, destinationPeer.Controller);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
       destinationPeer.EnqueueSend(this.byteBuffer, length);

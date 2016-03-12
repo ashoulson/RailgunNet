@@ -172,7 +172,7 @@ namespace Railgun
 
     internal void ControllerChanged()
     {
-      if (this.World != null)
+      if ((this.World != null) && this.hadFirstTick)
         this.OnControllerChanged();
     }
 
@@ -200,10 +200,11 @@ namespace Railgun
     internal void EncodeState(
       BitBuffer buffer, 
       Tick latestTick, 
-      Tick basisTick)
+      Tick basisTick,
+      RailController destination)
     {
       RailState basis = null;
-      TickSpan span = TickSpan.INVALID;
+      TickSpan span = TickSpan.OUT_OF_RANGE;
 
       if (basisTick.IsValid)
       {
@@ -212,35 +213,30 @@ namespace Railgun
       }
 
       // Either we're in range or we have no basis
-      CommonDebug.Assert(span.IsInRange ^ (basis == null));
+      // TODO: Re-enable once we're doing per-entity ticks
+      //CommonDebug.Assert(span.IsInRange ^ (basis == null));
 
-      // Full Encode
-      if (basis == null)
+      if (basis == null) // Full Encode
       {
         // Write: [State]
         this.State.EncodeData(buffer);
 
         // Write: [Type]
         buffer.Push(RailEncoders.EntityType, this.Type);
-
-        // Write: [TickSpan]
-        buffer.Push(RailEncoders.TickSpan, TickSpan.OUT_OF_RANGE);
-
-        Console.WriteLine("asdf");
       }
-      // Delta Encode
-      else
+      else // Delta Encode
       {
         // Write: [State]
         this.State.EncodeData(buffer, basis);
 
         // No [Type] for deltas
-
-        // Write: [TickSpan]
-        buffer.Push(RailEncoders.TickSpan, span);
-
-        Console.WriteLine(span);
       }
+
+      // Write: [IsController]
+      buffer.Push(RailEncoders.Bool, (destination == this.Controller));
+
+      // Write: [TickSpan]
+      buffer.Push(RailEncoders.TickSpan, span);
 
       // Write: [Id]
       buffer.Push(RailEncoders.EntityId, this.Id);
@@ -262,6 +258,9 @@ namespace Railgun
 
       // Read: [TickSpan]
       TickSpan span = buffer.Pop(RailEncoders.TickSpan);
+
+      // Read: [IsController]
+      bool isController = buffer.Pop(RailEncoders.Bool);
 
       RailEntity entity;
       if (knownEntities.TryGetValue(id, out entity) == false)
@@ -287,6 +286,7 @@ namespace Railgun
         // Write entity information
         state.EntityId = id;
         state.EntityType = entity.Type;
+        state.IsController = isController;
 
         if (canStore)
           return state;
@@ -305,6 +305,7 @@ namespace Railgun
         // Write entity information
         state.EntityId = id;
         state.EntityType = type;
+        state.IsController = isController;
 
         return state;
       }

@@ -116,10 +116,10 @@ namespace Railgun
     /// <summary>
     /// Creates an entity of a given type and adds it to the world.
     /// </summary>
-    public T CreateEntity<T>(int type)
+    public T AddNewEntity<T>(int type)
       where T : RailEntity
     {
-      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      RailEntity entity = this.world.CreateEntity<T>(type);
       this.world.AddEntity(entity);
       return (T)entity;
     }
@@ -127,7 +127,7 @@ namespace Railgun
     public void AssignControl(RailController controller, RailEntity entity)
     {
       RailControllerServer serverController = (RailControllerServer)controller;
-      serverController.AddEntity(entity, this.world.Tick);
+      serverController.AddEntity(entity);
     }
 
     /// <summary>

@@ -57,6 +57,7 @@ namespace Railgun
     // Client-only
     internal EntityId EntityId { get; set; }
     internal int EntityType { get; set; }
+    internal bool IsController { get; set; }
 
     protected internal abstract void EncodeData(BitBuffer buffer);
     protected internal abstract void DecodeData(BitBuffer buffer);
@@ -69,6 +70,10 @@ namespace Railgun
       this.Tick = Tick.INVALID;
       this.IsPredicted = false;
       this.ResetData();
+
+      this.EntityId = EntityId.INVALID;
+      this.EntityType = -1;
+      this.IsController = false;
     }
 
     #region DEBUG

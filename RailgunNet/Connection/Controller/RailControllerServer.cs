@@ -66,37 +66,6 @@ namespace Railgun
         this.incomingBuffer.Store(command);
     }
 
-    /// <summary>
-    /// Adds an entity to be controlled by this controller.
-    /// </summary>
-    internal void AddEntity(RailEntity entity, Tick tick)
-    {
-      if (entity.Controller == this)
-        return;
-
-      CommonDebug.Assert(entity.Controller == null);
-      this.controlledEntities.Add(entity);
-
-      entity.Controller = this;
-      entity.ControllerChanged();
-
-      this.QueueControlEvent(entity.Id, true, tick);
-    }
-
-    /// <summary>
-    /// Remove an entity from being controlled by this controller.
-    /// </summary>
-    internal void RemoveEntity(RailEntity entity, Tick tick)
-    {
-      CommonDebug.Assert(entity.Controller == this);
-      this.controlledEntities.Remove(entity);
-
-      entity.Controller = null;
-      entity.ControllerChanged();
-
-      this.QueueControlEvent(entity.Id, false, tick);
-    }
-
     internal override void Shutdown()
     {
       foreach (RailEntity entity in this.controlledEntities)
@@ -105,16 +74,6 @@ namespace Railgun
         entity.ControllerChanged();
       }
       this.controlledEntities.Clear();
-    }
-
-    private void QueueControlEvent(EntityId entityId, bool granted, Tick tick)
-    {
-      RailControlEvent controlEvent =
-        RailResource.Instance.AllocateControlEvent();
-      controlEvent.EntityId = entityId;
-      controlEvent.Granted = granted;
-      this.QueueReliable(controlEvent, tick);
-      RailPool.Free(controlEvent);
     }
   }
 }
