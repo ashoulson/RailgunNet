@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public struct EntityId
+  public struct EntityId : IEncodableType<EntityId>
   {
     public class EntityIdComparer : IEqualityComparer<EntityId>
     {
@@ -80,24 +80,26 @@ namespace Railgun
       return false;
     }
 
-    internal int GetCost()
+    #region IEncodableType Members
+    int IEncodableType<EntityId>.GetCost()
     {
       return EntityId.Encoder.GetCost(this.idValue);
     }
 
-    internal void Write(BitBuffer buffer)
+    void IEncodableType<EntityId>.Write(BitBuffer buffer)
     {
       EntityId.Encoder.Write(buffer, this.idValue);
     }
 
-    internal static EntityId Read(BitBuffer buffer)
+    EntityId IEncodableType<EntityId>.Read(BitBuffer buffer)
     {
       return new EntityId(EntityId.Encoder.Read(buffer));
     }
 
-    internal static EntityId Peek(BitBuffer buffer)
+    EntityId IEncodableType<EntityId>.Peek(BitBuffer buffer)
     {
       return new EntityId(EntityId.Encoder.Peek(buffer));
     }
+    #endregion
   }
 }

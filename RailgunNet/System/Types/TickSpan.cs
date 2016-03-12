@@ -30,7 +30,7 @@ namespace Railgun
   /// A type-safe and zero-safe wrapper for a tick offset. All internal values\
   /// are offset by +1 (zero is invalid, 1 is tick zero, etc.).
   /// </summary>
-  internal struct TickSpan
+  internal struct TickSpan : IEncodableType<TickSpan>
   {
     internal static TickSpan Create(Tick latest, Tick basis)
     {
@@ -98,25 +98,27 @@ namespace Railgun
       return false;
     }
 
-    internal int GetCost()
+    #region IEncodableType Members
+    int IEncodableType<TickSpan>.GetCost()
     {
       return TickSpan.Encoder.GetCost(this.offsetValue);
     }
 
-    internal void Write(BitBuffer buffer)
+    void IEncodableType<TickSpan>.Write(BitBuffer buffer)
     {
       TickSpan.Encoder.Write(buffer, this.offsetValue);
     }
 
-    internal static TickSpan Read(BitBuffer buffer)
+    TickSpan IEncodableType<TickSpan>.Read(BitBuffer buffer)
     {
       return new TickSpan(TickSpan.Encoder.Read(buffer));
     }
 
-    internal static TickSpan Peek(BitBuffer buffer)
+    TickSpan IEncodableType<TickSpan>.Peek(BitBuffer buffer)
     {
       return new TickSpan(TickSpan.Encoder.Peek(buffer));
     }
+    #endregion
 
     public override string ToString()
     {

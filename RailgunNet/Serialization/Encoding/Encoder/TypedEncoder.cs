@@ -22,35 +22,31 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
-  /// <summary>
-  /// A typesafe wrapping encoder for EventIds.
-  /// </summary>
-  public class EventIdEncoder : Encoder<EventId>
+  public class TypedEncoder<T> : Encoder<T>
+    where T : struct, IEncodableType<T>
   {
-    internal EventIdEncoder() { }
+    private T dummy = default(T);
 
-    internal override int GetCost(EventId value)
+    internal override int GetCost(T value)
     {
       return value.GetCost();
     }
 
-    internal override void Write(BitBuffer buffer, EventId value)
+    internal override void Write(BitBuffer buffer, T value)
     {
       value.Write(buffer);
     }
 
-    internal override EventId Read(BitBuffer buffer)
+    internal override T Read(BitBuffer buffer)
     {
-      return EventId.Read(buffer);
+      return dummy.Read(buffer);
     }
 
-    internal override EventId Peek(BitBuffer buffer)
+    internal override T Peek(BitBuffer buffer)
     {
-      return EventId.Peek(buffer);
+      return dummy.Peek(buffer);
     }
   }
 }
