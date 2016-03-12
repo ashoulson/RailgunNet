@@ -44,6 +44,11 @@ namespace Railgun
     private int position;
 
     /// <summary>
+    /// A stored potential rollback position.
+    /// </summary>
+    private int rollback;
+
+    /// <summary>
     /// Buffer of chunks for storing data.
     /// </summary>
     private uint[] chunks;
@@ -51,7 +56,12 @@ namespace Railgun
     /// <summary>
     /// The number of bits currently stored in the buffer.
     /// </summary>
-    internal int BitsUsed { get { return this.position; } }
+    public int Position { get { return this.position; } }
+
+    /// <summary>
+    /// Size the buffer will require in bytes.
+    /// </summary>
+    public int ByteSize { get { return (this.position / SIZE_BYTE) + 1; } }
 
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
@@ -62,11 +72,60 @@ namespace Railgun
       this.Clear();
     }
 
-    internal void Clear()
+    /// <summary>
+    /// Clears the buffer and overwrites all stored bits to zero.
+    /// </summary>
+    public void Clear()
     {
       for (int i = 0; i < this.chunks.Length; i++)
         this.chunks[i] = 0;
       this.position = 0;
+      this.rollback = 0;
+    }
+
+    /// <summary>
+    /// Sets a rollback point for later.
+    /// </summary>
+    public void SetRollback()
+    {
+      this.rollback = this.position;
+    }
+
+    /// <summary>
+    /// Returns the buffer to a previous point and clears out all data
+    /// stored since that point.
+    /// </summary>
+    public void Rollback()
+    {
+      if (this.rollback > this.position)
+        throw new InvalidOperationException();
+
+      int rollbackWritten = this.rollback - 1;
+      int goalIndex = rollbackWritten / BitBuffer.SIZE_STORAGE;
+      int bitsRemaining = this.position - this.rollback;
+
+      while (bitsRemaining > 0)
+      {
+        // Find our place
+        int lastWritten = this.position - 1;
+        int writtenIndex = lastWritten / BitBuffer.SIZE_STORAGE;
+        int writtenUsed = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
+
+        if (writtenIndex > goalIndex)
+        {
+          this.chunks[writtenIndex] = 0;
+          this.position -= writtenUsed;
+        }
+        else
+        {
+          int bitsToSave = writtenUsed - bitsRemaining;
+          ulong mask = (1UL << bitsToSave) - 1;
+          this.chunks[writtenIndex] &= (uint)mask;
+          this.position = this.rollback;
+        }
+
+        bitsRemaining = this.position - this.rollback;
+      }
     }
 
     /// <summary>
