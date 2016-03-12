@@ -31,6 +31,12 @@ namespace Railgun
   /// </summary>
   public abstract class RailCommand : IRailPoolable, IRailRingValue
   {
+    public static void RegisterCommandType<TCommand>()
+      where TCommand : RailCommand, new()
+    {
+      RailResource.Instance.RegisterCommandType<TCommand>();
+    }
+
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
     Tick IRailRingValue.Tick { get { return this.Tick; } }
@@ -39,8 +45,6 @@ namespace Railgun
     /// The client tick this command was generated on.
     /// </summary>
     internal Tick Tick { get; set; }
-
-    internal abstract RailPoolCommand CreatePool();
 
     protected abstract void EncodeData(BitBuffer buffer);
     protected abstract void DecodeData(BitBuffer buffer);
@@ -79,20 +83,6 @@ namespace Railgun
       command.DecodeData(buffer);
 
       return command;
-    }
-    #endregion
-  }
-
-  /// <summary>
-  /// This is the class to override to attach user-defined data to an entity.
-  /// </summary>
-  public abstract class RailCommand<T> : RailCommand
-    where T : RailCommand<T>, new()
-  {
-    #region Casting Overrides
-    internal override RailPoolCommand CreatePool()
-    {
-      return new RailPoolCommand<T>();
     }
     #endregion
   }

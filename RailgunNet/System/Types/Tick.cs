@@ -33,7 +33,7 @@ namespace Railgun
   /// </summary>
   public struct Tick
   {
-    internal static Tick Create(Tick latest, Offset offset)
+    internal static Tick Create(Tick latest, TickSpan offset)
     {
       return latest - offset.RawValue;
     }
@@ -185,6 +185,13 @@ namespace Railgun
     internal static Tick Peek(BitBuffer buffer)
     {
       return new Tick(Tick.Encoder.Peek(buffer));
+    }
+
+    public override string ToString()
+    {
+      if (this.tickValue == 0)
+        return "Tick:INVALID";
+      return "Tick:" + (this.tickValue - 1);
     }
   }
 }

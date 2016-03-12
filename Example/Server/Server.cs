@@ -43,12 +43,8 @@ namespace Example
       this.port = port;
 
       this.socket = new NetSocket();
-
-      this.server = 
-        new RailServer(
-          new DemoCommand(), 
-          new RailState[] { new DemoState() },
-          new RailEvent[] { });
+      this.server = new RailServer();
+      Demo.RegisterTypes();
 
       this.wrapper = new NetServerWrapper(socket, server);
       this.arena = new Arena(this.server);

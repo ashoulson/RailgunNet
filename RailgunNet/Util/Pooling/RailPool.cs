@@ -60,4 +60,16 @@ namespace Railgun
       this.Deallocate((T)item);
     }
   }
+
+  internal class RailPool<TBase, TDerived> : RailPool<TBase>
+    where TBase : IRailPoolable
+    where TDerived : TBase, new()
+  {
+    internal override TBase Allocate()
+    {
+      TDerived newDerived = new TDerived();
+      newDerived.Pool = this;
+      return newDerived;
+    }
+  }
 }

@@ -32,7 +32,30 @@ namespace Railgun
     // key by 2 so as to avoid wasting space in the frame buffer
     private int divisor;
 
+    /// <summary>
+    /// The most recent value stored in this buffer.
+    /// </summary>
+    internal T Latest
+    {
+      get { return this.latest; }
+    }
+
+    /// <summary>
+    /// The earliest ever value stored in this buffer.
+    /// May no longer be in the buffer itself.
+    /// </summary>
+    internal T Earliest
+    {
+      get { return this.earliest; }
+    }
+
     private T[] data;
+    private T latest;
+    private T earliest;
+
+    // Whether or not the earliest is still in the buffer (used for freeing)
+    private bool earliestInBuffer;
+    private bool latestInBuffer;
 
     internal IEnumerable<T> Values
     {
@@ -48,16 +71,58 @@ namespace Railgun
     {
       this.divisor = divisor;
       this.data = new T[capacity / divisor];
-      for (int i = 0; i < this.data.Length; i++)
-        this.data[i] = null;
     }
 
     public void Store(T value)
     {
       int index = this.TickToIndex(value.Tick);
+
+      // Replace the current value in that slot and free it unless the
+      // current is stored as the earliest or latest values
+      T current = this.data[index];
       if (this.data[index] != null)
-        RailPool.Free(this.data[index]);
+      {
+        bool canFree = true;
+
+        if (current == this.earliest)
+        {
+          this.earliestInBuffer = false;
+          canFree = false;
+        }
+
+        if (current == this.latest)
+        {
+          this.latestInBuffer = false;
+          canFree = false;
+        }
+
+        if (canFree)
+        {
+          RailPool.Free(current);
+        }
+      }
+
       this.data[index] = value;
+
+      // Replace the earliest if applicable
+      if ((this.earliest == null) || (this.earliest.Tick > value.Tick))
+      {
+        if ((this.earliest != null) && (this.earliestInBuffer == false))
+          RailPool.Free(this.earliest);
+
+        this.earliest = value;
+        this.earliestInBuffer = true;
+      }
+
+      // Replace the latest if applicable
+      if ((this.latest == null) || (this.latest.Tick < value.Tick))
+      {
+        if ((this.latest != null) && (this.latestInBuffer == false))
+          RailPool.Free(this.latest);
+
+        this.latest = value;
+        this.latestInBuffer = true;
+      }
     }
 
     public T Get(Tick tick)
@@ -111,7 +176,7 @@ namespace Railgun
       delta.Set(prior, latest, next);
     }
 
-    public T GetLatest(Tick tick)
+    public T GetLatestAt(Tick tick)
     {
       if (tick == Tick.INVALID)
         return null;

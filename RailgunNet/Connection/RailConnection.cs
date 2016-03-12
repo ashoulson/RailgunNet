@@ -38,16 +38,9 @@ namespace Railgun
 
     public abstract void Update();
 
-    protected RailConnection(
-      RailCommand commandToRegister, 
-      RailState[] statesToRegister,
-      RailEvent[] eventsToRegister)
+    protected RailConnection()
     {
-      RailResource.Initialize(
-        commandToRegister,
-        statesToRegister,
-        eventsToRegister);
-
+      RailResource.Initialize();
       this.world = new RailWorld();
       this.interpreter = new RailInterpreter();
     }

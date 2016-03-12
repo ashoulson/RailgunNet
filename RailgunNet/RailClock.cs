@@ -41,7 +41,7 @@ namespace Railgun
     private int delayMin;
     private int delayMax;
 
-    private Tick lastReceivedRemote;
+    private Tick latestRemote;
     private Tick estimatedRemote;
 
     private bool shouldUpdateEstimate;
@@ -49,7 +49,7 @@ namespace Railgun
 
     public bool ShouldTick { get { return this.shouldTick; } }
     public Tick EstimatedRemote { get { return this.estimatedRemote; } }
-    public Tick LastReceivedRemote { get { return this.lastReceivedRemote; } }
+    public Tick LatestRemote { get { return this.latestRemote; } }
 
     internal RailClock(
       int remoteSendRate = RailConfig.NETWORK_SEND_RATE,
@@ -58,7 +58,7 @@ namespace Railgun
     {
       this.remoteRate = remoteSendRate;
       this.estimatedRemote = Tick.INVALID;
-      this.lastReceivedRemote = Tick.INVALID;
+      this.latestRemote = Tick.INVALID;
 
       this.delayMin = delayMin;
       this.delayMax = delayMax;
@@ -70,9 +70,14 @@ namespace Railgun
 
     public void UpdateLatest(Tick latestTick)
     {
-      if (latestTick > this.lastReceivedRemote)
+      if (this.latestRemote.IsValid == false)
+        this.latestRemote = latestTick;        
+      if (this.estimatedRemote.IsValid == false)
+        this.estimatedRemote = this.latestRemote - this.delayDesired;
+
+      if (latestTick > this.latestRemote)
       {
-        this.lastReceivedRemote = latestTick;
+        this.latestRemote = latestTick;
         this.shouldUpdateEstimate = true;
         this.shouldTick = true;
       }
@@ -88,12 +93,12 @@ namespace Railgun
       if (this.shouldUpdateEstimate == false)
         return 1;
 
-      int delta = this.lastReceivedRemote - this.estimatedRemote;
+      int delta = this.latestRemote - this.estimatedRemote;
 
       if (this.ShouldSnapTick(delta))
       {
         // Reset
-        this.estimatedRemote = this.lastReceivedRemote - this.delayDesired;
+        this.estimatedRemote = this.latestRemote - this.delayDesired;
         return 0;
       }
       else if (delta > this.delayMax)

@@ -25,7 +25,7 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
-public class DemoState : RailState<DemoState, DemoEntity>
+public class DemoState : RailState<DemoState>
 {
   // TODO: This class is the sort of thing that would be great to code-
   // generate, but since there's only a couple of them at most the 
@@ -64,8 +64,6 @@ public class DemoState : RailState<DemoState, DemoEntity>
       (DemoMath.AnglesEqual(state.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
       (state.Status == basis.Status ? 0 : FLAG_STATUS);
   }
-
-  protected override int EntityType { get { return DemoTypes.TYPE_DEMO; } }
 
   public int ArchetypeId { get; set; }
   public int UserId { get; set; }

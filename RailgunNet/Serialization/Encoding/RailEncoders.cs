@@ -34,7 +34,7 @@ namespace Railgun
     public static readonly EntityIdEncoder EntityId = new EntityIdEncoder();
     public static readonly TickEncoder Tick = new TickEncoder();
     internal static readonly EventIdEncoder EventId = new EventIdEncoder();
-    internal static readonly OffsetEncoder Offset = new OffsetEncoder();
+    internal static readonly TickSpanEncoder TickSpan = new TickSpanEncoder();
 
     // Types
     internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);

@@ -34,19 +34,31 @@ namespace CommonTools
     [Conditional("DEBUG")]
     public static void Log(object message)
     {
-      System.Diagnostics.Debug.Print("LOG: " + message.ToString());
+      System.Diagnostics.Debug.Print(
+        "LOG: " + 
+        message.ToString() +
+        "\n" +
+        new System.Diagnostics.StackTrace());
     }
 
     [Conditional("DEBUG")]
     public static void LogError(object message)
     {
-      System.Diagnostics.Debug.Print("ERROR: " + message.ToString());
+      System.Diagnostics.Debug.Print(
+        "ERROR: " +
+        message.ToString() +
+        "\n" +
+        new System.Diagnostics.StackTrace());
     }
 
     [Conditional("DEBUG")]
     public static void LogWarning(object message)
     {
-      System.Diagnostics.Debug.Print("WARNING: " + message.ToString());
+      System.Diagnostics.Debug.Print(
+        "WARNING: " +
+        message.ToString() +
+        "\n" +
+        new System.Diagnostics.StackTrace());
     }
 
     [Conditional("DEBUG")]

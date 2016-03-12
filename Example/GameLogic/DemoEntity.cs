@@ -27,9 +27,7 @@ using UnityEngine;
 
 public class DemoEntity : RailEntity<DemoState, DemoCommand>
 {
-  public DemoEntity() { }
-
-  protected override void OnAddedToWorld()
+  protected override void OnStart()
   {
     DemoEvents.OnEntityAdded(this);
   }

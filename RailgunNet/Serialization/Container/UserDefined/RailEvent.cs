@@ -39,6 +39,12 @@ namespace Railgun
   /// </summary>
   public abstract class RailEvent : IRailPoolable
   {
+    internal void RegisterEventType<TEvent>(int type)
+      where TEvent : RailEvent, new()
+    {
+      RailResource.Instance.RegisterEventType<TEvent>(type);
+    }
+
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
 
@@ -58,7 +64,6 @@ namespace Railgun
     protected internal abstract int EventType { get; }
 
     internal abstract void SetDataFrom(RailEvent other);
-    internal abstract RailPoolEvent CreatePool();
 
     protected abstract void EncodeData(BitBuffer buffer);
     protected abstract void DecodeData(BitBuffer buffer);
@@ -138,11 +143,6 @@ namespace Railgun
     internal override void SetDataFrom(RailEvent other)
     {
       this.SetDataFrom((T)other);
-    }
-
-    internal override RailPoolEvent CreatePool()
-    {
-      return new RailPoolEvent<T>();
     }
     #endregion
 

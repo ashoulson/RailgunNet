@@ -22,35 +22,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
+using Railgun;
 
-namespace Railgun
+public static class Demo
 {
-  /// <summary>
-  /// A typesafe wrapping encoder for Offset.
-  /// </summary>
-  internal class OffsetEncoder : Encoder<Offset>
+  public static void RegisterTypes()
   {
-    internal override int GetCost(Offset value)
-    {
-      return value.GetCost();
-    }
-
-    internal OffsetEncoder() { }
-
-    internal override void Write(BitBuffer buffer, Offset value)
-    {
-      value.Write(buffer);
-    }
-
-    internal override Offset Read(BitBuffer buffer)
-    {
-      return Offset.Read(buffer);
-    }
-
-    internal override Offset Peek(BitBuffer buffer)
-    {
-      return Offset.Peek(buffer);
-    }
+    RailCommand.RegisterCommandType<DemoCommand>();
+    RailEntity.RegisterEntityType<DemoEntity, DemoState>(1);
   }
 }

@@ -22,80 +22,95 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
   public abstract class RailEntity
   {
+    public static void RegisterEntityType<TEntity, TState>(int type)
+      where TEntity : RailEntity<TState>, new()
+      where TState : RailState, new()
+    {
+      RailResource.Instance.RegisterEntityType<TEntity, TState>(type);
+    }
+
     internal RailController Controller { get; set; }
     internal RailStateBuffer StateBuffer { get; private set; }
-    internal bool IsAwake { get; private set; }
+    internal RailStateDelta StateDelta { get; private set; }
 
-    public RailStateDelta StateDelta { get; private set; }
-    public Tick CurrentTick { get { return this.World.Tick; } }
+    /// <summary>
+    /// A unique network ID assigned to this entity.
+    /// </summary>
+    public EntityId Id { get; internal set; }
+
+    /// <summary>
+    /// The int index for the type of entity this state applies to.
+    /// Set by the resource manager when creating this entity.
+    /// </summary>
+    internal int Type { get; private set; }
 
     protected internal bool IsMaster { get; internal set; }
     protected internal RailWorld World { get; internal set; }
+    protected internal RailState State { get; private set; }
 
-    protected internal EntityId Id { get { return this.State.EntityId; } }
-    protected internal int Type { get { return this.State.EntityType; } }
-    protected internal RailState State { get; set; }
-
-    /// <summary>
-    /// The server tick this entity was created on -- not synchronized.
-    /// </summary>
-    internal Tick TickCreated { get; set; }
-
-    protected virtual void OnAddedToWorld() { }
+    protected virtual void OnStart() { }
     protected virtual void OnControllerChanged() { }
 
     protected virtual void Simulate() { }
     internal virtual void SimulateCommand(RailCommand command) { }
 
+    private bool hadFirstTick;
+
     public bool IsPredicted
-    {
+    {       
       get { return ((this.Controller != null) && (this.IsMaster == false)); }
     }
 
     internal RailEntity()
     {
       this.Controller = null;
-      this.World = null;
-      this.StateBuffer = new RailStateBuffer();
-      this.IsAwake = false;
-    }
 
-    internal void InitializeClient(RailState state)
-    {
-      this.State = state.Clone();
-      this.State.Tick = Tick.INVALID;
+      this.StateBuffer = new RailStateBuffer();
+      this.StateDelta = new RailStateDelta();
 
       this.IsMaster = false;
-      this.StateDelta = new RailStateDelta();
+      this.World = null;
+      this.State = null;
+
+      this.hadFirstTick = false;
     }
 
-    internal void InitializeServer(RailState state)
+    internal void Initialize(int type)
     {
-      this.State = state.Clone();
-      this.State.Tick = Tick.INVALID;
-
-      this.IsMaster = true;
-      this.StateDelta = null;
+      this.Type = type;
+      this.State = this.AllocateState();     
     }
 
     internal void UpdateServer()
     {
-      if (this.Controller != null)
+      if (this.World != null)
       {
-        RailCommand command = this.Controller.LatestCommand;
-        if (command != null)
-          this.SimulateCommand(command);
+        if (this.hadFirstTick == false)
+        {
+          this.OnStart();
+          this.OnControllerChanged();
+          this.hadFirstTick = true;
+        }
+
+        if (this.Controller != null)
+        {
+          RailCommand command = this.Controller.LatestCommand;
+          if (command != null)
+            this.SimulateCommand(command);
+        }
+        this.Simulate();
       }
-      this.Simulate();
     }
 
     internal void UpdateClient(Tick serverTick)
     {
-      if (this.IsAwake)
+      if (this.World != null)
       {
         if (this.Controller != null)
           this.ForwardSimulate();
@@ -114,28 +129,196 @@ namespace Railgun
 
     internal bool HasLatest(Tick serverTick)
     {
-      return (this.StateBuffer.GetLatest(serverTick) != null);
-    }
-
-    internal void AddedToWorld()
-    {
-      this.IsAwake = true;
-      this.OnAddedToWorld();
-      this.OnControllerChanged();    
+      return (this.StateBuffer.GetLatestAt(serverTick) != null);
     }
 
     internal void ControllerChanged()
     {
-      if (this.IsAwake)
+      if (this.World != null)
         this.OnControllerChanged();
     }
 
     internal void StoreState(Tick tick)
     {
-      RailState state = this.State.Clone();
+      RailState state = this.AllocateState();
+      state.SetDataFrom(this.State);
       state.Tick = tick;
       this.StateBuffer.Store(state);
     }
+
+    private RailState CloneState(RailState state)
+    {
+      RailState clone = this.AllocateState();
+      clone.SetDataFrom(state);
+      return clone;
+    }
+
+    private RailState AllocateState()
+    {
+      return RailResource.Instance.AllocateState(this.Type);
+    }
+
+    #region Encoding/Decoding
+    internal void EncodeState(
+      BitBuffer buffer, 
+      Tick latestTick, 
+      Tick basisTick)
+    {
+      RailState basis = null;
+      TickSpan span = TickSpan.INVALID;
+
+      if (basisTick.IsValid)
+      {
+        basis = this.StateBuffer.Get(basisTick);
+        span = TickSpan.Create(latestTick, basisTick);
+      }
+
+      // Either we're in range or we have no basis
+      CommonDebug.Assert(span.IsInRange ^ (basis == null));
+
+      // Full Encode
+      if (basis == null)
+      {
+        // Write: [State]
+        this.State.EncodeData(buffer);
+
+        // Write: [Type]
+        buffer.Push(RailEncoders.EntityType, this.Type);
+
+        // Write: [TickSpan]
+        buffer.Push(RailEncoders.TickSpan, TickSpan.OUT_OF_RANGE);
+
+        Console.WriteLine("asdf");
+      }
+      // Delta Encode
+      else
+      {
+        // Write: [State]
+        this.State.EncodeData(buffer, basis);
+
+        // No [Type] for deltas
+
+        // Write: [TickSpan]
+        buffer.Push(RailEncoders.TickSpan, span);
+
+        Console.WriteLine(span);
+      }
+
+      // Write: [Id]
+      buffer.Push(RailEncoders.EntityId, this.Id);
+    }
+
+    /// <summary>
+    /// Decodes the latest state for a RailEntity and returns it. 
+    /// May return null if we received bad data and need to discard the state.
+    /// 
+    /// Throws a BasisNotFoundException if decoding is impossible.
+    /// </summary>
+    internal static RailState DecodeState(
+      BitBuffer buffer,
+      Tick latestTick,
+      IDictionary<EntityId, RailEntity> knownEntities)
+    {
+      // Read: [Id]
+      EntityId id = buffer.Pop(RailEncoders.EntityId);
+
+      // Read: [TickSpan]
+      TickSpan span = buffer.Pop(RailEncoders.TickSpan);
+
+      RailEntity entity;
+      if (knownEntities.TryGetValue(id, out entity) == false)
+        entity = null;
+
+      // Delta decode
+      if (span.IsInRange)
+      {
+        // No [Type] for deltas
+
+        bool canStore = true;
+        RailState basis = 
+          RailEntity.GetBasis(
+            entity, 
+            latestTick, 
+            span, 
+            out canStore);
+
+        // Read: [State]
+        RailState state = RailEntity.AllocateState(entity.Type, latestTick);
+        state.DecodeData(buffer, basis);
+
+        // Write entity information
+        state.EntityId = id;
+        state.EntityType = entity.Type;
+
+        if (canStore)
+          return state;
+        return null;
+      }
+      // Full decode
+      else if (span.IsOutOfRange)
+      {
+        // Read: [Type]
+        int type = buffer.Pop(RailEncoders.EntityType);
+
+        // Read: [State]
+        RailState state = RailEntity.AllocateState(type, latestTick);
+        state.DecodeData(buffer);
+
+        // Write entity information
+        state.EntityId = id;
+        state.EntityType = type;
+
+        return state;
+      }
+      else
+      {
+        throw new BasisNotFoundException("Invalid span: " + span);
+      }
+    }
+
+    private static RailState AllocateState(int type, Tick latest)
+    {
+      RailState state = RailResource.Instance.AllocateState(type);
+      state.Tick = latest;
+      return state;
+    }
+
+    private static RailState GetBasis(
+      RailEntity entity,
+      Tick latestTick,
+      TickSpan span,
+      out bool isValid)
+    {
+      if (entity == null)
+        throw new BasisNotFoundException("No entity found");
+
+      isValid = true;
+      Tick basisTick = Tick.Create(latestTick, span);
+      RailState basis = entity.StateBuffer.Get(basisTick);
+
+      if (basis == null)
+      {
+        basis = entity.StateBuffer.Latest;
+        if (basis == null)
+        {
+          throw new BasisNotFoundException(
+            "No basis or latest for id " +
+            entity.Id +
+            " on tick " +
+            basisTick);
+        }
+
+        CommonDebug.LogWarning(
+          "Missing basis, using latest and discarding for id " +
+          entity.Id +
+          " on tick " +
+          basisTick);
+        isValid = false;
+      }
+
+      return basis;
+    }
+    #endregion
 
     #region Smoothing
     public T GetSmoothedValue<T>(
@@ -148,7 +331,7 @@ namespace Railgun
       // If we're predicting, advance to the prediction tick. This is
       // hacky in that it assumes that we'll only ever have a one-tick 
       // difference between any two states in the delta when doing prediction.
-      Tick currentTick = this.CurrentTick;
+      Tick currentTick = this.World.Tick;
       if (this.StateDelta.Latest.IsPredicted)
         currentTick = this.StateDelta.Latest.Tick;
 
@@ -183,8 +366,9 @@ namespace Railgun
 
       this.ClearDelta();
 
-      RailState latest = this.StateBuffer.Latest.Clone();
+      RailState latest = this.CloneState(this.StateBuffer.Latest);
       latest.IsPredicted = true;
+      latest.Tick = this.World.Tick;
       this.StateDelta.Set(null, latest, null);
       this.State.SetDataFrom(latest);
       this.ApplyCommands();
@@ -220,8 +404,8 @@ namespace Railgun
 
     private void PushDelta(int offset)
     {
-      RailState predicted = this.State.Clone();
-      predicted.Tick = predicted.Tick + offset;
+      RailState predicted = this.CloneState(this.State);
+      predicted.Tick = this.World.Tick + offset;
       predicted.IsPredicted = true;
 
       RailState popped = this.StateDelta.Push(predicted);
@@ -260,7 +444,7 @@ namespace Railgun
   /// Handy shortcut class for auto-casting the internal state.
   /// </summary>
   public abstract class RailEntity<TState> : RailEntity
-    where TState : RailState
+    where TState : RailState, new()
   {
     public new TState State { get { return (TState)base.State; } }
   }
@@ -269,7 +453,7 @@ namespace Railgun
   /// Handy shortcut class for auto-casting the internal state and command.
   /// </summary>
   public abstract class RailEntity<TState, TCommand> : RailEntity<TState>
-    where TState : RailState
+    where TState : RailState, new()
     where TCommand : RailCommand
   {
     internal override void SimulateCommand(RailCommand command)

@@ -22,34 +22,35 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
-  internal abstract class RailPoolState : RailPool<RailState>
+  /// <summary>
+  /// A typesafe wrapping encoder for Offset.
+  /// </summary>
+  internal class TickSpanEncoder : Encoder<TickSpan>
   {
-    internal int Type { get; private set; }
-
-    internal RailPoolState()
+    internal override int GetCost(TickSpan value)
     {
-      // Allocate and deallocate a dummy state to read and store its type
-      RailState dummy = this.Allocate();
-      this.Type = dummy.EntityType;
-      this.Deallocate(dummy);
+      return value.GetCost();
     }
 
-    internal abstract override RailState Allocate();
-  }
+    internal TickSpanEncoder() { }
 
-  internal class RailPoolState<T> : RailPoolState
-    where T : RailState, IRailPoolable, new()
-  {
-    internal override RailState Allocate()
+    internal override void Write(BitBuffer buffer, TickSpan value)
     {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
+      value.Write(buffer);
+    }
 
-      T value = new T();
-      value.Pool = this;
-      return value;
+    internal override TickSpan Read(BitBuffer buffer)
+    {
+      return TickSpan.Read(buffer);
+    }
+
+    internal override TickSpan Peek(BitBuffer buffer)
+    {
+      return TickSpan.Peek(buffer);
     }
   }
 }
