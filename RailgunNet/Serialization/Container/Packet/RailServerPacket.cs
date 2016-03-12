@@ -32,6 +32,35 @@ namespace Railgun
   /// </summary>
   internal class RailServerPacket : IRailPoolable, IRailRingValue
   {
+    /// <summary>
+    /// If we can't fit an entity into a packet, this determines how many of
+    /// the following entities we will try before giving up.
+    /// </summary>
+    internal const int RETRY_ATTEMPTS = 3;
+
+    /// <summary>
+    /// Maximum size for a single entity. We skip entities larger than this.
+    /// </summary>
+    internal const int MAX_ENTITY_SIZE = 100;
+
+    /// <summary>
+    /// Number of bytes reserved in the packet when determining how full it is.
+    /// </summary>
+    internal const int RESERVED_BYTES = 10;
+    internal const int MAX_PACKET_SIZE =
+      RailConfig.MAX_MESSAGE_SIZE - RailServerPacket.RESERVED_BYTES;
+
+    private static void WarnTooBig(EntityUpdate update, int size)
+    {
+      CommonDebug.LogWarning(
+        "Entity too big: " + 
+        update.Entity.Id + 
+        "(" + 
+        update.Entity.Type + 
+        ") -- " +
+        size + "B");
+    }
+
     private struct EntityUpdate
     {
       internal RailEntity Entity { get { return this.entity; } }
@@ -59,17 +88,19 @@ namespace Railgun
     private readonly List<RailEvent> events;
 
     // Server-only
-    private readonly List<EntityUpdate> updates;
+    internal List<EntityId> StoredEntities { get; private set; }
+    private readonly List<EntityUpdate> pendingUpdates;
 
     // Client-only
-    internal IEnumerable<RailState> States { get { return this.states; } }
-    private readonly List<RailState> states;
+    internal List<RailState> States { get; private set; }
 
     public RailServerPacket()
     {
       this.events = new List<RailEvent>();
-      this.updates = new List<EntityUpdate>();
-      this.states = new List<RailState>();
+      this.StoredEntities = new List<EntityId>();
+      this.pendingUpdates = new List<EntityUpdate>();
+      this.States = new List<RailState>();
+
       this.Reset();
     }
 
@@ -85,7 +116,7 @@ namespace Railgun
 
     internal void AddEntity(RailEntity entity, Tick basisTick)
     {
-      this.updates.Add(new EntityUpdate(entity, basisTick));
+      this.pendingUpdates.Add(new EntityUpdate(entity, basisTick));
     }
 
     protected void Reset()
@@ -94,8 +125,8 @@ namespace Railgun
       this.LastProcessedCommandTick = Tick.INVALID;
 
       this.events.Clear();
-      this.updates.Clear();
-      this.states.Clear();
+      this.pendingUpdates.Clear();
+      this.States.Clear();
     }
 
     #region Encode/Decode
@@ -103,29 +134,19 @@ namespace Railgun
       BitBuffer buffer,
       RailController destination)
     {
-      // Write: [Entity States]
-      foreach (EntityUpdate pair in this.updates)
-        pair.Entity.EncodeState(
-          buffer, 
-          this.LatestTick, 
-          pair.BasisTick,
-          destination);
-
-      // Write: [Entity Count]
-      buffer.Push(RailEncoders.EntityCount, this.updates.Count);
-
       // Write: [Events]
-      foreach (RailEvent evnt in this.events)
-        evnt.Encode(buffer);
+      this.EncodeEvents(buffer);
 
-      // Write: [EventCount]
-      buffer.Push(RailEncoders.EventCount, this.events.Count);
+      // Write: [Entities]
+      this.EncodeEntities(buffer, destination);
 
       // Write: [LastProcessedCommandTick]
       buffer.Push(RailEncoders.Tick, this.LastProcessedCommandTick);
 
       // Write: [LatestTick]
       buffer.Push(RailEncoders.Tick, this.LatestTick);
+
+      CommonDebug.Assert(buffer.ByteSize <= RailConfig.MAX_MESSAGE_SIZE);
     }
 
     internal static RailServerPacket Decode(
@@ -140,16 +161,82 @@ namespace Railgun
       // Read: [LastProcessedCommandTick]
       packet.LastProcessedCommandTick = buffer.Pop(RailEncoders.Tick);
 
+      // Read: [Entities]
+      packet.DecodeEntities(buffer, knownEntities, packet.LatestTick);
+
+      // Read: [Events]
+      packet.DecodeEvents(buffer);
+
+      return packet;
+    }
+
+    private void EncodeEvents(BitBuffer buffer)
+    {
+      // Write: [Events]
+      foreach (RailEvent evnt in this.events)
+        evnt.Encode(buffer);
+
+      // Write: [EventCount]
+      buffer.Push(RailEncoders.EventCount, this.events.Count);
+    }
+
+    private void DecodeEvents(BitBuffer buffer)
+    {
+      // TODO: Cap the number of event sends
+
       // Read: [EventCount]
       int eventCount = buffer.Pop(RailEncoders.EventCount);
 
       // Read: [Events]
       for (int i = 0; i < eventCount; i++)
-        packet.events.Add(RailEvent.Decode(buffer));
+        this.events.Add(RailEvent.Decode(buffer));
 
       // We need to reverse the events to restore the send order
-      packet.events.Reverse();
+      this.events.Reverse();
+    }
 
+    private void EncodeEntities(
+      BitBuffer buffer,
+      RailController destination)
+    {
+      // Write: [Entity States]
+      foreach (EntityUpdate pair in this.pendingUpdates)
+      {
+        buffer.SetRollback();
+        int beforeSize = buffer.ByteSize;
+
+        pair.Entity.EncodeState(
+          buffer,
+          this.LatestTick,
+          pair.BasisTick,
+          destination);
+
+        int byteCost = buffer.ByteSize - beforeSize;
+        if (byteCost > MAX_ENTITY_SIZE)
+        {
+          buffer.Rollback();
+          RailServerPacket.WarnTooBig(pair, byteCost);
+        }
+        else if (buffer.ByteSize > RailServerPacket.MAX_PACKET_SIZE)
+        {
+          buffer.Rollback();
+          break;
+        }
+        else
+        {
+          this.StoredEntities.Add(pair.Entity.Id);
+        }
+      }
+
+      // Write: [Entity Count]
+      buffer.Push(RailEncoders.EntityCount, this.StoredEntities.Count);
+    }
+
+    private void DecodeEntities(
+      BitBuffer buffer,
+      IDictionary<EntityId, RailEntity> knownEntities,
+      Tick latestTick)
+    {
       // Read: [Entity Count]
       int count = buffer.Pop(RailEncoders.EntityCount);
 
@@ -161,11 +248,11 @@ namespace Railgun
         {
           state = 
             RailEntity.DecodeState(
-              buffer, 
-              packet.LatestTick, 
+              buffer,
+              latestTick, 
               knownEntities);
           if (state != null)
-            packet.states.Add(state);
+            this.States.Add(state);
         }
         catch (BasisNotFoundException bnfe)
         {
@@ -173,8 +260,6 @@ namespace Railgun
           break;
         }
       }
-
-      return packet;
     }
     #endregion
   }

@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using Railgun;
 
-public class DemoObject : MonoBehaviour
+public class DemoObjectDummy : MonoBehaviour
 {
-  public DemoEntity Entity { get; set; }
+  public DemoDummy Entity { get; set; }
 
   public bool DoSmoothing = false;
   public Color color = Color.white;
@@ -22,7 +22,7 @@ public class DemoObject : MonoBehaviour
   void Awake()
   {
     this.smoother = new RailSmootherVector2(
-      DemoObject.GetCoordinates,
+      DemoObjectDummy.GetCoordinates,
       float.MaxValue,
       2.0f);
   }
@@ -56,7 +56,7 @@ public class DemoObject : MonoBehaviour
     {
       this.transform.position =
         this.Entity.GetSmoothedValue(
-          Time.time - Time.fixedTime, 
+          Time.time - Time.fixedTime,
           this.smoother);
 
       if (Entity.IsPredicted)

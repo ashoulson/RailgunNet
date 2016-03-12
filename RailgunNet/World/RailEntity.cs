@@ -135,6 +135,7 @@ namespace Railgun
           if (command != null)
             this.SimulateCommand(command);
         }
+
         this.Simulate();
       }
     }
@@ -143,13 +144,6 @@ namespace Railgun
     {
       if (this.World != null)
       {
-        if (this.hadFirstTick == false)
-        {
-          this.Start();
-          this.OnControllerChanged();
-          this.hadFirstTick = true;
-        }
-
         if (this.Controller != null)
           this.ForwardSimulate();
         else
@@ -163,6 +157,13 @@ namespace Railgun
 
       this.StateDelta.Update(this.StateBuffer, serverTick);
       this.State.SetDataFrom(this.StateDelta.Latest);
+
+      if (this.hadFirstTick == false)
+      {
+        this.Start();
+        this.OnControllerChanged();
+        this.hadFirstTick = true;
+      }
     }
 
     internal bool HasLatest(Tick serverTick)
@@ -410,8 +411,17 @@ namespace Railgun
       RailState latest = this.CloneState(this.StateBuffer.Latest);
       latest.IsPredicted = true;
       latest.Tick = this.World.Tick;
+
       this.StateDelta.Set(null, latest, null);
       this.State.SetDataFrom(latest);
+
+      if (this.hadFirstTick == false)
+      {
+        this.Start();
+        this.OnControllerChanged();
+        this.hadFirstTick = true;
+      }
+
       this.ApplyCommands();
     }
 

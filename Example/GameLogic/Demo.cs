@@ -29,6 +29,8 @@ public static class Demo
   public static void RegisterTypes()
   {
     RailCommand.RegisterCommandType<DemoCommand>();
-    RailEntity.RegisterEntityType<DemoEntity, DemoState>(1);
+
+    RailEntity.RegisterEntityType<DemoControlled, DemoState>(0);
+    RailEntity.RegisterEntityType<DemoDummy, DemoState>(1);
   }
 }
