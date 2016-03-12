@@ -31,7 +31,7 @@ namespace Railgun
   /// operations and encoding. All internal values are offset by +1 (zero
   /// is invalid, 1 is tick zero, etc.).
   /// </summary>
-  public struct Tick
+  public struct Tick : IEncodableType<Tick>
   {
     internal static Tick Create(Tick latest, TickSpan offset)
     {
@@ -167,25 +167,27 @@ namespace Railgun
       return false;
     }
 
-    internal int GetCost()
+    #region IEncodableType Members
+    int IEncodableType<Tick>.GetCost()
     {
       return Tick.Encoder.GetCost(this.tickValue);
     }
 
-    internal void Write(BitBuffer buffer)
+    void IEncodableType<Tick>.Write(BitBuffer buffer)
     {
       Tick.Encoder.Write(buffer, this.tickValue);
     }
 
-    internal static Tick Read(BitBuffer buffer)
+    Tick IEncodableType<Tick>.Read(BitBuffer buffer)
     {
       return new Tick(Tick.Encoder.Read(buffer));
     }
 
-    internal static Tick Peek(BitBuffer buffer)
+    Tick IEncodableType<Tick>.Peek(BitBuffer buffer)
     {
       return new Tick(Tick.Encoder.Peek(buffer));
     }
+    #endregion
 
     public override string ToString()
     {

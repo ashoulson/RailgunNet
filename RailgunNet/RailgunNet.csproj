@@ -46,12 +46,10 @@
     <Compile Include="Connection\Peers\RailPeer.cs" />
     <Compile Include="Connection\Peers\RailPeerClient.cs" />
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
+    <Compile Include="Serialization\Encoding\Encoder\TypedEncoder.cs" />
+    <Compile Include="System\Types\IEncodableType.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\Special\EntityIdEncoder.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\Special\EventIdEncoder.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\Special\TickSpanEncoder.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\Special\TickEncoder.cs" />
     <Compile Include="System\Types\EntityId.cs" />
     <Compile Include="System\Types\EventId.cs" />
     <Compile Include="System\Types\TickSpan.cs" />

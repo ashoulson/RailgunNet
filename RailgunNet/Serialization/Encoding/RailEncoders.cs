@@ -31,10 +31,10 @@ namespace Railgun
     public static readonly BoolEncoder Bool = new BoolEncoder();
 
     // Special Types
-    public static readonly EntityIdEncoder EntityId = new EntityIdEncoder();
-    public static readonly TickEncoder Tick = new TickEncoder();
-    internal static readonly EventIdEncoder EventId = new EventIdEncoder();
-    internal static readonly TickSpanEncoder TickSpan = new TickSpanEncoder();
+    public static readonly TypedEncoder<EntityId> EntityId = new TypedEncoder<EntityId>();
+    public static readonly TypedEncoder<Tick> Tick = new TypedEncoder<Tick>();
+    internal static readonly TypedEncoder<EventId> EventId = new TypedEncoder<EventId>();
+    internal static readonly TypedEncoder<TickSpan> TickSpan = new TypedEncoder<TickSpan>();
 
     // Types
     internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);

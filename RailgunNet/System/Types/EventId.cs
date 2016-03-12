@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public struct EventId
+  public struct EventId : IEncodableType<EventId>
   {
     public class EventIdComparer : IEqualityComparer<EventId>
     {
@@ -96,24 +96,26 @@ namespace Railgun
       return false;
     }
 
-    internal int GetCost()
+    #region IEncodableType Members
+    int IEncodableType<EventId>.GetCost()
     {
       return EventId.Encoder.GetCost(this.idValue);
     }
 
-    internal void Write(BitBuffer buffer)
+    void IEncodableType<EventId>.Write(BitBuffer buffer)
     {
       EventId.Encoder.Write(buffer, this.idValue);
     }
 
-    internal static EventId Read(BitBuffer buffer)
+    EventId IEncodableType<EventId>.Read(BitBuffer buffer)
     {
       return new EventId(EventId.Encoder.Read(buffer));
     }
 
-    internal static EventId Peek(BitBuffer buffer)
+    EventId IEncodableType<EventId>.Peek(BitBuffer buffer)
     {
       return new EventId(EventId.Encoder.Peek(buffer));
     }
+    #endregion
   }
 }
