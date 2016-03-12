@@ -38,14 +38,13 @@
   <ItemGroup>
     <Compile Include="Connection\Controller\RailControllerClient.cs" />
     <Compile Include="Connection\Controller\RailControllerServer.cs" />
-    <Compile Include="Connection\Events\RailControlEvent.cs" />
-    <Compile Include="Connection\Events\RailEventTypes.cs" />
     <Compile Include="Connection\Controller\RailController.cs" />
     <Compile Include="Connection\Peers\RailPeerServer.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\Peers\RailPeer.cs" />
     <Compile Include="Connection\Peers\RailPeerClient.cs" />
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
+    <Compile Include="Serialization\Container\RailView.cs" />
     <Compile Include="Serialization\Encoding\Encoder\TypedEncoder.cs" />
     <Compile Include="System\Types\IEncodableType.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />

@@ -147,7 +147,7 @@ namespace Railgun
 
         // TODO: Scoping, budgeting, etc.
         foreach (RailEntity entity in this.world.Entities)
-          packet.AddEntity(entity, clientPeer.LastAckedServerTick);
+          packet.AddEntity(entity, clientPeer.GetLatestEntityTick(entity.Id));
 
         this.interpreter.SendServerPacket(clientPeer, packet);
       }

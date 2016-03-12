@@ -51,6 +51,8 @@ namespace Railgun
     // The last received event id, for reliable sequencing
     private EventId lastReceivedEventId;
 
+    private readonly RailView view;
+
     public RailClient()
     {
       RailConnection.IsServer = false;
@@ -66,6 +68,8 @@ namespace Railgun
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.knownEntities =
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
+
+      this.view = new RailView();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -143,7 +147,8 @@ namespace Railgun
         this.localTick,
         this.serverClock.LatestRemote,
         this.lastReceivedEventId,
-        this.localController.OutgoingCommands);
+        this.localController.OutgoingCommands,
+        this.view);
       this.interpreter.SendClientPacket(this.serverPeer, packet);
     }
 
@@ -187,6 +192,7 @@ namespace Railgun
       }
 
       entity.StateBuffer.Store(state);
+      this.view.RecordUpdate(entity.Id, state.Tick);
       this.UpdateControlStatus(entity, state);
     }
 

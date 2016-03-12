@@ -213,8 +213,7 @@ namespace Railgun
       }
 
       // Either we're in range or we have no basis
-      // TODO: Re-enable once we're doing per-entity ticks
-      //CommonDebug.Assert(span.IsInRange ^ (basis == null));
+      CommonDebug.Assert(span.IsInRange ^ (basis == null));
 
       if (basis == null) // Full Encode
       {
@@ -223,6 +222,9 @@ namespace Railgun
 
         // Write: [Type]
         buffer.Push(RailEncoders.EntityType, this.Type);
+
+        // Write: [TickSpan]
+        buffer.Push(RailEncoders.TickSpan, TickSpan.OUT_OF_RANGE);
       }
       else // Delta Encode
       {
@@ -230,13 +232,13 @@ namespace Railgun
         this.State.EncodeData(buffer, basis);
 
         // No [Type] for deltas
+
+        // Write: [TickSpan]
+        buffer.Push(RailEncoders.TickSpan, span);
       }
 
       // Write: [IsController]
       buffer.Push(RailEncoders.Bool, (destination == this.Controller));
-
-      // Write: [TickSpan]
-      buffer.Push(RailEncoders.TickSpan, span);
 
       // Write: [Id]
       buffer.Push(RailEncoders.EntityId, this.Id);
@@ -256,11 +258,11 @@ namespace Railgun
       // Read: [Id]
       EntityId id = buffer.Pop(RailEncoders.EntityId);
 
-      // Read: [TickSpan]
-      TickSpan span = buffer.Pop(RailEncoders.TickSpan);
-
       // Read: [IsController]
       bool isController = buffer.Pop(RailEncoders.Bool);
+
+      // Read: [TickSpan]
+      TickSpan span = buffer.Pop(RailEncoders.TickSpan);
 
       RailEntity entity;
       if (knownEntities.TryGetValue(id, out entity) == false)

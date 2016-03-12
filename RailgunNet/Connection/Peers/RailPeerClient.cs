@@ -26,16 +26,13 @@ namespace Railgun
 {
   public class RailPeerClient : RailPeer
   {
-    private static int ID = 0;
-
-    public int id = RailPeerClient.ID++;
-
     public event Action<RailPeerClient> MessagesReady;
 
     internal RailControllerServer Controller { get; private set; }
 
     /// <summary>
-    /// The last tick that the client received a snapshot from the server.
+    /// The last tick that the client received a packet from the server.
+    /// Not all entities will be up to date with this tick.
     /// </summary>
     internal Tick LastAckedServerTick { get; set; }
 
@@ -44,20 +41,28 @@ namespace Railgun
     /// </summary>
     internal Tick LastProcessedCommandTick { get; set; }
 
-    private RailClock clientClock;
+    private readonly RailView view;
+    private readonly RailClock clientClock;
 
     internal RailPeerClient(IRailNetPeer netPeer) : base(netPeer)
     {
       this.Controller = new RailControllerServer();
       this.LastAckedServerTick = Tick.INVALID;
       this.LastProcessedCommandTick = Tick.INVALID;
+
       this.clientClock = new RailClock();
+      this.view = new RailView();
     }
 
     protected override void OnMessagesReady(IRailNetPeer peer)
     {
       if (this.MessagesReady != null)
         this.MessagesReady(this);
+    }
+
+    internal Tick GetLatestEntityTick(EntityId id)
+    {
+      return this.view.GetLatest(id);
     }
 
     internal void Update()
@@ -73,6 +78,7 @@ namespace Railgun
     {
       this.LastAckedServerTick = packet.LastReceivedServerTick;
       this.clientClock.UpdateLatest(packet.ClientTick);
+      this.view.Integrate(packet.View);
 
       this.Controller.StoreIncoming(packet.Commands);
       this.Controller.CleanReliableEvents(packet.LastReceivedEventId);

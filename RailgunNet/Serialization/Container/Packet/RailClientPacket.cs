@@ -41,12 +41,15 @@ namespace Railgun
     internal Tick LastReceivedServerTick { get; private set; }
     internal EventId LastReceivedEventId { get; private set; }
     internal IEnumerable<RailCommand> Commands { get { return this.commands; } }
+    internal RailView View { get { return this.view; } }
 
+    private readonly RailView view;
     private readonly List<RailCommand> commands;
 
     public RailClientPacket()
     {
       this.commands = new List<RailCommand>();
+      this.view = new RailView();
       this.Reset();
     }
 
@@ -54,12 +57,14 @@ namespace Railgun
       Tick tick,
       Tick lastReceivedServerTick,
       EventId lastReceivedEventId,
-      IEnumerable<RailCommand> commands)
+      IEnumerable<RailCommand> commands,
+      RailView view)
     {
       this.ClientTick = tick;
       this.LastReceivedServerTick = lastReceivedServerTick;
       this.LastReceivedEventId = lastReceivedEventId;
       this.AddCommands(commands);
+      this.view.Integrate(view);
     }
 
     protected void Reset()
@@ -70,6 +75,7 @@ namespace Railgun
       foreach (RailCommand command in this.commands)
         RailPool.Free(command);
       this.commands.Clear();
+      this.view.Clear();
     }
 
     private void AddCommands(IEnumerable<RailCommand> commands)
@@ -87,6 +93,9 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer)
     {
+      // Write: [View]
+      this.view.Encode(buffer);
+
       // Write: [Commands]
       foreach (RailCommand command in this.commands)
         command.Encode(buffer);
@@ -127,6 +136,9 @@ namespace Railgun
         RailCommand command = RailCommand.Decode(buffer);
         packet.commands.Add(command);
       }
+
+      // Read: [View]
+      packet.view.Decode(buffer);
 
       return packet;
     }
