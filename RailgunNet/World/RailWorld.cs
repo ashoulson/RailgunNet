@@ -22,6 +22,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using CommonTools;
+
 namespace Railgun
 {
   public class RailWorld
@@ -33,7 +35,7 @@ namespace Railgun
     }
 
     // TODO: Rollover? Free list?
-    private EntityId lastEntityId;
+    private EntityId nextEntityId;
 
     private Dictionary<EntityId, RailEntity> entities;
 
@@ -45,7 +47,7 @@ namespace Railgun
     internal RailWorld()
     {
       this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
-      this.lastEntityId = EntityId.INVALID;
+      this.nextEntityId = EntityId.INVALID.GetNext();
       this.Tick = Tick.INVALID;
     }
 
@@ -59,15 +61,31 @@ namespace Railgun
       this.Tick = Tick.INVALID;
     }
 
-    internal EntityId GetNewEntityId()
+    internal T CreateEntity<T>(int type)
+      where T : RailEntity
     {
-      this.lastEntityId = this.lastEntityId.GetNext();
-      return this.lastEntityId;
+      // TODO: Get some #defines in for this kind of thing
+      CommonDebug.Assert(RailConnection.IsServer);
+
+      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      entity.Id = this.nextEntityId;
+      this.nextEntityId = this.nextEntityId.GetNext();
+
+      return (T)entity;
     }
 
-    /// <summary>
-    /// Adds an entity to the world and notifies it that it has been added.
-    /// </summary>
+    internal T CreateEntity<T>(int type, EntityId id)
+      where T : RailEntity
+    {
+      // TODO: Get some #defines in for this kind of thing
+      CommonDebug.Assert(RailConnection.IsServer == false);
+
+      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      entity.Id = id;
+
+      return (T)entity;
+    }
+
     internal void AddEntity(RailEntity entity)
     {
       this.entities.Add(entity.Id, entity);

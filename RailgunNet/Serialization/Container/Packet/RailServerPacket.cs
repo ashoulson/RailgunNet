@@ -100,11 +100,16 @@ namespace Railgun
 
     #region Encode/Decode
     internal void Encode(
-      BitBuffer buffer)
+      BitBuffer buffer,
+      RailController destination)
     {
       // Write: [Entity States]
       foreach (EntityUpdate pair in this.updates)
-        pair.Entity.EncodeState(buffer, this.LatestTick, pair.BasisTick);
+        pair.Entity.EncodeState(
+          buffer, 
+          this.LatestTick, 
+          pair.BasisTick,
+          destination);
 
       // Write: [Entity Count]
       buffer.Push(RailEncoders.EntityCount, this.updates.Count);

@@ -97,6 +97,33 @@ namespace Railgun
       this.lastEventId = EventId.INVALID;
     }
 
+    /// <summary>
+    /// Adds an entity to be controlled by this controller.
+    /// </summary>
+    internal void AddEntity(RailEntity entity)
+    {
+      if (entity.Controller == this)
+        return;
+
+      CommonDebug.Assert(entity.Controller == null);
+      this.controlledEntities.Add(entity);
+
+      entity.Controller = this;
+      entity.ControllerChanged();
+    }
+
+    /// <summary>
+    /// Remove an entity from being controlled by this controller.
+    /// </summary>
+    internal void RemoveEntity(RailEntity entity)
+    {
+      CommonDebug.Assert(entity.Controller == this);
+      this.controlledEntities.Remove(entity);
+
+      entity.Controller = null;
+      entity.ControllerChanged();
+    }
+
     internal void QueueUnreliable(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();

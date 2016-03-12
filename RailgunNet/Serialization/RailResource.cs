@@ -57,8 +57,6 @@ namespace Railgun
       this.statePools = new Dictionary<int, RailPool<RailState>>();
       this.eventPools = new Dictionary<int, RailPool<RailEvent>>();
       this.entityFactories = new Dictionary<int, RailFactory<RailEntity>>();
-
-      this.CreateStandardEventPools();
     }
 
     internal void RegisterEntityType<TEntity, TState>(int type)
@@ -113,17 +111,5 @@ namespace Railgun
     {
       return this.eventPools[type].Allocate();
     }
-
-    #region Event Shorthand
-    private void CreateStandardEventPools()
-    {
-      this.RegisterEventType<RailControlEvent>(RailEventTypes.TYPE_CONTROL);
-    }
-
-    internal RailControlEvent AllocateControlEvent()
-    {
-      return (RailControlEvent)this.eventPools[RailEventTypes.TYPE_CONTROL].Allocate();
-    }
-    #endregion
   }
 }

@@ -40,7 +40,7 @@ namespace Example
     private void OnControllerAdded(RailController controller)
     {
       DemoEntity entity = 
-        this.server.CreateEntity<DemoEntity>(DemoTypes.TYPE_DEMO);
+        this.server.AddNewEntity<DemoEntity>(DemoTypes.TYPE_DEMO);
       entity.State.ArchetypeId = 0;
       this.server.AssignControl(controller, entity);
     }

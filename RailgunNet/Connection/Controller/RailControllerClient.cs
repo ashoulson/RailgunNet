@@ -43,26 +43,6 @@ namespace Railgun
       this.outgoingBuffer = new Queue<RailCommand>();
     }
 
-
-    internal virtual void AddEntity(RailEntity entity)
-    {
-      if (entity.Controller == this)
-        return;
-
-      CommonDebug.Assert(entity.Controller == null);
-      this.controlledEntities.Add(entity);
-      entity.Controller = this;
-      entity.ControllerChanged();
-    }
-
-    internal virtual void RemoveEntity(RailEntity entity)
-    {
-      CommonDebug.Assert(entity.Controller == this);
-      this.controlledEntities.Remove(entity);
-      entity.Controller = null;
-      entity.ControllerChanged();
-    }
-
     internal void QueueOutgoing(RailCommand command)
     {
       if (this.outgoingBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
