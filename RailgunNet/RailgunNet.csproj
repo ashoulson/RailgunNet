@@ -36,13 +36,9 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Connection\Controller\RailControllerClient.cs" />
-    <Compile Include="Connection\Controller\RailControllerServer.cs" />
-    <Compile Include="Connection\Controller\RailController.cs" />
-    <Compile Include="Connection\Peers\RailPeerServer.cs" />
+    <Compile Include="Connection\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
-    <Compile Include="Connection\Peers\RailPeer.cs" />
-    <Compile Include="Connection\Peers\RailPeerClient.cs" />
+    <Compile Include="Connection\RailPeer.cs" />
     <Compile Include="Connection\Scope\RailScope.cs" />
     <Compile Include="Connection\Scope\RailScopeEvaluator.cs" />
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />

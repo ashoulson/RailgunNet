@@ -32,28 +32,161 @@ namespace Railgun
   /// </summary>
   public class RailServer : RailConnection
   {
+    private class RailServerPeer 
+      : RailPeer, IRailControllerServer
+    {
+      internal event Action<RailServerPeer> MessagesReady;
+
+      /// <summary>
+      /// The last tick that the client received a packet from the server.
+      /// Not all entities will be up to date with this tick.
+      /// </summary>
+      internal Tick LastAckedServerTick { get; set; }
+
+      /// <summary>
+      /// The last command tick that the server processed.
+      /// </summary>
+      internal Tick LastProcessedCommandTick { get; set; }
+
+      /// <summary>
+      /// The latest usable command in the dejitter buffer.
+      /// </summary>
+      protected internal override RailCommand LatestCommand
+      {
+        get { return this.latestCommand; }
+      }
+
+      /// <summary>
+      /// The scope used for filtering entity updates.
+      /// </summary>
+      internal RailScope Scope
+      { 
+        get { return this.scope; } 
+      }
+
+      /// <summary>
+      /// Used for setting the scope evaluator heuristics.
+      /// </summary>
+      public RailScopeEvaluator ScopeEvaluator
+      {
+        set { this.Scope.Evaluator = value; }
+      }
+
+      /// <summary>
+      /// A history of received packets from the client. Used on the server.
+      /// </summary>
+      private readonly RailRingBuffer<RailCommand> incomingBuffer;
+
+      // Records the last tick we sent a given entity to our client
+      private readonly RailView lastSentView;
+
+      private readonly RailScope scope;
+      private readonly RailClock clientClock;
+
+      private RailCommand latestCommand;
+
+      internal RailServerPeer(IRailNetPeer netPeer)
+        : base(netPeer)
+      {
+        this.LastAckedServerTick = Tick.INVALID;
+        this.LastProcessedCommandTick = Tick.INVALID;
+
+        // We use no divisor for storing commands because commands are sent in
+        // batches that we can use to fill in the holes between send ticks
+        this.incomingBuffer =
+          new RailRingBuffer<RailCommand>(
+            RailConfig.DEJITTER_BUFFER_LENGTH);
+
+        this.lastSentView = new RailView();
+
+        this.scope = new RailScope();
+        this.clientClock = new RailClock();
+
+        this.latestCommand = null;
+      }
+
+      internal Tick GetLastAcked(EntityId id)
+      {
+        return this.lastSentView.GetLatest(id);
+      }
+
+      internal void Update()
+      {
+        this.clientClock.Update();
+        this.latestCommand = 
+          this.incomingBuffer.GetLatestAt(
+            this.clientClock.EstimatedRemote);
+
+        if (this.latestCommand != null)
+          this.LastProcessedCommandTick = this.latestCommand.Tick;
+      }
+
+      internal void ProcessPacket(RailClientPacket packet)
+      {
+        this.LastAckedServerTick = packet.LastReceivedServerTick;
+        this.clientClock.UpdateLatest(packet.ClientTick);
+        this.lastSentView.Integrate(packet.View);
+
+        foreach (RailCommand command in packet.Commands)
+          this.incomingBuffer.Store(command);
+
+        this.CleanReliableEvents(packet.LastReceivedEventId);
+        this.CleanUnreliableEvents();
+      }
+
+      internal void Shutdown()
+      {
+        foreach (RailEntity entity in this.controlledEntities)
+          entity.SetController(null);
+        this.controlledEntities.Clear();
+      }
+
+      #region Scope Actions
+      internal void RegisterEntitySent(
+        EntityId entityId,
+        Tick latestTick)
+      {
+        this.Scope.RegisterSent(entityId, latestTick);
+      }
+
+      internal IEnumerable<RailEntity> EvaluateEntities(
+        IEnumerable<RailEntity> allEntities,
+        Tick tick)
+      {
+        return this.Scope.Evaluate(allEntities, tick);
+      }
+      #endregion
+
+      protected override void OnMessagesReady(IRailNetPeer peer)
+      {
+        if (this.MessagesReady != null)
+          this.MessagesReady(this);
+      }
+    }
+
     /// <summary>
     /// Fired when a controller has been added (i.e. player join).
+    /// The controller has control of no entities at this point.
     /// </summary>
-    public event Action<RailController> ControllerAdded;
+    public event Action<IRailControllerServer> ControllerJoined;
 
     /// <summary>
     /// Fired when a controller has been removed (i.e. player leave).
     /// This event fires before the controller has control of its entities
     /// revoked (this is done immediately afterwards).
     /// </summary>
-    public event Action<RailController> ControllerRemoved;
+    public event Action<IRailControllerServer> ControllerLeft;
 
     /// <summary>
     /// Collection of all participating clients.
     /// </summary>
-    private Dictionary<IRailNetPeer, RailPeerClient> clients;
+    private Dictionary<IRailNetPeer, RailServerPeer> clients;
 
     public RailServer()
     {
       RailConnection.IsServer = true;
       this.world.InitializeServer();
-      this.clients = new Dictionary<IRailNetPeer, RailPeerClient>();
+      this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
     }
 
     /// <summary>
@@ -63,13 +196,13 @@ namespace Railgun
     {
       if (this.clients.ContainsKey(peer) == false)
       {
-        RailPeerClient railPeer = new RailPeerClient(peer);
-        this.clients.Add(peer, railPeer);
+        RailServerPeer clientPeer = new RailServerPeer(peer);
+        this.clients.Add(peer, clientPeer);
 
-        if (this.ControllerAdded != null)
-          this.ControllerAdded.Invoke(railPeer.Controller);
+        if (this.ControllerJoined != null)
+          this.ControllerJoined.Invoke(clientPeer);
 
-        railPeer.MessagesReady += this.OnMessagesReady;
+        clientPeer.MessagesReady += this.OnMessagesReady;
       }
     }
 
@@ -80,14 +213,14 @@ namespace Railgun
     {
       if (this.clients.ContainsKey(peer))
       {
-        RailPeerClient client = this.clients[peer];
+        RailServerPeer clientPeer = this.clients[peer];
         this.clients.Remove(peer);
 
-        if (this.ControllerRemoved != null)
-          this.ControllerRemoved.Invoke(client.Controller);
+        if (this.ControllerLeft != null)
+          this.ControllerLeft.Invoke(clientPeer);
 
         // Revoke control of all the entities controlled by that controller
-        client.Controller.Shutdown();
+        clientPeer.Shutdown();
       }
     }
 
@@ -98,7 +231,7 @@ namespace Railgun
     /// </summary>
     public override void Update()
     {
-      foreach (RailPeerClient client in this.clients.Values)
+      foreach (RailServerPeer client in this.clients.Values)
         client.Update();
 
       this.world.UpdateServer();
@@ -124,18 +257,12 @@ namespace Railgun
       return (T)entity;
     }
 
-    public void AssignControl(RailController controller, RailEntity entity)
-    {
-      controller.AddEntity(entity);
-    }
-
     /// <summary>
     /// Packs and sends a server-to-client packet to each peer.
-    /// TODO: Scope/packing maximum
     /// </summary>
     private void BroadcastPackets()
     {
-      foreach (RailPeerClient clientPeer in this.clients.Values)
+      foreach (RailServerPeer clientPeer in this.clients.Values)
       {
         RailServerPacket packet = 
           RailResource.Instance.AllocateServerPacket();
@@ -143,38 +270,35 @@ namespace Railgun
         packet.Initialize(
           this.world.Tick,
           clientPeer.LastProcessedCommandTick,
-          clientPeer.Controller.AllEvents);
-        this.PackEntities(packet, clientPeer);
+          clientPeer.AllEvents);
+
+        // Evaluate scope and pack entities
+        IEnumerable<RailEntity> scopedEntities =
+          clientPeer.EvaluateEntities(
+            this.world.Entities,
+            this.world.Tick);
+        foreach (RailEntity entity in scopedEntities)
+          packet.AddEntity(entity, clientPeer.GetLastAcked(entity.Id));
 
         // Send the packet
         this.interpreter.SendServerPacket(clientPeer, packet);
 
         // Record all the entities we actually sent
         foreach (EntityId entityId in packet.SentEntities)
-          clientPeer.Controller.Scope.RegisterSent(entityId, this.world.Tick);
+          clientPeer.RegisterEntitySent(entityId, this.world.Tick);
       }
     }
 
-    private void PackEntities(
-      RailServerPacket packet, 
-      RailPeerClient clientPeer)
-    {
-      IEnumerable<RailEntity> scopedEntities =
-        clientPeer.Controller.Scope.Evaluate(
-          this.world.Entities, 
-          this.world.Tick);
-
-      foreach (RailEntity entity in scopedEntities)
-        packet.AddEntity(entity, clientPeer.GetLatestEntityTick(entity.Id));
-    }
-
-    private void OnMessagesReady(RailPeerClient peer)
+    private void OnMessagesReady(RailServerPeer clientPeer)
     {
       IEnumerable<RailClientPacket> decode = 
-        this.interpreter.ReceiveClientPackets(peer);
+        this.interpreter.ReceiveClientPackets(clientPeer);
 
-      foreach (RailClientPacket input in decode)
-        peer.ProcessPacket(input);
+      foreach (RailClientPacket packet in decode)
+      {
+        clientPeer.ProcessPacket(packet);
+        RailPool.Free(packet);
+      }
     }
   }
 }

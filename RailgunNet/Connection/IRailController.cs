@@ -22,43 +22,37 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using System.Linq;
+
 using CommonTools;
 
 namespace Railgun
 {
-  public class RailControllerClient : RailController
+  public interface IRailController
   {
-    /// <summary>
-    /// A history of sent commands to the server. Used on the client.
-    /// </summary>
-    private readonly Queue<RailCommand> outgoingBuffer;
+    IEnumerable<RailEntity> ControlledEntities { get; }
 
-    internal override IEnumerable<RailCommand> OutgoingCommands
-    {
-      get { return this.outgoingBuffer; }
-    }
+    void QueueUnreliable(RailEvent evnt, Tick tick);
+    void QueueReliable(RailEvent evnt, Tick tick);
+  }
 
-    internal RailControllerClient() : base()
-    {
-      this.outgoingBuffer = new Queue<RailCommand>();
-    }
+  /// <summary>
+  /// Server-only extension of the IRailController
+  /// </summary>
+  public interface IRailControllerServer : IRailController
+  {
+    void GrantControl(RailEntity entity);
+    void RevokeControl(RailEntity entity);
 
-    internal void QueueOutgoing(RailCommand command)
-    {
-      if (this.outgoingBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
-        this.outgoingBuffer.Enqueue(command);
-    }
+    RailScopeEvaluator ScopeEvaluator { set; }
+  }
 
-    internal void CleanCommands(Tick lastReceivedTick)
-    {
-      while (true)
-      {
-        if (this.outgoingBuffer.Count == 0)
-          break;
-        if (this.outgoingBuffer.Peek().Tick > lastReceivedTick)
-          break;
-        RailPool.Free(this.outgoingBuffer.Dequeue());
-      }
-    }
+  internal interface IRailControllerInternal : IRailController
+  {
+    // Server-only
+    RailCommand LatestCommand { get; }
+
+    // Client-only
+    IEnumerable<RailCommand> PendingCommands { get; }
   }
 }
