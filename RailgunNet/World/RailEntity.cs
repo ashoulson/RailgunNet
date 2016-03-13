@@ -35,9 +35,11 @@ namespace Railgun
       RailResource.Instance.RegisterEntityType<TEntity, TState>(type);
     }
 
-    internal RailController Controller { get; set; }
+    internal IRailController Controller { get {return this.controller; } }
     internal RailStateBuffer StateBuffer { get; private set; }
     internal RailStateDelta StateDelta { get; private set; }
+
+    private IRailControllerInternal controller;
 
     /// <summary>
     /// A unique network ID assigned to this entity.
@@ -52,6 +54,11 @@ namespace Railgun
 
     protected internal RailWorld World { get; internal set; }
     public RailState State { get; private set; }
+
+    /// <summary>
+    /// The last tick this entity was updated on.
+    /// </summary>
+    protected Tick Tick { get; private set; }
 
     /// <summary>
     /// SERVER: Called when the entity has a new controller. 
@@ -83,10 +90,6 @@ namespace Railgun
     /// </summary>
     protected virtual void Simulate() { }
 
-    #region Client Callbacks
-
-    #endregion
-
     private bool hadFirstTick;
 
     public bool IsPredicted
@@ -101,7 +104,7 @@ namespace Railgun
 
     internal RailEntity()
     {
-      this.Controller = null;
+      this.controller = null;
 
       this.StateBuffer = new RailStateBuffer();
       this.StateDelta = new RailStateDelta();
@@ -118,36 +121,45 @@ namespace Railgun
       this.State = this.AllocateState();     
     }
 
-    internal void UpdateServer()
+    internal void SetController(IRailControllerInternal controller)
+    {
+      this.controller = controller;
+      this.ControllerChanged();
+    }
+
+    internal void UpdateServer(
+      Tick serverTick)
     {
       if (this.World != null)
       {
+        this.Tick = serverTick;
+
         if (this.hadFirstTick == false)
         {
-          this.Start();
-          this.OnControllerChanged();
           this.hadFirstTick = true;
+          this.Start();
+          this.ControllerChanged();
         }
 
-        if (this.Controller != null)
-        {
-          RailCommand command = this.Controller.LatestCommand;
-          if (command != null)
-            this.SimulateCommand(command);
-        }
+        if (this.controller != null)
+          if (this.controller.LatestCommand != null)
+            this.SimulateCommand(this.controller.LatestCommand);
 
         this.Simulate();
       }
     }
 
-    internal void UpdateClient(Tick serverTick)
+    internal void UpdateClient(
+      Tick serverTick)
     {
       if (this.World != null)
       {
-        if (this.Controller != null)
-          this.ForwardSimulate();
-        else
+        this.Tick = serverTick;
+
+        if (this.Controller == null)
           this.ReplicaSimulate(serverTick);
+        else
+          this.ForwardSimulate();
       }
     }
 
@@ -162,9 +174,9 @@ namespace Railgun
 
         if (this.hadFirstTick == false)
         {
-          this.Start();
-          this.OnControllerChanged();
           this.hadFirstTick = true;
+          this.Start();
+          this.ControllerChanged();
         }
       }
     }
@@ -205,7 +217,7 @@ namespace Railgun
       BitBuffer buffer, 
       Tick latestTick, 
       Tick basisTick,
-      RailController destination)
+      IRailController destination)
     {
       RailState basis = null;
       TickSpan span = TickSpan.OUT_OF_RANGE;
@@ -420,9 +432,9 @@ namespace Railgun
 
       if (this.hadFirstTick == false)
       {
-        this.Start();
-        this.OnControllerChanged();
         this.hadFirstTick = true;
+        this.Start();
+        this.ControllerChanged();
       }
 
       this.ApplyCommands();
@@ -447,7 +459,7 @@ namespace Railgun
     private void ApplyCommands()
     {
       int offset = 1;
-      foreach (RailCommand command in this.Controller.OutgoingCommands)
+      foreach (RailCommand command in this.controller.PendingCommands)
       {
         this.SimulateCommand(command);
         this.Simulate();

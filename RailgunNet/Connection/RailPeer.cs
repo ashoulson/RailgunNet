@@ -21,15 +21,44 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-
 using System.Linq;
 
 using CommonTools;
 
 namespace Railgun
 {
-  public class RailController
+  internal abstract class RailPeer : IRailControllerInternal
   {
+    #region IRailNetPeer Wrapping
+    internal IRailNetPeer NetPeer { get { return this.NetPeer; } }
+
+    private readonly IRailNetPeer netPeer;
+
+    internal IEnumerable<int> ReadReceived(byte[] buffer)
+    {
+      return this.netPeer.ReadReceived(buffer);
+    }
+
+    internal void EnqueueSend(byte[] buffer, int length)
+    {
+      this.netPeer.EnqueueSend(buffer, length);
+    }
+
+    protected abstract void OnMessagesReady(IRailNetPeer peer);
+    #endregion
+
+    #region IRailControllerInternal Members
+    RailCommand IRailControllerInternal.LatestCommand
+    {
+      get { return this.LatestCommand; }
+    }
+
+    IEnumerable<RailCommand> IRailControllerInternal.PendingCommands
+    {
+      get { return this.PendingCommands; }
+    }
+    #endregion
+
     /// <summary>
     /// The entities controlled by this controller.
     /// </summary>
@@ -50,9 +79,9 @@ namespace Railgun
     /// </summary>
     private EventId lastEventId;
 
-    internal IEnumerable<RailEntity> ControlledEntities 
-    { 
-      get { return this.controlledEntities; } 
+    public IEnumerable<RailEntity> ControlledEntities
+    {
+      get { return this.controlledEntities; }
     }
 
     internal IEnumerable<RailEvent> ReliableEvents
@@ -70,34 +99,23 @@ namespace Railgun
       get { return this.UnreliableEvents.Concat(this.ReliableEvents); }
     }
 
-    /// <summary>
-    /// Implemented on client only.
-    /// </summary>
-    internal virtual IEnumerable<RailCommand> OutgoingCommands
+    // Server-only
+    protected internal virtual RailCommand LatestCommand
     {
-      get { throw new NotSupportedException(); }
+      get { throw new NotImplementedException(); }
     }
 
-    /// <summary>
-    /// Implemented on server only.
-    /// </summary>
-    internal virtual RailCommand LatestCommand
+    // Client-only
+    protected internal virtual IEnumerable<RailCommand> PendingCommands
     {
-      get { throw new NotSupportedException(); }
+      get { throw new NotImplementedException(); }
     }
 
-    /// <summary>
-    /// Implemented on server only.
-    /// </summary>
-    public virtual RailScopeEvaluator ScopeEvaluator
+    internal RailPeer(IRailNetPeer netPeer)
     {
-      set { throw new NotSupportedException(); }
-    }
+      this.netPeer = netPeer;
+      this.netPeer.MessagesReady += this.OnMessagesReady;
 
-    internal virtual void Shutdown() { }
-
-    internal RailController()
-    {
       this.controlledEntities = new HashSet<RailEntity>();
       this.outgoingReliable = new Queue<RailEvent>();
       this.outgoingUnreliable = new List<RailEvent>();
@@ -105,34 +123,7 @@ namespace Railgun
       this.lastEventId = EventId.INVALID;
     }
 
-    /// <summary>
-    /// Adds an entity to be controlled by this controller.
-    /// </summary>
-    internal void AddEntity(RailEntity entity)
-    {
-      if (entity.Controller == this)
-        return;
-
-      CommonDebug.Assert(entity.Controller == null);
-      this.controlledEntities.Add(entity);
-
-      entity.Controller = this;
-      entity.ControllerChanged();
-    }
-
-    /// <summary>
-    /// Remove an entity from being controlled by this controller.
-    /// </summary>
-    internal void RemoveEntity(RailEntity entity)
-    {
-      CommonDebug.Assert(entity.Controller == this);
-      this.controlledEntities.Remove(entity);
-
-      entity.Controller = null;
-      entity.ControllerChanged();
-    }
-
-    internal void QueueUnreliable(RailEvent evnt, Tick tick)
+    public void QueueUnreliable(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();
       clone.Initialize(
@@ -141,13 +132,38 @@ namespace Railgun
       this.outgoingUnreliable.Add(clone);
     }
 
-    internal void QueueReliable(RailEvent evnt, Tick tick)
+    public void QueueReliable(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();
       clone.Initialize(
         tick,
         EventId.Increment(ref this.lastEventId));
       this.outgoingReliable.Enqueue(clone);
+    }
+
+    /// <summary>
+    /// Adds an entity to be controlled by this peer.
+    /// </summary>
+    public void GrantControl(RailEntity entity)
+    {
+      if (entity.Controller == this)
+        return;
+
+      CommonDebug.Assert(entity.Controller == null);
+      this.controlledEntities.Add(entity);
+
+      entity.SetController(this);
+    }
+
+    /// <summary>
+    /// Remove an entity from being controlled by this peer.
+    /// </summary>
+    public void RevokeControl(RailEntity entity)
+    {
+      CommonDebug.Assert(entity.Controller == this);
+      this.controlledEntities.Remove(entity);
+
+      entity.SetController(null);
     }
 
     internal void CleanReliableEvents(EventId lastReceivedId)

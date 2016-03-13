@@ -42,7 +42,7 @@ namespace Railgun
 
     #region ClientPacket
     internal void SendClientPacket(
-      RailPeerServer destinationPeer,
+      RailPeer destinationPeer,
       RailClientPacket packet)
     {
       this.bitBuffer.Clear();
@@ -55,7 +55,7 @@ namespace Railgun
     }
 
     internal IEnumerable<RailClientPacket> ReceiveClientPackets(
-      RailPeerClient sourcePeer)
+      RailPeer sourcePeer)
     {
       foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
       {
@@ -72,20 +72,20 @@ namespace Railgun
 
     #region ServerPacket
     internal void SendServerPacket(
-      RailPeerClient destinationPeer,
+      RailPeer destinationPeer,
       RailServerPacket packet)
     {
       this.bitBuffer.Clear();
 
       // Write: [Packet]
-      packet.Encode(this.bitBuffer, destinationPeer.Controller);
+      packet.Encode(this.bitBuffer, destinationPeer);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
       destinationPeer.EnqueueSend(this.byteBuffer, length);
     }
 
     internal IEnumerable<RailServerPacket> ReceiveServerPackets(
-      RailPeerServer sourcePeer,
+      RailPeer sourcePeer,
       IDictionary<EntityId, RailEntity> knownEntities)
     {
       foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))

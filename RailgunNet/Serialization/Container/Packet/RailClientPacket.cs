@@ -72,8 +72,8 @@ namespace Railgun
       this.ClientTick = Tick.INVALID;
       this.LastReceivedServerTick = Tick.INVALID;
 
-      foreach (RailCommand command in this.commands)
-        RailPool.Free(command);
+      // Note: We don't free the commands because they 
+      // will always be stored elsewhere
       this.commands.Clear();
       this.view.Clear();
     }

@@ -101,7 +101,7 @@ namespace Railgun
     {
       this.Tick = this.Tick.GetNext();
       foreach (RailEntity entity in this.entities.Values)
-        entity.UpdateServer();
+        entity.UpdateServer(this.Tick);
     }
 
     internal void StoreStates()

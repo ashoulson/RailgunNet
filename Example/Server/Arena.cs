@@ -34,7 +34,7 @@ namespace Example
     {
       this.server = server;
 
-      server.ControllerAdded += this.OnControllerAdded;
+      server.ControllerJoined += this.OnControllerAdded;
 
       for (int i = 0; i < 15; i++)
       {
@@ -49,12 +49,12 @@ namespace Example
       }
     }
 
-    private void OnControllerAdded(RailController controller)
+    private void OnControllerAdded(IRailControllerServer controller)
     {
       DemoControlled controlled =
         this.server.AddNewEntity<DemoControlled>(0);
       controlled.State.ArchetypeId = 0;
-      this.server.AssignControl(controller, controlled);
+      controller.GrantControl(controlled);
       controller.ScopeEvaluator = new DemoScopeEvaluator(controlled);
     }
   }

@@ -132,7 +132,7 @@ namespace Railgun
     #region Encode/Decode
     internal void Encode(
       BitBuffer buffer,
-      RailController destination)
+      IRailController destination)
     {
       // Write: [Events]
       this.EncodeEvents(buffer);
@@ -197,7 +197,7 @@ namespace Railgun
 
     private void EncodeEntities(
       BitBuffer buffer,
-      RailController destination)
+      IRailController destination)
     {
       // Write: [Entity States]
       foreach (EntityUpdate pair in this.pendingUpdates)

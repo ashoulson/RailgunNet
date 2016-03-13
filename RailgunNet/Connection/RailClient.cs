@@ -30,10 +30,57 @@ namespace Railgun
 {
   public class RailClient : RailConnection
   {
-    private RailPeerServer serverPeer;
+    private class Peer : RailPeer
+    {
+      public event Action<Peer> MessagesReady;
+
+      /// <summary>
+      /// A history of sent commands to the server. Used on the client.
+      /// </summary>
+      private readonly Queue<RailCommand> outgoingBuffer;
+
+      /// <summary>
+      /// Commands that have been sent to the server but not yet acked.
+      /// </summary>
+      protected internal override IEnumerable<RailCommand> PendingCommands
+      {
+        get { return this.outgoingBuffer; }
+      }
+
+      internal Peer(IRailNetPeer netPeer)
+        : base(netPeer)
+      {
+        this.outgoingBuffer = new Queue<RailCommand>();
+      }
+
+      internal void QueueOutgoing(RailCommand command)
+      {
+        if (this.outgoingBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
+          this.outgoingBuffer.Enqueue(command);
+      }
+
+      internal void CleanCommands(Tick lastReceivedTick)
+      {
+        while (true)
+        {
+          if (this.outgoingBuffer.Count == 0)
+            break;
+          if (this.outgoingBuffer.Peek().Tick > lastReceivedTick)
+            break;
+          RailPool.Free(this.outgoingBuffer.Dequeue());
+        }
+      }
+
+      protected override void OnMessagesReady(IRailNetPeer peer)
+      {
+        if (this.MessagesReady != null)
+          this.MessagesReady(this);
+      }
+    }
+
+    private RailClient.Peer peer;
 
     private readonly RailClock serverClock;
-    private readonly RailControllerClient localController;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -51,31 +98,31 @@ namespace Railgun
     // The last received event id, for reliable sequencing
     private EventId lastReceivedEventId;
 
-    private readonly RailView view;
+    private readonly RailView entityView;
 
     public RailClient()
     {
       RailConnection.IsServer = false;
       this.world.InitializeClient();
-      this.serverPeer = null;
+      this.peer = null;
       this.serverClock = new RailClock();
 
       this.localTick = Tick.START;
       this.lastReceivedEventId = EventId.INVALID;
-      this.localController = new RailControllerClient();
 
       this.pendingEntities = 
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.knownEntities =
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
 
-      this.view = new RailView();
+      this.entityView = new RailView();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
     {
-      this.serverPeer = new RailPeerServer(netPeer);
-      this.serverPeer.MessagesReady += this.OnMessagesReady;
+      CommonDebug.Assert(this.peer == null, "Overwriting peer");
+      this.peer = new RailClient.Peer(netPeer);
+      this.peer.MessagesReady += this.OnMessagesReady;
     }
 
     public override void Update()
@@ -83,10 +130,29 @@ namespace Railgun
       this.UpdateCommands();
       this.UpdateWorld(this.serverClock.Update());
 
-      if ((this.serverPeer != null) && this.localTick.IsSendTick)
+      if ((this.peer != null) && this.localTick.IsSendTick)
         this.SendPacket();
 
       this.localTick = this.localTick.GetNext();
+    }
+
+    #region Local Updating
+    /// <summary>
+    /// Polls the command generator to produce a command and adds it to the
+    /// rolling outgoing command queue.
+    /// </summary>
+    private void UpdateCommands()
+    {
+      if (this.peer != null)
+      {
+        RailCommand command = RailResource.Instance.AllocateCommand();
+        command.Populate();
+        command.Tick = this.localTick;
+
+        CommonDebug.Log(command.Tick);
+
+        this.peer.QueueOutgoing(command);
+      }
     }
 
     /// <summary>
@@ -98,28 +164,16 @@ namespace Railgun
       for (; numTicks > 0; numTicks--)
       {
         Tick serverTick = (this.serverClock.EstimatedRemote - numTicks) + 1;
-        this.UpdatePending(serverTick);
+        this.UpdatePendingEntities(serverTick);
         this.world.UpdateClient(serverTick);
       }
-    }
-
-    /// <summary>
-    /// Polls the command generator to produce a command and adds it to the
-    /// rolling outgoing command queue. TODO: Local prediction!
-    /// </summary>
-    private void UpdateCommands()
-    {
-      RailCommand command = RailResource.Instance.AllocateCommand();
-      command.Populate();
-      command.Tick = this.localTick;
-      this.localController.QueueOutgoing(command);
     }
 
     /// <summary>
     /// Checks to see if any pending entities can be added to the world and
     /// adds them if applicable.
     /// </summary>
-    private void UpdatePending(Tick serverTick)
+    private void UpdatePendingEntities(Tick serverTick)
     {
       // TODO: This list could be pre-allocated
       List<RailEntity> toRemove = new List<RailEntity>();
@@ -136,7 +190,11 @@ namespace Railgun
       foreach (RailEntity entity in toRemove)
         this.pendingEntities.Remove(entity.Id);
     }
+    #endregion
 
+    #region Packet I/O
+
+    #region Packet Send
     /// <summary>
     /// Packs and sends a client-to-server packet to the server.
     /// </summary>
@@ -147,16 +205,18 @@ namespace Railgun
         this.localTick,
         this.serverClock.LatestRemote,
         this.lastReceivedEventId,
-        this.localController.OutgoingCommands,
-        this.view);
-      this.interpreter.SendClientPacket(this.serverPeer, packet);
+        this.peer.PendingCommands,
+        this.entityView);
+      this.interpreter.SendClientPacket(this.peer, packet);
     }
+    #endregion
 
-    private void OnMessagesReady(RailPeerServer peer)
+    #region Packet Receive
+    private void OnMessagesReady(RailClient.Peer peer)
     {
       IEnumerable<RailServerPacket> decode =
         this.interpreter.ReceiveServerPackets(
-          this.serverPeer, 
+          this.peer, 
           this.knownEntities);
 
       foreach (RailServerPacket packet in decode)
@@ -175,7 +235,7 @@ namespace Railgun
         this.ProcessEvent(evnt);
 
       if (packet.LastProcessedCommandTick.IsValid)
-        this.localController.CleanCommands(packet.LastProcessedCommandTick);
+        this.peer.CleanCommands(packet.LastProcessedCommandTick);
     }
 
     private void ProcessState(RailState state)
@@ -192,26 +252,8 @@ namespace Railgun
       }
 
       entity.StateBuffer.Store(state);
-      this.view.RecordUpdate(entity.Id, state.Tick);
+      this.entityView.RecordUpdate(entity.Id, state.Tick);
       this.UpdateControlStatus(entity, state);
-    }
-
-    private void UpdateControlStatus(RailEntity entity, RailState state)
-    {
-      if (state.IsController && (entity.Controller == null))
-        this.localController.AddEntity(entity);
-      if ((state.IsController == false) && (entity.Controller != null))
-        this.localController.RemoveEntity(entity);
-    }
-
-    private RailEntity GetEntity(EntityId entityId)
-    {
-      RailEntity entity;
-      if (this.world.TryGetEntity(entityId, out entity) == true)
-        return entity;
-      if (this.pendingEntities.TryGetValue(entityId, out entity) == true)
-        return entity;
-      return null;
     }
 
     private void ProcessEvent(RailEvent evnt)
@@ -235,5 +277,26 @@ namespace Railgun
           break;
       }
     }
+
+    private void UpdateControlStatus(RailEntity entity, RailState state)
+    {
+      if (state.IsController && (entity.Controller == null))
+        this.peer.GrantControl(entity);
+      if ((state.IsController == false) && (entity.Controller != null))
+        this.peer.RevokeControl(entity);
+    }
+
+    private RailEntity GetEntity(EntityId entityId)
+    {
+      RailEntity entity;
+      if (this.world.TryGetEntity(entityId, out entity) == true)
+        return entity;
+      if (this.pendingEntities.TryGetValue(entityId, out entity) == true)
+        return entity;
+      return null;
+    }
+    #endregion
+
+    #endregion
   }
 }
