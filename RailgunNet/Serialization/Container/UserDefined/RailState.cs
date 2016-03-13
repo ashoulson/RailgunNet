@@ -30,7 +30,8 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailState : IRailPoolable, IRailRingValue
+  public abstract class RailState : 
+    IRailPoolable, IRailRingValue, IRailCloneable<RailState>
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
@@ -43,21 +44,11 @@ namespace Railgun
 
     internal abstract void SetDataFrom(RailState other);
 
-    /// <summary>
-    /// The server tick this state was generated on.
-    /// </summary>
-    internal Tick Tick { get; set; }
-
-    /// <summary>
-    /// Whether or not this state is predicted. Always defaults to false and
-    /// must be manually set to true after a clone. Not synchronized.
-    /// </summary>
-    internal bool IsPredicted { get; set; }
-
-    // Client-only
-    internal EntityId EntityId { get; set; }
-    internal int EntityType { get; set; }
-    internal bool IsController { get; set; }
+    internal Tick Tick { get; private set; }
+    internal EntityId EntityId { get; private set; }
+    internal int EntityType { get; private set; }
+    internal bool IsController { get; private set; }
+    internal bool IsPredicted { get; private set; }
 
     protected internal abstract void EncodeData(BitBuffer buffer);
     protected internal abstract void DecodeData(BitBuffer buffer);
@@ -68,12 +59,48 @@ namespace Railgun
     protected internal void Reset() 
     {
       this.Tick = Tick.INVALID;
-      this.IsPredicted = false;
-      this.ResetData();
-
       this.EntityId = EntityId.INVALID;
       this.EntityType = -1;
+
+      this.IsPredicted = false;
       this.IsController = false;
+
+      this.ResetData();
+    }
+
+    internal void Initialize(int type)
+    {
+      this.EntityType = type;
+    }
+
+    public RailState Clone()
+    {
+      RailState clone = RailResource.Instance.AllocateState(this.EntityType);
+      clone.Tick = this.Tick;
+      clone.EntityId = this.EntityId;
+      clone.EntityType = this.EntityType;
+      clone.IsController = this.IsController;
+      clone.IsPredicted = this.IsPredicted;
+      clone.SetDataFrom(this);
+      return clone;
+    }
+
+    internal void SetOnDecode(Tick tick, EntityId id, bool isController)
+    {
+      this.Tick = tick;
+      this.EntityId = id;
+      this.IsController = isController;
+    }
+
+    internal void SetOnPredict(Tick tick)
+    {
+      this.IsPredicted = true;
+      this.Tick = tick;
+    }
+
+    internal void SetOnStore(Tick tick)
+    {
+      this.Tick = tick;
     }
 
     #region DEBUG

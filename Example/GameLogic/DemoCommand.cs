@@ -25,7 +25,7 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
-public class DemoCommand : RailCommand
+public class DemoCommand : RailCommand<DemoCommand>
 {
   public bool Up { get; set; }
   public bool Down { get; set; }
@@ -64,6 +64,15 @@ public class DemoCommand : RailCommand
   protected override void ResetData()
   {
     this.SetData(false, false, false, false);
+  }
+
+  protected override void SetDataFrom(DemoCommand other)
+  {
+    this.SetData(
+      other.Up,
+      other.Down,
+      other.Left,
+      other.Right);
   }
 
   protected override void Populate()

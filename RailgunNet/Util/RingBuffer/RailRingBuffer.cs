@@ -25,7 +25,7 @@ using System.Collections.Generic;
 namespace Railgun
 {
   internal class RailRingBuffer<T>
-    where T : class, IRailRingValue, IRailPoolable
+    where T : class, IRailRingValue, IRailPoolable, IRailCloneable<T>
   {
     // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
@@ -76,52 +76,24 @@ namespace Railgun
     public void Store(T value)
     {
       int index = this.TickToIndex(value.Tick);
-
-      // Replace the current value in that slot and free it unless the
-      // current is stored as the earliest or latest values
       T current = this.data[index];
       if (this.data[index] != null)
-      {
-        bool canFree = true;
-
-        if (current == this.earliest)
-        {
-          this.earliestInBuffer = false;
-          canFree = false;
-        }
-
-        if (current == this.latest)
-        {
-          this.latestInBuffer = false;
-          canFree = false;
-        }
-
-        if (canFree)
-        {
-          RailPool.Free(current);
-        }
-      }
+        RailPool.Free(current);
 
       this.data[index] = value;
 
-      // Replace the earliest if applicable
       if ((this.earliest == null) || (this.earliest.Tick > value.Tick))
       {
-        if ((this.earliest != null) && (this.earliestInBuffer == false))
+        if (this.earliest != null)
           RailPool.Free(this.earliest);
-
-        this.earliest = value;
-        this.earliestInBuffer = true;
+        this.earliest = value.Clone();
       }
 
-      // Replace the latest if applicable
       if ((this.latest == null) || (this.latest.Tick < value.Tick))
       {
-        if ((this.latest != null) && (this.latestInBuffer == false))
+        if (this.latest != null)
           RailPool.Free(this.latest);
-
-        this.latest = value;
-        this.latestInBuffer = true;
+        this.latest = value.Clone();
       }
     }
 

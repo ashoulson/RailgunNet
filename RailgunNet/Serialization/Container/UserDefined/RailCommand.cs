@@ -29,7 +29,8 @@ namespace Railgun
   /// <summary>
   /// Commands contain input data from the client to be applied to entities.
   /// </summary>
-  public abstract class RailCommand : IRailPoolable, IRailRingValue
+  public abstract class RailCommand : 
+    IRailPoolable, IRailRingValue, IRailCloneable<RailCommand>
   {
     public static void RegisterCommandType<TCommand>()
       where TCommand : RailCommand, new()
@@ -41,9 +42,8 @@ namespace Railgun
     void IRailPoolable.Reset() { this.Reset(); }
     Tick IRailRingValue.Tick { get { return this.Tick; } }
 
-    /// <summary>
-    /// The client tick this command was generated on.
-    /// </summary>
+    internal abstract void SetDataFrom(RailCommand other);
+
     internal Tick Tick { get; set; }
 
     protected abstract void EncodeData(BitBuffer buffer);
@@ -56,6 +56,14 @@ namespace Railgun
     {
       this.Tick = Tick.INVALID;
       this.ResetData();
+    }
+
+    public RailCommand Clone()
+    {
+      RailCommand clone = RailResource.Instance.AllocateCommand();
+      clone.Tick = this.Tick;
+      clone.SetDataFrom(this);
+      return clone;
     }
 
     #region Encode/Decode/etc.
@@ -85,5 +93,22 @@ namespace Railgun
       return command;
     }
     #endregion
+  }
+
+
+  /// <summary>
+  /// This is the class to override to attach user-defined data to an entity.
+  /// </summary>
+  public abstract class RailCommand<T> : RailCommand
+    where T : RailCommand<T>, new()
+  {
+    #region Casting Overrides
+    internal override void SetDataFrom(RailCommand other)
+    {
+      this.SetDataFrom((T)other);
+    }
+    #endregion
+
+    protected internal abstract void SetDataFrom(T other);
   }
 }

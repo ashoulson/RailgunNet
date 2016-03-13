@@ -245,7 +245,7 @@ namespace Railgun
       {
         entity = 
           this.world.CreateEntity<RailEntity>(
-            state.EntityType, 
+            state.EntityType,
             state.EntityId);
         this.pendingEntities.Add(state.EntityId, entity);
         this.knownEntities.Add(state.EntityId, entity);
