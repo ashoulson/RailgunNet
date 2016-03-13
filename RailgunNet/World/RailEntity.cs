@@ -44,7 +44,7 @@ namespace Railgun
     /// <summary>
     /// A unique network ID assigned to this entity.
     /// </summary>
-    public EntityId Id { get; internal set; }
+    public EntityId Id { get; private set; }
 
     /// <summary>
     /// The int index for the type of entity this state applies to.
@@ -106,6 +106,8 @@ namespace Railgun
     {
       this.controller = null;
 
+      this.Id = EntityId.INVALID;
+
       this.StateBuffer = new RailStateBuffer();
       this.StateDelta = new RailStateDelta();
 
@@ -118,7 +120,16 @@ namespace Railgun
     internal void Initialize(int type)
     {
       this.Type = type;
-      this.State = RailResource.Instance.AllocateState(type);     
+      this.State = RailResource.Instance.AllocateState(type);
+    }
+
+    internal void AssignId(EntityId id)
+    {
+      CommonDebug.Assert(this.Id.IsValid == false);
+      CommonDebug.Assert(id.IsValid);
+
+      this.Id = id;
+      this.State.SetOnEntityCreate(this.Id);
     }
 
     internal void SetController(IRailControllerInternal controller)
@@ -208,43 +219,20 @@ namespace Railgun
     {
       RailState basis = null;
       TickSpan span = TickSpan.OUT_OF_RANGE;
+      bool isController = (destination == this.Controller);
 
       if (basisTick.IsValid)
       {
         basis = this.StateBuffer.Get(basisTick);
-        span = TickSpan.Create(latestTick, basisTick);
+        if (basis != null)
+          span = TickSpan.Create(latestTick, basisTick);
       }
 
-      // Either we're in range or we have no basis
-      CommonDebug.Assert(span.IsInRange ^ (basis == null));
+      // Write: [State]
+      this.State.Encode(buffer, basis, isController);
 
-      if (basis == null) // Full Encode
-      {
-        // Write: [State]
-        this.State.EncodeData(buffer);
-
-        // Write: [Type]
-        buffer.Push(RailEncoders.EntityType, this.Type);
-
-        // Write: [TickSpan]
-        buffer.Push(RailEncoders.TickSpan, TickSpan.OUT_OF_RANGE);
-      }
-      else // Delta Encode
-      {
-        // Write: [State]
-        this.State.EncodeData(buffer, basis);
-
-        // No [Type] for deltas
-
-        // Write: [TickSpan]
-        buffer.Push(RailEncoders.TickSpan, span);
-      }
-
-      // Write: [IsController]
-      buffer.Push(RailEncoders.Bool, (destination == this.Controller));
-
-      // Write: [Id]
-      buffer.Push(RailEncoders.EntityId, this.Id);
+      // Write: [TickSpan]
+      buffer.Push(RailEncoders.TickSpan, span);
     }
 
     /// <summary>
@@ -258,58 +246,28 @@ namespace Railgun
       Tick latestTick,
       IDictionary<EntityId, RailEntity> knownEntities)
     {
-      // Read: [Id]
-      EntityId id = buffer.Pop(RailEncoders.EntityId);
-
-      // Read: [IsController]
-      bool isController = buffer.Pop(RailEncoders.Bool);
-
       // Read: [TickSpan]
       TickSpan span = buffer.Pop(RailEncoders.TickSpan);
+      CommonDebug.Assert(span.IsValid);
 
-      RailEntity entity;
+      // Peek: [Id]
+      EntityId id = RailState.PeekId(buffer);
+
+      RailEntity entity = null;
+      RailState basis = null;
+      bool canStore = true;
+
       if (knownEntities.TryGetValue(id, out entity) == false)
         entity = null;
-
-      // Delta decode
       if (span.IsInRange)
-      {
-        // No [Type] for deltas
+        basis = RailEntity.GetBasis(entity, latestTick, span, out canStore);
 
-        bool canStore = true;
-        RailState basis = 
-          RailEntity.GetBasis(
-            entity, 
-            latestTick, 
-            span, 
-            out canStore);
+      // Read: [State]
+      RailState state = RailState.Decode(buffer, basis, latestTick);
 
-        // Read: [State]
-        RailState state = RailResource.Instance.AllocateState(entity.Type);
-        state.SetOnDecode(latestTick, id, isController);
-        state.DecodeData(buffer, basis);
-
-        if (canStore)
-          return state;
-        return null;
-      }
-      // Full decode
-      else if (span.IsOutOfRange)
-      {
-        // Read: [Type]
-        int type = buffer.Pop(RailEncoders.EntityType);
-
-        // Read: [State]
-        RailState state = RailResource.Instance.AllocateState(type);
-        state.SetOnDecode(latestTick, id, isController);
-        state.DecodeData(buffer);
-
+      if (canStore)
         return state;
-      }
-      else
-      {
-        throw new BasisNotFoundException("Invalid span: " + span);
-      }
+      return null;
     }
 
     private static RailState GetBasis(
