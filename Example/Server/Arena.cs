@@ -55,6 +55,7 @@ namespace Example
         this.server.AddNewEntity<DemoControlled>(0);
       controlled.State.ArchetypeId = 0;
       this.server.AssignControl(controller, controlled);
+      controller.ScopeEvaluator = new DemoScopeEvaluator(controlled);
     }
   }
 }

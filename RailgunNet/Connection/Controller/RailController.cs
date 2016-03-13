@@ -86,6 +86,14 @@ namespace Railgun
       get { throw new NotSupportedException(); }
     }
 
+    /// <summary>
+    /// Implemented on server only.
+    /// </summary>
+    public virtual RailScopeEvaluator ScopeEvaluator
+    {
+      set { throw new NotSupportedException(); }
+    }
+
     internal virtual void Shutdown() { }
 
     internal RailController()

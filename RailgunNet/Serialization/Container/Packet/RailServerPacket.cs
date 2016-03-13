@@ -88,7 +88,7 @@ namespace Railgun
     private readonly List<RailEvent> events;
 
     // Server-only
-    internal List<EntityId> StoredEntities { get; private set; }
+    internal List<EntityId> SentEntities { get; private set; }
     private readonly List<EntityUpdate> pendingUpdates;
 
     // Client-only
@@ -97,7 +97,7 @@ namespace Railgun
     public RailServerPacket()
     {
       this.events = new List<RailEvent>();
-      this.StoredEntities = new List<EntityId>();
+      this.SentEntities = new List<EntityId>();
       this.pendingUpdates = new List<EntityUpdate>();
       this.States = new List<RailState>();
 
@@ -224,12 +224,12 @@ namespace Railgun
         }
         else
         {
-          this.StoredEntities.Add(pair.Entity.Id);
+          this.SentEntities.Add(pair.Entity.Id);
         }
       }
 
       // Write: [Entity Count]
-      buffer.Push(RailEncoders.EntityCount, this.StoredEntities.Count);
+      buffer.Push(RailEncoders.EntityCount, this.SentEntities.Count);
     }
 
     private void DecodeEntities(

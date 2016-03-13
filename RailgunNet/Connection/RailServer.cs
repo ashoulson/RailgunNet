@@ -126,8 +126,7 @@ namespace Railgun
 
     public void AssignControl(RailController controller, RailEntity entity)
     {
-      RailControllerServer serverController = (RailControllerServer)controller;
-      serverController.AddEntity(entity);
+      controller.AddEntity(entity);
     }
 
     /// <summary>
@@ -138,25 +137,42 @@ namespace Railgun
     {
       foreach (RailPeerClient clientPeer in this.clients.Values)
       {
-        RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
+        RailServerPacket packet = 
+          RailResource.Instance.AllocateServerPacket();
 
         packet.Initialize(
           this.world.Tick,
           clientPeer.LastProcessedCommandTick,
           clientPeer.Controller.AllEvents);
+        this.PackEntities(packet, clientPeer);
 
-        // TODO: Scoping, budgeting, etc.
-        foreach (RailEntity entity in this.world.Entities)
-          packet.AddEntity(entity, clientPeer.GetLatestEntityTick(entity.Id));
-
+        // Send the packet
         this.interpreter.SendServerPacket(clientPeer, packet);
+
+        // Record all the entities we actually sent
+        foreach (EntityId entityId in packet.SentEntities)
+          clientPeer.Controller.Scope.RegisterSent(entityId, this.world.Tick);
       }
+    }
+
+    private void PackEntities(
+      RailServerPacket packet, 
+      RailPeerClient clientPeer)
+    {
+      IEnumerable<RailEntity> scopedEntities =
+        clientPeer.Controller.Scope.Evaluate(
+          this.world.Entities, 
+          this.world.Tick);
+
+      foreach (RailEntity entity in scopedEntities)
+        packet.AddEntity(entity, clientPeer.GetLatestEntityTick(entity.Id));
     }
 
     private void OnMessagesReady(RailPeerClient peer)
     {
       IEnumerable<RailClientPacket> decode = 
         this.interpreter.ReceiveClientPackets(peer);
+
       foreach (RailClientPacket input in decode)
         peer.ProcessPacket(input);
     }

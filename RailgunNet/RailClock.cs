@@ -71,9 +71,10 @@ namespace Railgun
     public void UpdateLatest(Tick latestTick)
     {
       if (this.latestRemote.IsValid == false)
-        this.latestRemote = latestTick;        
+        this.latestRemote = latestTick;
       if (this.estimatedRemote.IsValid == false)
-        this.estimatedRemote = this.latestRemote - this.delayDesired;
+        this.estimatedRemote = 
+          Tick.ClampSubtract(this.latestRemote, this.delayDesired);
 
       if (latestTick > this.latestRemote)
       {

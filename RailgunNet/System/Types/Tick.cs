@@ -38,6 +38,14 @@ namespace Railgun
       return latest - offset.RawValue;
     }
 
+    internal static Tick ClampSubtract(Tick a, int b)
+    {
+      int result = a.tickValue - b;
+      if (result < 1)
+        result = 1;
+      return new Tick(result);
+    }
+
     internal static readonly Tick INVALID = new Tick(0);
     internal static readonly Tick START = new Tick(1);
 

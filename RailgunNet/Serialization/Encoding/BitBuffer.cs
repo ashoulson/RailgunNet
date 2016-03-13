@@ -36,6 +36,8 @@ namespace Railgun
     private const int BYTES_PER_CHUNK = SIZE_STORAGE / SIZE_BYTE;
     private const uint STORAGE_MASK = (uint)((1L << SIZE_STORAGE) - 1);
 
+    private const int GROW_FACTOR = 2;
+    private const int MIN_GROW = 1;
     private const int DEFAULT_CAPACITY = 8;
 
     /// <summary>
@@ -146,7 +148,7 @@ namespace Railgun
 
         // Increase our capacity if needed
         if (index >= this.chunks.Length)
-          CommonUtil.ExpandArray(ref this.chunks);
+          this.ExpandArray();
 
         // Create and apply the mask
         ulong mask = (1UL << numBits) - 1;
@@ -350,6 +352,17 @@ namespace Railgun
       }
 
       return ((length - 1) * BitBuffer.SIZE_BYTE) + shiftCount;
+    }
+
+    private void ExpandArray()
+    {
+      int newCapacity = 
+        (this.chunks.Length * BitBuffer.GROW_FACTOR) + 
+        BitBuffer.MIN_GROW;
+
+      uint[] newChunks = new uint[newCapacity];
+      Array.Copy(this.chunks, newChunks, this.chunks.Length);
+      this.chunks = newChunks;
     }
 
     #region Encoder Helpers
