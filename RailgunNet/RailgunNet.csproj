@@ -45,6 +45,7 @@
     <Compile Include="Serialization\Container\RailView.cs" />
     <Compile Include="Serialization\Encoding\Encoder\TypedEncoder.cs" />
     <Compile Include="System\Types\IEncodableType.cs" />
+    <Compile Include="Util\IRailCloneable.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
     <Compile Include="System\Types\EntityId.cs" />

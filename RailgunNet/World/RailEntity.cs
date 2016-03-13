@@ -118,7 +118,7 @@ namespace Railgun
     internal void Initialize(int type)
     {
       this.Type = type;
-      this.State = this.AllocateState();     
+      this.State = RailResource.Instance.AllocateState(type);     
     }
 
     internal void SetController(IRailControllerInternal controller)
@@ -194,22 +194,9 @@ namespace Railgun
 
     internal void StoreState(Tick tick)
     {
-      RailState state = this.AllocateState();
-      state.SetDataFrom(this.State);
-      state.Tick = tick;
+      RailState state = this.State.Clone();
+      state.SetOnStore(tick);
       this.StateBuffer.Store(state);
-    }
-
-    private RailState CloneState(RailState state)
-    {
-      RailState clone = this.AllocateState();
-      clone.SetDataFrom(state);
-      return clone;
-    }
-
-    private RailState AllocateState()
-    {
-      return RailResource.Instance.AllocateState(this.Type);
     }
 
     #region Encoding/Decoding
@@ -298,13 +285,9 @@ namespace Railgun
             out canStore);
 
         // Read: [State]
-        RailState state = RailEntity.AllocateState(entity.Type, latestTick);
+        RailState state = RailResource.Instance.AllocateState(entity.Type);
+        state.SetOnDecode(latestTick, id, isController);
         state.DecodeData(buffer, basis);
-
-        // Write entity information
-        state.EntityId = id;
-        state.EntityType = entity.Type;
-        state.IsController = isController;
 
         if (canStore)
           return state;
@@ -317,13 +300,9 @@ namespace Railgun
         int type = buffer.Pop(RailEncoders.EntityType);
 
         // Read: [State]
-        RailState state = RailEntity.AllocateState(type, latestTick);
+        RailState state = RailResource.Instance.AllocateState(type);
+        state.SetOnDecode(latestTick, id, isController);
         state.DecodeData(buffer);
-
-        // Write entity information
-        state.EntityId = id;
-        state.EntityType = type;
-        state.IsController = isController;
 
         return state;
       }
@@ -331,13 +310,6 @@ namespace Railgun
       {
         throw new BasisNotFoundException("Invalid span: " + span);
       }
-    }
-
-    private static RailState AllocateState(int type, Tick latest)
-    {
-      RailState state = RailResource.Instance.AllocateState(type);
-      state.Tick = latest;
-      return state;
     }
 
     private static RailState GetBasis(
@@ -423,9 +395,8 @@ namespace Railgun
 
       this.ClearDelta();
 
-      RailState latest = this.CloneState(this.StateBuffer.Latest);
-      latest.IsPredicted = true;
-      latest.Tick = this.World.Tick;
+      RailState latest = this.StateBuffer.Latest.Clone();
+      latest.SetOnPredict(this.World.Tick);
 
       this.StateDelta.Set(null, latest, null);
       this.State.SetDataFrom(latest);
@@ -471,9 +442,8 @@ namespace Railgun
 
     private void PushDelta(int offset)
     {
-      RailState predicted = this.CloneState(this.State);
-      predicted.Tick = this.World.Tick + offset;
-      predicted.IsPredicted = true;
+      RailState predicted = this.State.Clone();
+      predicted.SetOnPredict(this.World.Tick + offset);
 
       RailState popped = this.StateDelta.Push(predicted);
       if ((popped != null) && popped.IsPredicted)

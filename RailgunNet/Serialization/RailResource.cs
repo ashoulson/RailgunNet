@@ -87,6 +87,13 @@ namespace Railgun
       return entity;
     }
 
+    internal RailState AllocateState(int type)
+    {
+      RailState state = this.statePools[type].Allocate();
+      state.Initialize(type);
+      return state;
+    }
+
     internal RailServerPacket AllocateServerPacket()
     {
       return this.serverPacketPool.Allocate();
@@ -100,11 +107,6 @@ namespace Railgun
     internal RailCommand AllocateCommand()
     {
       return this.commandPool.Allocate();
-    }
-
-    internal RailState AllocateState(int type)
-    {
-      return this.statePools[type].Allocate();
     }
 
     internal RailEvent AllocateEvent(int type)
