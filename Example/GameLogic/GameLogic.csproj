@@ -63,6 +63,7 @@
     <Compile Include="DemoControlled.cs" />
     <Compile Include="DemoEvents.cs" />
     <Compile Include="DemoMath.cs" />
+    <Compile Include="DemoScopeEvaluator.cs" />
     <Compile Include="DemoState.cs" />
     <Compile Include="DemoTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

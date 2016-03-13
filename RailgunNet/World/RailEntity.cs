@@ -51,7 +51,7 @@ namespace Railgun
     internal int Type { get; private set; }
 
     protected internal RailWorld World { get; internal set; }
-    protected internal RailState State { get; private set; }
+    public RailState State { get; private set; }
 
     /// <summary>
     /// SERVER: Called when the entity has a new controller. 
@@ -156,13 +156,16 @@ namespace Railgun
       this.ClearDelta();
 
       this.StateDelta.Update(this.StateBuffer, serverTick);
-      this.State.SetDataFrom(this.StateDelta.Latest);
-
-      if (this.hadFirstTick == false)
+      if (this.StateDelta.Latest != null)
       {
-        this.Start();
-        this.OnControllerChanged();
-        this.hadFirstTick = true;
+        this.State.SetDataFrom(this.StateDelta.Latest);
+
+        if (this.hadFirstTick == false)
+        {
+          this.Start();
+          this.OnControllerChanged();
+          this.hadFirstTick = true;
+        }
       }
     }
 

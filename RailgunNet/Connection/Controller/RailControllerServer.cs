@@ -41,6 +41,17 @@ namespace Railgun
       get { return this.latestCommand; }
     }
 
+    /// <summary>
+    /// The evaluator used for filtering entity updates.
+    /// </summary>
+    public override RailScopeEvaluator ScopeEvaluator
+    {
+      set { this.scope.Evaluator = value; }
+    }
+
+    internal RailScope Scope { get { return this.scope; } }
+    private readonly RailScope scope;
+
     private RailCommand latestCommand;
 
     internal RailControllerServer() : base()
@@ -50,6 +61,7 @@ namespace Railgun
       this.incomingBuffer =
         new RailRingBuffer<RailCommand>(RailConfig.DEJITTER_BUFFER_LENGTH);
       this.latestCommand = null;
+      this.scope = new RailScope();
     }
 
     internal void Update(Tick tick)

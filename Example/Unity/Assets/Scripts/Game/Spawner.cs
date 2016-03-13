@@ -31,8 +31,6 @@ public class Spawner : MonoBehaviour
 
   private void OnDummyCreated(DemoDummy entity)
   {
-    Debug.Log(entity.State.ArchetypeId);
-
     GameObject go =
       ArchetypeLibrary.Instance.Instantiate(
         entity.State.ArchetypeId);
