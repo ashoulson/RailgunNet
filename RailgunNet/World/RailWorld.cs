@@ -68,7 +68,7 @@ namespace Railgun
       CommonDebug.Assert(RailConnection.IsServer);
 
       RailEntity entity = RailResource.Instance.CreateEntity(type);
-      entity.Id = this.nextEntityId;
+      entity.AssignId(this.nextEntityId);
       this.nextEntityId = this.nextEntityId.GetNext();
 
       return (T)entity;
@@ -81,7 +81,7 @@ namespace Railgun
       CommonDebug.Assert(RailConnection.IsServer == false);
 
       RailEntity entity = RailResource.Instance.CreateEntity(type);
-      entity.Id = id;
+      entity.AssignId(id);
 
       return (T)entity;
     }

@@ -80,6 +80,11 @@ namespace Railgun
       return false;
     }
 
+    public override string ToString()
+    {
+      return "EntityId:" + this.idValue;
+    }
+
     #region IEncodableType Members
     int IEncodableType<EntityId>.GetCost()
     {

@@ -94,8 +94,6 @@ namespace Railgun
     }
 
     #region Encode/Decode/etc.
-    // Command encoding order: | TICK | COMMAND DATA |
-
     internal void Encode(
       BitBuffer buffer)
     {

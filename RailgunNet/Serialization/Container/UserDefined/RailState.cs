@@ -42,19 +42,22 @@ namespace Railgun
       this.Reset();
     }
 
-    internal abstract void SetDataFrom(RailState other);
-
-    internal Tick Tick { get; private set; }
+    // Synchronized
     internal EntityId EntityId { get; private set; }
     internal int EntityType { get; private set; }
+    internal Tick Tick { get; private set; }
+
+    // Client-only -- always false on server
     internal bool IsController { get; private set; }
     internal bool IsPredicted { get; private set; }
 
-    protected internal abstract void EncodeData(BitBuffer buffer);
-    protected internal abstract void DecodeData(BitBuffer buffer);
-    protected internal abstract void EncodeData(BitBuffer buffer, RailState basis);
-    protected internal abstract void DecodeData(BitBuffer buffer, RailState basis);
+    protected abstract void EncodeData(BitBuffer buffer);
+    protected abstract void DecodeData(BitBuffer buffer);
+    protected abstract void EncodeData(BitBuffer buffer, RailState basis);
+    protected abstract void DecodeData(BitBuffer buffer, RailState basis);
     protected abstract void ResetData();
+
+    internal abstract void SetDataFrom(RailState other);
 
     protected internal void Reset() 
     {
@@ -85,23 +88,105 @@ namespace Railgun
       return clone;
     }
 
-    internal void SetOnDecode(Tick tick, EntityId id, bool isController)
-    {
-      this.Tick = tick;
-      this.EntityId = id;
-      this.IsController = isController;
-    }
-
     internal void SetOnPredict(Tick tick)
     {
       this.IsPredicted = true;
       this.Tick = tick;
     }
 
+    internal void SetOnEntityCreate(EntityId id)
+    {
+      this.Tick = Tick.INVALID;
+      this.EntityId = id;
+    }
+
     internal void SetOnStore(Tick tick)
     {
       this.Tick = tick;
     }
+
+    private void SetOnDecode(Tick tick, EntityId id, bool isController)
+    {
+      this.Tick = tick;
+      this.EntityId = id;
+      this.IsController = isController;
+    }
+
+    #region Encode/Decode
+    internal static EntityId PeekId(BitBuffer buffer)
+    {
+      return buffer.Peek(RailEncoders.EntityId);
+    }
+
+    internal void Encode(
+      BitBuffer buffer, 
+      RailState basis,
+      bool isController)
+    {
+      if (basis == null) // Full Encode
+      {
+        // Write: [Data]
+        this.EncodeData(buffer);
+
+        // Write: [Type]
+        buffer.Push(RailEncoders.EntityType, this.EntityType);
+      }
+      else // Delta Encode
+      {
+        // Write: [Data]
+        this.EncodeData(buffer, basis);
+
+        // No [Type] for deltas
+      }
+
+      // Write: [IsController]
+      buffer.Push(RailEncoders.Bool, isController);
+
+      // Write: [Id]
+      buffer.Push(RailEncoders.EntityId, this.EntityId);
+    }
+
+    internal static RailState Decode(
+      BitBuffer buffer, 
+      RailState basis,
+      Tick latestTick)
+    {
+      RailState state = null;
+
+      // Read: [Id]
+      EntityId id = buffer.Pop(RailEncoders.EntityId);
+
+      // Read: [IsController]
+      bool isController = buffer.Pop(RailEncoders.Bool);
+
+      if (basis == null)
+      {
+        // Read: [Type]
+        int type = buffer.Pop(RailEncoders.EntityType);
+
+        // Create the state
+        state = RailResource.Instance.AllocateState(type);
+        state.SetOnDecode(latestTick, id, isController);
+
+        // Read: [Data]
+        state.DecodeData(buffer);
+      }
+      else
+      {
+        // No [Type] for deltas
+        int type = basis.EntityType;
+
+        // Create the state
+        state = RailResource.Instance.AllocateState(type);
+        state.SetOnDecode(latestTick, id, isController);
+
+        // Read: [Data]
+        state.DecodeData(buffer, basis);
+      }
+
+      return state;
+    }
+    #endregion
 
     #region DEBUG
     public virtual string DEBUG_FormatDebug() { return ""; }
@@ -120,19 +205,19 @@ namespace Railgun
       this.SetDataFrom((T)other);
     }
 
-    protected internal override void EncodeData(BitBuffer buffer, RailState basis)
+    protected override void EncodeData(BitBuffer buffer, RailState basis)
     {
       this.EncodeData(buffer, (T)basis);
     }
 
-    protected internal override void DecodeData(BitBuffer buffer, RailState basis)
+    protected override void DecodeData(BitBuffer buffer, RailState basis)
     {
       this.DecodeData(buffer, (T)basis);
     }
     #endregion
 
-    protected internal abstract void SetDataFrom(T other);
-    protected internal abstract void EncodeData(BitBuffer buffer, T basis);
-    protected internal abstract void DecodeData(BitBuffer buffer, T basis);
+    protected abstract void SetDataFrom(T other);
+    protected abstract void EncodeData(BitBuffer buffer, T basis);
+    protected abstract void DecodeData(BitBuffer buffer, T basis);
   }
 }
