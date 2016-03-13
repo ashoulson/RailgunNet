@@ -149,8 +149,6 @@ namespace Railgun
         command.Populate();
         command.Tick = this.localTick;
 
-        CommonDebug.Log(command.Tick);
-
         this.peer.QueueOutgoing(command);
       }
     }
