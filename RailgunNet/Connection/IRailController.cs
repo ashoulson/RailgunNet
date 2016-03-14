@@ -32,8 +32,7 @@ namespace Railgun
   {
     IEnumerable<RailEntity> ControlledEntities { get; }
 
-    void QueueUnreliable(RailEvent evnt, Tick tick);
-    void QueueReliable(RailEvent evnt, Tick tick);
+    void QueueGlobal(RailEvent evnt, Tick tick);
   }
 
   /// <summary>

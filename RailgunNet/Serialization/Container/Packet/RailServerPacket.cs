@@ -26,18 +26,11 @@ using CommonTools;
 
 namespace Railgun
 {
-
   /// <summary>
   /// Packet sent from client to server
   /// </summary>
-  internal class RailServerPacket : IRailPoolable, IRailRingValue
+  public class RailServerPacket : RailPacket, IRailPoolable
   {
-    /// <summary>
-    /// If we can't fit an entity into a packet, this determines how many of
-    /// the following entities we will try before giving up.
-    /// </summary>
-    internal const int RETRY_ATTEMPTS = 3;
-
     /// <summary>
     /// Maximum size for a single entity. We skip entities larger than this.
     /// </summary>
@@ -47,17 +40,6 @@ namespace Railgun
     /// Maximum size for this packet when sending. Used for scoping.
     /// </summary>
     internal const int MAX_PACKET_SIZE = RailConfig.MAX_MESSAGE_SIZE;
-
-    private static void WarnTooBig(EntityUpdate update, int size)
-    {
-      CommonDebug.LogWarning(
-        "Entity too big: " + 
-        update.Entity.Id + 
-        "(" + 
-        update.Entity.Type + 
-        ") -- " +
-        size + "B");
-    }
 
     private struct EntityUpdate
     {
@@ -76,14 +58,8 @@ namespace Railgun
 
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    Tick IRailRingValue.Tick { get { return this.LatestServerTick; } }
 
-    internal Tick LatestServerTick { get; private set; }
     internal Tick LastProcessedCommandTick { get; private set; }
-
-    internal IEnumerable<RailEvent> Events { get { return this.events; } }
-
-    private readonly List<RailEvent> events;
 
     // Server-only
     internal List<EntityId> SentEntities { get; private set; }
@@ -94,7 +70,6 @@ namespace Railgun
 
     public RailServerPacket()
     {
-      this.events = new List<RailEvent>();
       this.SentEntities = new List<EntityId>();
       this.pendingUpdates = new List<EntityUpdate>();
       this.States = new List<RailState>();
@@ -102,14 +77,10 @@ namespace Railgun
       this.Reset();
     }
 
-    internal void Initialize(
-      Tick latestTick,
-      Tick lastProcessedCommandTick,
-      IEnumerable<RailEvent> events)
+    internal void InitializeServer(
+      Tick lastProcessedCommandTick)
     {
-      this.LatestServerTick = latestTick;
       this.LastProcessedCommandTick = lastProcessedCommandTick;
-      this.events.AddRange(events);
     }
 
     internal void AddEntity(RailEntity entity, Tick basisTick)
@@ -117,12 +88,10 @@ namespace Railgun
       this.pendingUpdates.Add(new EntityUpdate(entity, basisTick));
     }
 
-    protected void Reset()
+    protected override void Reset()
     {
-      this.LatestServerTick = Tick.INVALID;
-      this.LastProcessedCommandTick = Tick.INVALID;
+      base.Reset();
 
-      this.events.Clear();
       this.pendingUpdates.Clear();
       this.States.Clear();
     }
@@ -132,8 +101,8 @@ namespace Railgun
       BitBuffer buffer,
       IRailController destination)
     {
-      // Write: [LatestServerTick]
-      buffer.Write(RailEncoders.Tick, this.LatestServerTick);
+      // Write: [Header]
+      this.EncodeHeader(buffer);
 
       // Write: [LastProcessedCommandTick]
       buffer.Write(RailEncoders.Tick, this.LastProcessedCommandTick);
@@ -153,8 +122,8 @@ namespace Railgun
     {
       RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
 
-      // Read: [LatestServerTick]
-      packet.LatestServerTick = buffer.Read(RailEncoders.Tick);
+      // Read: [Header]
+      packet.DecodeHeader(buffer);
 
       // Read: [LastProcessedCommandTick]
       packet.LastProcessedCommandTick = buffer.Read(RailEncoders.Tick);
@@ -163,33 +132,13 @@ namespace Railgun
       packet.DecodeEvents(buffer);
 
       // Read: [Entities]
-      packet.DecodeEntities(buffer, knownEntities, packet.LatestServerTick);
+      packet.DecodeEntities(buffer, knownEntities, packet.SenderTick);
 
+      CommonDebug.Assert(buffer.IsFinished);
       return packet;
     }
 
-    private void EncodeEvents(BitBuffer buffer)
-    {
-      // Write: [EventCount]
-      buffer.Write(RailEncoders.EventCount, this.events.Count);
-
-      // Write: [Events]
-      foreach (RailEvent evnt in this.events)
-        evnt.Encode(buffer);
-    }
-
-    private void DecodeEvents(BitBuffer buffer)
-    {
-      // TODO: Cap the number of event sends
-
-      // Read: [EventCount]
-      int eventCount = buffer.Read(RailEncoders.EventCount);
-
-      // Read: [Events]
-      for (int i = 0; i < eventCount; i++)
-        this.events.Add(RailEvent.Decode(buffer));
-    }
-
+    #region Entities
     private void EncodeEntities(
       BitBuffer buffer,
       IRailController destination)
@@ -205,7 +154,7 @@ namespace Railgun
 
         pair.Entity.EncodeState(
           buffer,
-          this.LatestServerTick,
+          this.SenderTick,
           pair.BasisTick,
           destination);
 
@@ -213,7 +162,13 @@ namespace Railgun
         if (byteCost > MAX_ENTITY_SIZE)
         {
           buffer.Rollback();
-          RailServerPacket.WarnTooBig(pair, byteCost);
+          CommonDebug.LogWarning(
+            "Entity too big: " +
+            pair.Entity.Id +
+            "(" +
+            pair.Entity.Type +
+            ") -- " +
+            byteCost + "B");
         }
         else if (buffer.ByteSize > RailServerPacket.MAX_PACKET_SIZE)
         {
@@ -259,6 +214,8 @@ namespace Railgun
         }
       }
     }
+    #endregion
+
     #endregion
   }
 }

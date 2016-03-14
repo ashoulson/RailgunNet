@@ -30,9 +30,9 @@ namespace Railgun
 {
   public class RailClient : RailConnection
   {
-    private class Peer : RailPeer
+    private class RailClientPeer : RailPeer
     {
-      public event Action<Peer> MessagesReady;
+      public event Action<RailClientPeer> MessagesReady;
 
       /// <summary>
       /// A history of sent commands to the server. Used on the client.
@@ -42,15 +42,33 @@ namespace Railgun
       /// <summary>
       /// Commands that have been sent to the server but not yet acked.
       /// </summary>
-      protected internal override IEnumerable<RailCommand> PendingCommands
+      public override IEnumerable<RailCommand> PendingCommands
       {
         get { return this.outgoingBuffer; }
       }
 
-      internal Peer(IRailNetPeer netPeer)
+      internal RailClientPeer(IRailNetPeer netPeer)
         : base(netPeer)
       {
         this.outgoingBuffer = new Queue<RailCommand>();
+      }
+
+      internal void ProcessPacket(RailServerPacket packet)
+      {
+        base.ProcessPacket(packet);
+
+        this.UpdateCommands(packet.LastProcessedCommandTick);
+      }
+
+      internal void PreparePacket(
+        RailClientPacket packet,
+        Tick localTick,
+        IEnumerable<RailCommand> commands,
+        RailView view)
+      {
+        base.PreparePacketBase(packet, localTick);
+
+        packet.InitializeClient(commands, view);
       }
 
       internal void QueueOutgoing(RailCommand command)
@@ -59,8 +77,11 @@ namespace Railgun
           this.outgoingBuffer.Enqueue(command);
       }
 
-      internal void CleanCommands(Tick lastReceivedTick)
+      internal void UpdateCommands(Tick lastReceivedTick)
       {
+        if (lastReceivedTick.IsValid == false)
+          return;
+
         while (true)
         {
           if (this.outgoingBuffer.Count == 0)
@@ -78,9 +99,7 @@ namespace Railgun
       }
     }
 
-    private RailClient.Peer peer;
-
-    private readonly RailClock serverClock;
+    private RailClient.RailClientPeer peer;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -95,9 +114,6 @@ namespace Railgun
     // The local simulation tick, used for commands
     private Tick localTick;
 
-    // The last received event id, for reliable sequencing
-    private EventId lastReceivedEventId;
-
     private readonly RailView entityView;
 
     public RailClient()
@@ -105,10 +121,8 @@ namespace Railgun
       RailConnection.IsServer = false;
       this.world.InitializeClient();
       this.peer = null;
-      this.serverClock = new RailClock();
 
       this.localTick = Tick.START;
-      this.lastReceivedEventId = EventId.INVALID;
 
       this.pendingEntities = 
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
@@ -121,19 +135,22 @@ namespace Railgun
     public void SetPeer(IRailNetPeer netPeer)
     {
       CommonDebug.Assert(this.peer == null, "Overwriting peer");
-      this.peer = new RailClient.Peer(netPeer);
+      this.peer = new RailClient.RailClientPeer(netPeer);
       this.peer.MessagesReady += this.OnMessagesReady;
     }
 
     public override void Update()
     {
-      this.UpdateCommands();
-      this.UpdateWorld(this.serverClock.Update());
+      if (this.peer != null)
+      {
+        this.UpdateCommands();
+        this.UpdateWorld(this.peer.Update());
 
-      if ((this.peer != null) && this.localTick.IsSendTick)
-        this.SendPacket();
+        if (this.localTick.IsSendTick)
+          this.SendPacket();
 
-      this.localTick = this.localTick.GetNext();
+        this.localTick = this.localTick.GetNext();
+      }
     }
 
     #region Local Updating
@@ -161,7 +178,8 @@ namespace Railgun
     {
       for (; numTicks > 0; numTicks--)
       {
-        Tick serverTick = (this.serverClock.EstimatedRemote - numTicks) + 1;
+        Tick serverTick = 
+          (this.peer.RemoteClock.EstimatedRemote - numTicks) + 1;
         this.UpdatePendingEntities(serverTick);
         this.world.UpdateClient(serverTick);
       }
@@ -199,18 +217,20 @@ namespace Railgun
     private void SendPacket()
     {
       RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
-      packet.Initialize(
+
+      this.peer.PreparePacket(
+        packet, 
         this.localTick,
-        this.serverClock.LatestRemote,
-        this.lastReceivedEventId,
-        this.peer.PendingCommands,
+        this.peer.PendingCommands, 
         this.entityView);
+
       this.interpreter.SendClientPacket(this.peer, packet);
+      RailPool.Free(packet);
     }
     #endregion
 
     #region Packet Receive
-    private void OnMessagesReady(RailClient.Peer peer)
+    private void OnMessagesReady(RailClient.RailClientPeer peer)
     {
       IEnumerable<RailServerPacket> decode =
         this.interpreter.ReceiveServerPackets(
@@ -219,8 +239,9 @@ namespace Railgun
 
       foreach (RailServerPacket packet in decode)
       {
+        this.peer.ProcessPacket(packet);
         this.ProcessPacket(packet);
-        this.serverClock.UpdateLatest(packet.LatestServerTick);
+        RailPool.Free(packet);
       }
     }
 
@@ -228,12 +249,6 @@ namespace Railgun
     {
       foreach (RailState state in packet.States)
         this.ProcessState(state);
-
-      foreach (RailEvent evnt in packet.Events)
-        this.ProcessEvent(evnt);
-
-      if (packet.LastProcessedCommandTick.IsValid)
-        this.peer.CleanCommands(packet.LastProcessedCommandTick);
     }
 
     private void ProcessState(RailState state)
@@ -252,28 +267,6 @@ namespace Railgun
       entity.StateBuffer.Store(state);
       this.entityView.RecordUpdate(entity.Id, state.Tick);
       this.UpdateControlStatus(entity, state);
-    }
-
-    private void ProcessEvent(RailEvent evnt)
-    {
-      // Skip already processed events
-      if (evnt.EventId.IsReliable)
-      {
-        if (this.lastReceivedEventId.IsValid == false)
-          this.lastReceivedEventId = evnt.EventId;
-        else if (evnt.EventId.IsNewerThan(this.lastReceivedEventId))
-          this.lastReceivedEventId = evnt.EventId;
-        else
-          return;
-      }
-
-      // TODO: Move this to a more comprehensive solution
-      switch (evnt.EventType)
-      {
-        default:
-          CommonDebug.LogWarning("Unrecognized event: " + evnt.EventType);
-          break;
-      }
     }
 
     private void UpdateControlStatus(RailEntity entity, RailState state)

@@ -41,7 +41,6 @@ namespace Railgun
       }
     }
 
-    internal static readonly EventId UNRELIABLE = new EventId(-1);
     internal static readonly EventId INVALID = new EventId(0);
 
     internal static readonly IntEncoder Encoder =
@@ -60,12 +59,7 @@ namespace Railgun
 
     public bool IsValid
     {
-      get { return (this.idValue > 0) || (this.idValue == -1); }
-    }
-
-    public bool IsReliable
-    {
-      get { return this.idValue > 0; }
+      get { return (this.idValue > 0); }
     }
 
     private readonly int idValue;
@@ -82,8 +76,8 @@ namespace Railgun
 
     internal bool IsNewerThan(EventId other)
     {
-      CommonDebug.Assert(this.IsReliable);
-      CommonDebug.Assert(other.IsReliable);
+      CommonDebug.Assert(this.IsValid);
+      CommonDebug.Assert(other.IsValid);
 
       // TODO: Wrap-around arithmetic
       return (this.idValue > other.idValue);
