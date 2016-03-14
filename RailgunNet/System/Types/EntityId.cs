@@ -58,7 +58,7 @@ namespace Railgun
 
     private readonly int idValue;
 
-    internal EntityId(int entityId)
+    private EntityId(int entityId)
     {
       this.idValue = entityId;
     }
@@ -86,24 +86,19 @@ namespace Railgun
     }
 
     #region IEncodableType Members
-    int IEncodableType<EntityId>.GetCost()
+    int IEncodableType<EntityId>.RequiredBits
     {
-      return EntityId.Encoder.GetCost(this.idValue);
+      get { return EntityId.Encoder.RequiredBits; }
     }
 
-    void IEncodableType<EntityId>.Write(BitBuffer buffer)
+    uint IEncodableType<EntityId>.Pack()
     {
-      EntityId.Encoder.Write(buffer, this.idValue);
+      return EntityId.Encoder.Pack(this.idValue);
     }
 
-    EntityId IEncodableType<EntityId>.Read(BitBuffer buffer)
+    EntityId IEncodableType<EntityId>.Unpack(uint data)
     {
-      return new EntityId(EntityId.Encoder.Read(buffer));
-    }
-
-    EntityId IEncodableType<EntityId>.Peek(BitBuffer buffer)
-    {
-      return new EntityId(EntityId.Encoder.Peek(buffer));
+      return new EntityId(EntityId.Encoder.Unpack(data));
     }
     #endregion
   }

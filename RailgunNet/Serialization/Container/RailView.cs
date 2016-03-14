@@ -44,32 +44,32 @@ namespace Railgun
 
     public void Encode(BitBuffer buffer)
     {
+      // Write: [Count]
+      buffer.Write(RailEncoders.EntityCount, this.latestUpdates.Count);
+
       foreach (KeyValuePair<EntityId, Tick> pair in this.latestUpdates)
       {
-        // Write: [Tick]
-        buffer.Push(RailEncoders.Tick, pair.Value);
-
         // Write: [EntityId]
-        buffer.Push(RailEncoders.EntityId, pair.Key);
-      }
+        buffer.Write(RailEncoders.EntityId, pair.Key);
 
-      // Write: [Count]
-      buffer.Push(RailEncoders.EntityCount, this.latestUpdates.Count);
+        // Write: [Tick]
+        buffer.Write(RailEncoders.Tick, pair.Value);
+      }
     }
 
     public void Decode(BitBuffer buffer)
     {
       // Read: [Count]
-      int count = buffer.Pop(RailEncoders.EntityCount);
+      int count = buffer.Read(RailEncoders.EntityCount);
 
       for (int i = 0; i < count; i++)
       {
         this.RecordUpdate(
           // Read: [EntityId]
-          buffer.Pop(RailEncoders.EntityId),
+          buffer.Read(RailEncoders.EntityId),
 
           // Read: [Tick]
-          buffer.Pop(RailEncoders.Tick));
+          buffer.Read(RailEncoders.Tick));
       }
     }
   }

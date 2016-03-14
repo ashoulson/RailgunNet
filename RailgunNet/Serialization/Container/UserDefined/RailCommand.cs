@@ -67,16 +67,14 @@ namespace Railgun
     }
 
     #region Encode/Decode/etc.
-    // Command encoding order: | TICK | COMMAND DATA |
-
     internal void Encode(
       BitBuffer buffer)
     {
+      // Write: [Tick]
+      buffer.Write(RailEncoders.Tick, this.Tick);
+
       // Write: [Command Data]
       this.EncodeData(buffer);
-
-      // Write: [Tick]
-      buffer.Push(RailEncoders.Tick, this.Tick);
     }
 
     internal static RailCommand Decode(
@@ -85,7 +83,7 @@ namespace Railgun
       RailCommand command = RailResource.Instance.AllocateCommand();
 
       // Read: [Tick]
-      command.Tick = buffer.Pop(RailEncoders.Tick);
+      command.Tick = buffer.Read(RailEncoders.Tick);
 
       // Read: [Command Data]
       command.DecodeData(buffer);

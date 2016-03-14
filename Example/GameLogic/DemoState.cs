@@ -116,13 +116,12 @@ public class DemoState : RailState<DemoState>
   /// </summary>
   protected override void EncodeData(BitBuffer buffer)
   {
-    // Write in opposite order so we can read in SetData order
-    buffer.Push(DemoEncoders.Status, this.Status);
-    buffer.Push(DemoEncoders.Angle, this.Angle);
-    buffer.Push(DemoEncoders.Coordinate, this.Y);
-    buffer.Push(DemoEncoders.Coordinate, this.X);
-    buffer.Push(DemoEncoders.UserId, this.UserId);
-    buffer.Push(DemoEncoders.ArchetypeId, this.ArchetypeId);
+    buffer.Write(DemoEncoders.ArchetypeId, this.ArchetypeId);
+    buffer.Write(DemoEncoders.UserId, this.UserId);
+    buffer.Write(DemoEncoders.Coordinate, this.X);
+    buffer.Write(DemoEncoders.Coordinate, this.Y);
+    buffer.Write(DemoEncoders.Angle, this.Angle);
+    buffer.Write(DemoEncoders.Status, this.Status);
   }
 
   /// <summary>
@@ -131,17 +130,14 @@ public class DemoState : RailState<DemoState>
   protected override void EncodeData(BitBuffer buffer, DemoState basis)
   {
     int dirty = DemoState.GetDirtyFlags(this, basis);
+    buffer.Write(DemoEncoders.EntityDirty, dirty);
 
-    // Write in opposite order so we can read in SetData order
-    buffer.PushIf(dirty, FLAG_STATUS, DemoEncoders.Status, this.Status);
-    buffer.PushIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, this.Angle);
-    buffer.PushIf(dirty, FLAG_Y, DemoEncoders.Coordinate, this.Y);
-    buffer.PushIf(dirty, FLAG_X, DemoEncoders.Coordinate, this.X);
-    buffer.PushIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, this.UserId);
-    buffer.PushIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, this.ArchetypeId);
-
-    // Add delta metadata
-    buffer.Push(DemoEncoders.EntityDirty, dirty);
+    buffer.WriteIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, this.ArchetypeId);
+    buffer.WriteIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, this.UserId);
+    buffer.WriteIf(dirty, FLAG_X, DemoEncoders.Coordinate, this.X);
+    buffer.WriteIf(dirty, FLAG_Y, DemoEncoders.Coordinate, this.Y);
+    buffer.WriteIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, this.Angle);
+    buffer.WriteIf(dirty, FLAG_STATUS, DemoEncoders.Status, this.Status);
   }
 
   /// <summary>
@@ -150,12 +146,12 @@ public class DemoState : RailState<DemoState>
   protected override void DecodeData(BitBuffer buffer)
   {
     this.SetData(
-      buffer.Pop(DemoEncoders.ArchetypeId),
-      buffer.Pop(DemoEncoders.UserId),
-      buffer.Pop(DemoEncoders.Coordinate),
-      buffer.Pop(DemoEncoders.Coordinate),
-      buffer.Pop(DemoEncoders.Angle),
-      buffer.Pop(DemoEncoders.Status));
+      buffer.Read(DemoEncoders.ArchetypeId),
+      buffer.Read(DemoEncoders.UserId),
+      buffer.Read(DemoEncoders.Coordinate),
+      buffer.Read(DemoEncoders.Coordinate),
+      buffer.Read(DemoEncoders.Angle),
+      buffer.Read(DemoEncoders.Status));
   }
 
   /// <summary>
@@ -165,15 +161,15 @@ public class DemoState : RailState<DemoState>
   protected override void DecodeData(BitBuffer buffer, DemoState basis)
   {
     // Retrieve delta metadata
-    int dirty = buffer.Pop(DemoEncoders.EntityDirty);
+    int dirty = buffer.Read(DemoEncoders.EntityDirty);
 
     this.SetData(
-      buffer.PopIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, basis.ArchetypeId),
-      buffer.PopIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, basis.UserId),
-      buffer.PopIf(dirty, FLAG_X, DemoEncoders.Coordinate, basis.X),
-      buffer.PopIf(dirty, FLAG_Y, DemoEncoders.Coordinate, basis.Y),
-      buffer.PopIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, basis.Angle),
-      buffer.PopIf(dirty, FLAG_STATUS, DemoEncoders.Status, basis.Status));
+      buffer.ReadIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, basis.ArchetypeId),
+      buffer.ReadIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, basis.UserId),
+      buffer.ReadIf(dirty, FLAG_X, DemoEncoders.Coordinate, basis.X),
+      buffer.ReadIf(dirty, FLAG_Y, DemoEncoders.Coordinate, basis.Y),
+      buffer.ReadIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, basis.Angle),
+      buffer.ReadIf(dirty, FLAG_STATUS, DemoEncoders.Status, basis.Status));
   }
 
   #region DEBUG

@@ -44,11 +44,9 @@ namespace Railgun
     internal const int MAX_ENTITY_SIZE = 100;
 
     /// <summary>
-    /// Number of bytes reserved in the packet when determining how full it is.
+    /// Maximum size for this packet when sending. Used for scoping.
     /// </summary>
-    internal const int RESERVED_BYTES = 10;
-    internal const int MAX_PACKET_SIZE =
-      RailConfig.MAX_MESSAGE_SIZE - RailServerPacket.RESERVED_BYTES;
+    internal const int MAX_PACKET_SIZE = RailConfig.MAX_MESSAGE_SIZE;
 
     private static void WarnTooBig(EntityUpdate update, int size)
     {
@@ -78,9 +76,9 @@ namespace Railgun
 
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
-    Tick IRailRingValue.Tick { get { return this.LatestTick; } }
+    Tick IRailRingValue.Tick { get { return this.LatestServerTick; } }
 
-    internal Tick LatestTick { get; private set; }
+    internal Tick LatestServerTick { get; private set; }
     internal Tick LastProcessedCommandTick { get; private set; }
 
     internal IEnumerable<RailEvent> Events { get { return this.events; } }
@@ -109,7 +107,7 @@ namespace Railgun
       Tick lastProcessedCommandTick,
       IEnumerable<RailEvent> events)
     {
-      this.LatestTick = latestTick;
+      this.LatestServerTick = latestTick;
       this.LastProcessedCommandTick = lastProcessedCommandTick;
       this.events.AddRange(events);
     }
@@ -121,7 +119,7 @@ namespace Railgun
 
     protected void Reset()
     {
-      this.LatestTick = Tick.INVALID;
+      this.LatestServerTick = Tick.INVALID;
       this.LastProcessedCommandTick = Tick.INVALID;
 
       this.events.Clear();
@@ -134,17 +132,17 @@ namespace Railgun
       BitBuffer buffer,
       IRailController destination)
     {
+      // Write: [LatestServerTick]
+      buffer.Write(RailEncoders.Tick, this.LatestServerTick);
+
+      // Write: [LastProcessedCommandTick]
+      buffer.Write(RailEncoders.Tick, this.LastProcessedCommandTick);
+
       // Write: [Events]
       this.EncodeEvents(buffer);
 
       // Write: [Entities]
       this.EncodeEntities(buffer, destination);
-
-      // Write: [LastProcessedCommandTick]
-      buffer.Push(RailEncoders.Tick, this.LastProcessedCommandTick);
-
-      // Write: [LatestTick]
-      buffer.Push(RailEncoders.Tick, this.LatestTick);
 
       CommonDebug.Assert(buffer.ByteSize <= RailConfig.MAX_MESSAGE_SIZE);
     }
@@ -155,29 +153,29 @@ namespace Railgun
     {
       RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
 
-      // Read: [LatestTick]
-      packet.LatestTick = buffer.Pop(RailEncoders.Tick);
+      // Read: [LatestServerTick]
+      packet.LatestServerTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [LastProcessedCommandTick]
-      packet.LastProcessedCommandTick = buffer.Pop(RailEncoders.Tick);
-
-      // Read: [Entities]
-      packet.DecodeEntities(buffer, knownEntities, packet.LatestTick);
+      packet.LastProcessedCommandTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [Events]
       packet.DecodeEvents(buffer);
+
+      // Read: [Entities]
+      packet.DecodeEntities(buffer, knownEntities, packet.LatestServerTick);
 
       return packet;
     }
 
     private void EncodeEvents(BitBuffer buffer)
     {
+      // Write: [EventCount]
+      buffer.Write(RailEncoders.EventCount, this.events.Count);
+
       // Write: [Events]
       foreach (RailEvent evnt in this.events)
         evnt.Encode(buffer);
-
-      // Write: [EventCount]
-      buffer.Push(RailEncoders.EventCount, this.events.Count);
     }
 
     private void DecodeEvents(BitBuffer buffer)
@@ -185,20 +183,20 @@ namespace Railgun
       // TODO: Cap the number of event sends
 
       // Read: [EventCount]
-      int eventCount = buffer.Pop(RailEncoders.EventCount);
+      int eventCount = buffer.Read(RailEncoders.EventCount);
 
       // Read: [Events]
       for (int i = 0; i < eventCount; i++)
         this.events.Add(RailEvent.Decode(buffer));
-
-      // We need to reverse the events to restore the send order
-      this.events.Reverse();
     }
 
     private void EncodeEntities(
       BitBuffer buffer,
       IRailController destination)
     {
+      // Reserve: [Entity Count]
+      buffer.Reserve(RailEncoders.EntityCount);
+
       // Write: [Entity States]
       foreach (EntityUpdate pair in this.pendingUpdates)
       {
@@ -207,7 +205,7 @@ namespace Railgun
 
         pair.Entity.EncodeState(
           buffer,
-          this.LatestTick,
+          this.LatestServerTick,
           pair.BasisTick,
           destination);
 
@@ -228,8 +226,8 @@ namespace Railgun
         }
       }
 
-      // Write: [Entity Count]
-      buffer.Push(RailEncoders.EntityCount, this.SentEntities.Count);
+      // Reserved Write: [Entity Count]
+      buffer.WriteReserved(RailEncoders.EntityCount, this.SentEntities.Count);
     }
 
     private void DecodeEntities(
@@ -238,7 +236,7 @@ namespace Railgun
       Tick latestTick)
     {
       // Read: [Entity Count]
-      int count = buffer.Pop(RailEncoders.EntityCount);
+      int count = buffer.Read(RailEncoders.EntityCount);
 
       // Read: [Entity States]
       RailState state = null;
@@ -246,10 +244,10 @@ namespace Railgun
       {
         try
         {
-          state = 
+          state =
             RailEntity.DecodeState(
               buffer,
-              latestTick, 
+              latestTick,
               knownEntities);
           if (state != null)
             this.States.Add(state);

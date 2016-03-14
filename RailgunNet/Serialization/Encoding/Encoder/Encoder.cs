@@ -26,9 +26,34 @@ namespace Railgun
 {
   public abstract class Encoder<T>
   {
-    internal abstract int GetCost(T value);
-    internal abstract void Write(BitBuffer buffer, T value);
-    internal abstract T Read(BitBuffer buffer);
-    internal abstract T Peek(BitBuffer buffer);
+    internal abstract int RequiredBits { get; }
+
+    internal abstract uint Pack(T value);
+    internal abstract T Unpack(uint data);
+
+    internal virtual void Write(BitBuffer buffer, T value)
+    {
+      buffer.Write(this.RequiredBits, this.Pack(value));
+    }
+
+    internal virtual T Read(BitBuffer buffer)
+    {
+      return this.Unpack(buffer.Read(this.RequiredBits));
+    }
+
+    internal virtual T Peek(BitBuffer buffer)
+    {
+      return this.Unpack(buffer.Peek(this.RequiredBits));
+    }
+
+    internal virtual void Reserve(BitBuffer buffer)
+    {
+      buffer.SetReserved(this.RequiredBits);
+    }
+
+    internal virtual void WriteReserved(BitBuffer buffer, T value)
+    {
+      buffer.WriteReserved(this.RequiredBits, this.Pack(value));
+    }
   }
 }

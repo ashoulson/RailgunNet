@@ -123,27 +123,27 @@ namespace Railgun
       RailState basis,
       bool isController)
     {
+      // Write: [Id]
+      buffer.Write(RailEncoders.EntityId, this.EntityId);
+
+      // Write: [IsController]
+      buffer.Write(RailEncoders.Bool, isController);
+
       if (basis == null) // Full Encode
       {
+        // Write: [Type]
+        buffer.Write(RailEncoders.EntityType, this.EntityType);
+
         // Write: [Data]
         this.EncodeData(buffer);
-
-        // Write: [Type]
-        buffer.Push(RailEncoders.EntityType, this.EntityType);
       }
       else // Delta Encode
       {
+        // No [Type] for deltas
+
         // Write: [Data]
         this.EncodeData(buffer, basis);
-
-        // No [Type] for deltas
       }
-
-      // Write: [IsController]
-      buffer.Push(RailEncoders.Bool, isController);
-
-      // Write: [Id]
-      buffer.Push(RailEncoders.EntityId, this.EntityId);
     }
 
     internal static RailState Decode(
@@ -154,15 +154,15 @@ namespace Railgun
       RailState state = null;
 
       // Read: [Id]
-      EntityId id = buffer.Pop(RailEncoders.EntityId);
+      EntityId id = buffer.Read(RailEncoders.EntityId);
 
       // Read: [IsController]
-      bool isController = buffer.Pop(RailEncoders.Bool);
+      bool isController = buffer.Read(RailEncoders.Bool);
 
       if (basis == null)
       {
         // Read: [Type]
-        int type = buffer.Pop(RailEncoders.EntityType);
+        int type = buffer.Read(RailEncoders.EntityType);
 
         // Create the state
         state = RailResource.Instance.AllocateState(type);

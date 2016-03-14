@@ -53,17 +53,17 @@ namespace Railgun
     #region Properties
     public bool IsValid
     {
-      get { return (this.offsetValue > 0) || (this.offsetValue == -1); }
+      get { return (this.spanValue > 0) || (this.spanValue == -1); }
     }
 
     public bool IsInRange
     {
-      get { return this.offsetValue > 0; }
+      get { return this.spanValue > 0; }
     }
 
     public bool IsOutOfRange
     {
-      get { return this.offsetValue == -1; }
+      get { return this.spanValue == -1; }
     }
     #endregion
 
@@ -75,58 +75,53 @@ namespace Railgun
       get
       {
         CommonDebug.Assert(this.IsInRange);
-        return this.offsetValue - 1;
+        return this.spanValue - 1;
       }
     }
 
-    private readonly int offsetValue;
+    private readonly int spanValue;
 
-    private TickSpan(int offsetValue)
+    private TickSpan(int spanValue)
     {
-      this.offsetValue = offsetValue;
+      this.spanValue = spanValue;
     }
 
     public override int GetHashCode()
     {
-      return this.offsetValue;
+      return this.spanValue;
     }
 
     public override bool Equals(object obj)
     {
       if (obj is TickSpan)
-        return (((TickSpan)obj).offsetValue == this.offsetValue);
+        return (((TickSpan)obj).spanValue == this.spanValue);
       return false;
     }
 
     #region IEncodableType Members
-    int IEncodableType<TickSpan>.GetCost()
+    int IEncodableType<TickSpan>.RequiredBits
     {
-      return TickSpan.Encoder.GetCost(this.offsetValue);
+      get { return TickSpan.Encoder.RequiredBits; }
     }
 
-    void IEncodableType<TickSpan>.Write(BitBuffer buffer)
+    uint IEncodableType<TickSpan>.Pack()
     {
-      TickSpan.Encoder.Write(buffer, this.offsetValue);
+      return TickSpan.Encoder.Pack(this.spanValue);
     }
 
-    TickSpan IEncodableType<TickSpan>.Read(BitBuffer buffer)
+    TickSpan IEncodableType<TickSpan>.Unpack(uint data)
     {
-      return new TickSpan(TickSpan.Encoder.Read(buffer));
-    }
-
-    TickSpan IEncodableType<TickSpan>.Peek(BitBuffer buffer)
-    {
-      return new TickSpan(TickSpan.Encoder.Peek(buffer));
+      return new TickSpan(TickSpan.Encoder.Unpack(data));
     }
     #endregion
 
     public override string ToString()
     {
-      if (this.offsetValue == 0)
+      if (this.spanValue == 0)
         return "TickSpan:INVALID";
-      if (this.offsetValue == -1)
+      if (this.spanValue == -1)
         return "TickSpan:OUTOFRANGE";
-      return "TickSpan:" + (this.offsetValue - 1);
+      return "TickSpan:" + (this.spanValue - 1);
     }
   }
 }

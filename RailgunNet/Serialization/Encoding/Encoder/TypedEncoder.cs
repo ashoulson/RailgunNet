@@ -29,24 +29,19 @@ namespace Railgun
   {
     private T dummy = default(T);
 
-    internal override int GetCost(T value)
-    {
-      return value.GetCost();
+    internal override int RequiredBits 
+    { 
+      get { return this.dummy.RequiredBits; } 
     }
 
-    internal override void Write(BitBuffer buffer, T value)
+    internal override uint Pack(T value)
     {
-      value.Write(buffer);
+      return value.Pack();
     }
 
-    internal override T Read(BitBuffer buffer)
+    internal override T Unpack(uint data)
     {
-      return dummy.Read(buffer);
-    }
-
-    internal override T Peek(BitBuffer buffer)
-    {
-      return dummy.Peek(buffer);
+      return this.dummy.Unpack(data);
     }
   }
 }

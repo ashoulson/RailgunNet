@@ -220,7 +220,7 @@ namespace Railgun
       foreach (RailServerPacket packet in decode)
       {
         this.ProcessPacket(packet);
-        this.serverClock.UpdateLatest(packet.LatestTick);
+        this.serverClock.UpdateLatest(packet.LatestServerTick);
       }
     }
 

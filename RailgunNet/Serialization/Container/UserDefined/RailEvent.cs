@@ -97,31 +97,32 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer)
     {
-      // Write: [EventData]
-      this.EncodeData(buffer);
-
-      // Write: [EventId]
-      buffer.Push(RailEncoders.EventId, this.EventId);
+      // Write: [EventType]
+      buffer.Write(RailEncoders.EventType, this.EventType);
 
       // Write: [Tick]
-      buffer.Push(RailEncoders.Tick, this.Tick);
+      buffer.Write(RailEncoders.Tick, this.Tick);
 
-      // Write: [EventType]
-      buffer.Push(RailEncoders.EventType, this.EventType);
+      // Write: [EventId]
+      buffer.Write(RailEncoders.EventId, this.EventId);
+
+      // Write: [EventData]
+      this.EncodeData(buffer);
     }
 
     internal static RailEvent Decode(
       BitBuffer buffer)
     {
       // Read: [EventType]
-      int eventType = buffer.Pop(RailEncoders.EventType);
+      int eventType = buffer.Read(RailEncoders.EventType);
+
       RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
 
       // Read: [Tick]
-      evnt.Tick = buffer.Pop(RailEncoders.Tick);
+      evnt.Tick = buffer.Read(RailEncoders.Tick);
 
       // Read: [EventId]
-      evnt.EventId = buffer.Pop(RailEncoders.EventId);
+      evnt.EventId = buffer.Read(RailEncoders.EventId);
 
       // Read: [EventData]
       evnt.DecodeData(buffer);

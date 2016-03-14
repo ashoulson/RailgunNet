@@ -34,10 +34,7 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    internal override int GetCost(int value)
-    {
-      return this.requiredBits;
-    }
+    internal override int RequiredBits { get { return this.requiredBits; } }
 
     public IntEncoder(int minValue, int maxValue)
     {
@@ -48,27 +45,12 @@ namespace Railgun
       this.mask = (uint)((1L << requiredBits) - 1);
     }
 
-    internal override void Write(BitBuffer buffer, int value)
-    {
-      buffer.Push(this.requiredBits, this.Pack(value));
-    }
-
-    internal override int Read(BitBuffer buffer)
-    {
-      return this.Unpack(buffer.Pop(this.requiredBits));
-    }
-
-    internal override int Peek(BitBuffer buffer)
-    {
-      return this.Unpack(buffer.Peek(this.requiredBits));
-    }
-
-    private uint Pack(int value)
+    internal override uint Pack(int value)
     {
       return (uint)(value - this.minValue) & this.mask;
     }
 
-    private int Unpack(uint data)
+    internal override int Unpack(uint data)
     {
       return (int)(data + this.minValue);
     }
