@@ -119,7 +119,7 @@ namespace Railgun
         return ticks;
       }
 
-      internal void ProcessPacket(RailClientPacket packet)
+      internal void ProcessPacket(RailPacketC2S packet)
       {
         base.ProcessPacket(packet);
 
@@ -129,7 +129,7 @@ namespace Railgun
       }
 
       internal void PreparePacket(
-        RailServerPacket packet, 
+        RailPacketS2C packet, 
         Tick localTick)
       {
         base.PreparePacketBase(packet, localTick);
@@ -267,7 +267,7 @@ namespace Railgun
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
       {
-        RailServerPacket packet =
+        RailPacketS2C packet =
           RailResource.Instance.AllocateServerPacket();
         clientPeer.PreparePacket(packet, this.world.Tick);
 
@@ -293,10 +293,10 @@ namespace Railgun
 
     private void OnMessagesReady(RailServerPeer clientPeer)
     {
-      IEnumerable<RailClientPacket> decode = 
+      IEnumerable<RailPacketC2S> decode = 
         this.interpreter.ReceiveClientPackets(clientPeer);
 
-      foreach (RailClientPacket packet in decode)
+      foreach (RailPacketC2S packet in decode)
       {
         clientPeer.ProcessPacket(packet);
         RailPool.Free(packet);

@@ -36,8 +36,8 @@ namespace Railgun
       RailResource.Instance = new RailResource();
     }
 
-    private RailPoolGeneric<RailServerPacket> serverPacketPool;
-    private RailPoolGeneric<RailClientPacket> clientPacketPool;
+    private RailPoolGeneric<RailPacketS2C> serverPacketPool;
+    private RailPoolGeneric<RailPacketC2S> clientPacketPool;
 
     private RailPool<RailCommand> commandPool;
 
@@ -48,8 +48,8 @@ namespace Railgun
 
     private RailResource()
     {
-      this.serverPacketPool = new RailPoolGeneric<RailServerPacket>();
-      this.clientPacketPool = new RailPoolGeneric<RailClientPacket>();
+      this.serverPacketPool = new RailPoolGeneric<RailPacketS2C>();
+      this.clientPacketPool = new RailPoolGeneric<RailPacketC2S>();
 
       this.commandPool = null;
       this.statePools = new Dictionary<int, RailPool<RailState>>();
@@ -92,12 +92,12 @@ namespace Railgun
       return state;
     }
 
-    internal RailServerPacket AllocateServerPacket()
+    internal RailPacketS2C AllocateServerPacket()
     {
       return this.serverPacketPool.Allocate();
     }
 
-    internal RailClientPacket AllocateClientPacket()
+    internal RailPacketC2S AllocateClientPacket()
     {
       return this.clientPacketPool.Allocate();
     }
