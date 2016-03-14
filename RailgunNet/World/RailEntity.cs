@@ -228,11 +228,11 @@ namespace Railgun
           span = TickSpan.Create(latestTick, basisTick);
       }
 
+      // Write: [TickSpan]
+      buffer.Write(RailEncoders.TickSpan, span);
+
       // Write: [State]
       this.State.Encode(buffer, basis, isController);
-
-      // Write: [TickSpan]
-      buffer.Push(RailEncoders.TickSpan, span);
     }
 
     /// <summary>
@@ -247,10 +247,10 @@ namespace Railgun
       IDictionary<EntityId, RailEntity> knownEntities)
     {
       // Read: [TickSpan]
-      TickSpan span = buffer.Pop(RailEncoders.TickSpan);
+      TickSpan span = buffer.Read(RailEncoders.TickSpan);
       CommonDebug.Assert(span.IsValid);
 
-      // Peek: [Id]
+      // Peek: [State.Id]
       EntityId id = RailState.PeekId(buffer);
 
       RailEntity entity = null;

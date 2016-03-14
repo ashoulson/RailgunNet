@@ -176,24 +176,19 @@ namespace Railgun
     }
 
     #region IEncodableType Members
-    int IEncodableType<Tick>.GetCost()
+    int IEncodableType<Tick>.RequiredBits
     {
-      return Tick.Encoder.GetCost(this.tickValue);
+      get { return Tick.Encoder.RequiredBits; }
     }
 
-    void IEncodableType<Tick>.Write(BitBuffer buffer)
+    uint IEncodableType<Tick>.Pack()
     {
-      Tick.Encoder.Write(buffer, this.tickValue);
+      return Tick.Encoder.Pack(this.tickValue);
     }
 
-    Tick IEncodableType<Tick>.Read(BitBuffer buffer)
+    Tick IEncodableType<Tick>.Unpack(uint data)
     {
-      return new Tick(Tick.Encoder.Read(buffer));
-    }
-
-    Tick IEncodableType<Tick>.Peek(BitBuffer buffer)
-    {
-      return new Tick(Tick.Encoder.Peek(buffer));
+      return new Tick(Tick.Encoder.Unpack(data));
     }
     #endregion
 

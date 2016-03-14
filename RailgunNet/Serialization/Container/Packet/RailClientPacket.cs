@@ -93,24 +93,24 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer)
     {
-      // Write: [View]
-      this.view.Encode(buffer);
+      // Write: [Tick]
+      buffer.Write(RailEncoders.Tick, this.ClientTick);
+
+      // Write: [LastReceivedServerTick]
+      buffer.Write(RailEncoders.Tick, this.LastReceivedServerTick);
+
+      // Write: [LastReceivedEventId]
+      buffer.Write(RailEncoders.EventId, this.LastReceivedEventId);
+
+      // Write: [CommandCount]
+      buffer.Write(RailEncoders.CommandCount, this.commands.Count);
 
       // Write: [Commands]
       foreach (RailCommand command in this.commands)
         command.Encode(buffer);
 
-      // Write: [CommandCount]
-      buffer.Push(RailEncoders.CommandCount, this.commands.Count);
-
-      // Write: [LastReceivedEventId]
-      buffer.Push(RailEncoders.EventId, this.LastReceivedEventId);
-
-      // Write: [LastReceivedServerTick]
-      buffer.Push(RailEncoders.Tick, this.LastReceivedServerTick);
-
-      // Write: [Tick]
-      buffer.Push(RailEncoders.Tick, this.ClientTick);
+      // Write: [View]
+      this.view.Encode(buffer);
     }
 
     internal static RailClientPacket Decode(
@@ -119,16 +119,16 @@ namespace Railgun
       RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
 
       // Read: [Tick]
-      packet.ClientTick = buffer.Pop(RailEncoders.Tick);
+      packet.ClientTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [LastReceivedServerTick]
-      packet.LastReceivedServerTick = buffer.Pop(RailEncoders.Tick);
+      packet.LastReceivedServerTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [LastReceivedEventId]
-      packet.LastReceivedEventId = buffer.Pop(RailEncoders.EventId);
+      packet.LastReceivedEventId = buffer.Read(RailEncoders.EventId);
 
       // Read: [CommandCount]
-      int commandCount = buffer.Pop(RailEncoders.CommandCount);
+      int commandCount = buffer.Read(RailEncoders.CommandCount);
 
       // Read: [Commands]
       for (int i = 0; i < commandCount; i++)

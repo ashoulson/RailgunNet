@@ -8,9 +8,8 @@ namespace Railgun
   public interface IEncodableType<T> 
     where T : struct
   {
-    int GetCost();
-    void Write(BitBuffer buffer);
-    T Read(BitBuffer buffer);
-    T Peek(BitBuffer buffer);
+    int RequiredBits { get; }
+    uint Pack();
+    T Unpack(uint data);
   }
 }

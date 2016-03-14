@@ -28,36 +28,21 @@ namespace Railgun
 {
   public class BoolEncoder : Encoder<bool>
   {
-    internal override int GetCost(bool value)
+    internal override int RequiredBits
     {
-      return 1;
+      get { return 1; }
     }
 
-    public BoolEncoder() {}
-
-    internal override void Write(BitBuffer buffer, bool value)
-    {
-      buffer.Push(1, this.Pack(value));
-    }
-
-    internal override bool Read(BitBuffer buffer)
-    {
-      return this.Unpack(buffer.Pop(1));
-    }
-
-    internal override bool Peek(BitBuffer buffer)
-    {
-      return this.Unpack(buffer.Peek(1));
-    }
-
-    internal uint Pack(bool value)
+    internal override uint Pack(bool value)
     {
       return value ? 1u : 0u;
     }
 
-    internal bool Unpack(uint data)
+    internal override bool Unpack(uint data)
     {
       return (data == 0) ? false : true;
     }
+
+    public BoolEncoder() { }
   }
 }

@@ -70,7 +70,7 @@ namespace Railgun
 
     private readonly int idValue;
 
-    internal EventId(int EventId)
+    private EventId(int EventId)
     {
       this.idValue = EventId;
     }
@@ -97,24 +97,19 @@ namespace Railgun
     }
 
     #region IEncodableType Members
-    int IEncodableType<EventId>.GetCost()
+    int IEncodableType<EventId>.RequiredBits
     {
-      return EventId.Encoder.GetCost(this.idValue);
+      get { return EventId.Encoder.RequiredBits; }
     }
 
-    void IEncodableType<EventId>.Write(BitBuffer buffer)
+    uint IEncodableType<EventId>.Pack()
     {
-      EventId.Encoder.Write(buffer, this.idValue);
+      return EventId.Encoder.Pack(this.idValue);
     }
 
-    EventId IEncodableType<EventId>.Read(BitBuffer buffer)
+    EventId IEncodableType<EventId>.Unpack(uint data)
     {
-      return new EventId(EventId.Encoder.Read(buffer));
-    }
-
-    EventId IEncodableType<EventId>.Peek(BitBuffer buffer)
-    {
-      return new EventId(EventId.Encoder.Peek(buffer));
+      return new EventId(EventId.Encoder.Unpack(data));
     }
     #endregion
   }
