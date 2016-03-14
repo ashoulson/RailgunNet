@@ -267,8 +267,8 @@ namespace Railgun
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
       {
-        RailServerPacket packet = new RailServerPacket();
-          //RailResource.Instance.AllocateServerPacket();
+        RailServerPacket packet =
+          RailResource.Instance.AllocateServerPacket();
         clientPeer.PreparePacket(packet, this.world.Tick);
 
         // Evaluate scope and pack entities
@@ -287,7 +287,7 @@ namespace Railgun
           clientPeer.RegisterEntitySent(entityId, this.world.Tick);
 
         // Free the packet
-        //RailPool.Free(packet);
+        RailPool.Free(packet);
       }
     }
 

@@ -171,7 +171,6 @@ namespace Railgun
       this.CleanReliableEvents();
     }
 
-
     /// <summary>
     /// Gets all events that we haven't processed yet, in order.
     /// </summary>
