@@ -86,6 +86,7 @@ namespace Railgun
     }
 
     #region Encode/Decode
+
     internal void Encode(
       BitBuffer buffer)
     {

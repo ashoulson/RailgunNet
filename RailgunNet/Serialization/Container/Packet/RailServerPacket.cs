@@ -68,7 +68,7 @@ namespace Railgun
     // Client-only
     internal List<RailState> States { get; private set; }
 
-    public RailServerPacket()
+    public RailServerPacket() : base()
     {
       this.SentEntities = new List<EntityId>();
       this.pendingUpdates = new List<EntityUpdate>();
