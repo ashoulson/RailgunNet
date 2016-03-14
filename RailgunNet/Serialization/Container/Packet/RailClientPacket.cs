@@ -32,55 +32,51 @@ namespace Railgun
   /// <summary>
   /// Packet sent from client to server
   /// </summary>
-  internal class RailClientPacket : IRailPoolable
+  public class RailClientPacket : RailPacket, IRailPoolable
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
 
-    internal Tick ClientTick { get; private set; }
-    internal Tick LastReceivedServerTick { get; private set; }
-    internal EventId LastReceivedEventId { get; private set; }
+    /// <summary>
+    /// A brief history of commands from the client. May not be sent in order.
+    /// </summary>
     internal IEnumerable<RailCommand> Commands { get { return this.commands; } }
+
+    /// <summary>
+    /// A (partial) view indicating the last update frame for each entity.
+    /// </summary>
     internal RailView View { get { return this.view; } }
 
-    private readonly RailView view;
     private readonly List<RailCommand> commands;
+    private readonly RailView view;
 
-    public RailClientPacket()
+    public RailClientPacket() : base()
     {
-      this.commands = new List<RailCommand>();
       this.view = new RailView();
+      this.commands = new List<RailCommand>();
+
       this.Reset();
     }
 
-    public void Initialize(
-      Tick tick,
-      Tick lastReceivedServerTick,
-      EventId lastReceivedEventId,
+    internal void InitializeClient(
       IEnumerable<RailCommand> commands,
       RailView view)
     {
-      this.ClientTick = tick;
-      this.LastReceivedServerTick = lastReceivedServerTick;
-      this.LastReceivedEventId = lastReceivedEventId;
       this.AddCommands(commands);
       this.view.Integrate(view);
     }
 
-    protected void Reset()
+    protected override void Reset()
     {
-      this.ClientTick = Tick.INVALID;
-      this.LastReceivedServerTick = Tick.INVALID;
+      base.Reset();
 
-      // Note: We don't free the commands because they 
-      // will always be stored elsewhere
+      // We don't free the commands because they will be stored elsewhere
       this.commands.Clear();
       this.view.Clear();
     }
 
     private void AddCommands(IEnumerable<RailCommand> commands)
     {
-      this.commands.Clear();
       foreach (RailCommand command in commands.Reverse())
       {
         if (this.commands.Count >= RailConfig.COMMAND_SEND_COUNT)
@@ -93,24 +89,17 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer)
     {
-      // Write: [Tick]
-      buffer.Write(RailEncoders.Tick, this.ClientTick);
-
-      // Write: [LastReceivedServerTick]
-      buffer.Write(RailEncoders.Tick, this.LastReceivedServerTick);
-
-      // Write: [LastReceivedEventId]
-      buffer.Write(RailEncoders.EventId, this.LastReceivedEventId);
-
-      // Write: [CommandCount]
-      buffer.Write(RailEncoders.CommandCount, this.commands.Count);
+      // Write: [Header]
+      this.EncodeHeader(buffer);
 
       // Write: [Commands]
-      foreach (RailCommand command in this.commands)
-        command.Encode(buffer);
+      this.EncodeCommands(buffer);
 
       // Write: [View]
       this.view.Encode(buffer);
+
+      // Write: [Events]
+      this.EncodeEvents(buffer);
     }
 
     internal static RailClientPacket Decode(
@@ -118,30 +107,43 @@ namespace Railgun
     {
       RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
 
-      // Read: [Tick]
-      packet.ClientTick = buffer.Read(RailEncoders.Tick);
+      // Read: [Header]
+      packet.DecodeHeader(buffer);
 
-      // Read: [LastReceivedServerTick]
-      packet.LastReceivedServerTick = buffer.Read(RailEncoders.Tick);
+      // Read: [Commands]
+      packet.DecodeCommands(buffer);
 
-      // Read: [LastReceivedEventId]
-      packet.LastReceivedEventId = buffer.Read(RailEncoders.EventId);
+      // Read: [View]
+      packet.view.Decode(buffer);
 
+      // Read: [Events]
+      packet.DecodeEvents(buffer);
+
+      return packet;
+    }
+
+    #region Commands
+    protected void EncodeCommands(BitBuffer buffer)
+    {
+      // Write: [CommandCount]
+      buffer.Write(RailEncoders.CommandCount, this.commands.Count);
+
+      // Write: [Commands]
+      foreach (RailCommand command in this.commands)
+        command.Encode(buffer);
+    }
+
+    protected void DecodeCommands(BitBuffer buffer)
+    {
       // Read: [CommandCount]
       int commandCount = buffer.Read(RailEncoders.CommandCount);
 
       // Read: [Commands]
       for (int i = 0; i < commandCount; i++)
-      {
-        RailCommand command = RailCommand.Decode(buffer);
-        packet.commands.Add(command);
-      }
-
-      // Read: [View]
-      packet.view.Decode(buffer);
-
-      return packet;
+        this.commands.Add(RailCommand.Decode(buffer));
     }
+    #endregion
+
     #endregion
   }
 }

@@ -47,18 +47,6 @@ namespace Railgun
     protected abstract void OnMessagesReady(IRailNetPeer peer);
     #endregion
 
-    #region IRailControllerInternal Members
-    RailCommand IRailControllerInternal.LatestCommand
-    {
-      get { return this.LatestCommand; }
-    }
-
-    IEnumerable<RailCommand> IRailControllerInternal.PendingCommands
-    {
-      get { return this.PendingCommands; }
-    }
-    #endregion
-
     /// <summary>
     /// The entities controlled by this controller.
     /// </summary>
@@ -67,46 +55,41 @@ namespace Railgun
     /// <summary>
     /// A rolling queue for outgoing reliable events, in order.
     /// </summary>
-    private readonly Queue<RailEvent> outgoingReliable;
-
-    /// <summary>
-    /// A buffer for outgoing unreliable events, cleared each send.
-    /// </summary>
-    private readonly List<RailEvent> outgoingUnreliable;
+    private readonly Queue<RailEvent> outgoingGlobalEvents;
 
     /// <summary>
     /// Used for uniquely identifying and ordering reliable events.
     /// </summary>
     private EventId lastEventId;
 
+    /// <summary>
+    /// The last received event id from the remote peer.
+    /// </summary>
+    private EventId lastReceivedEventId;
+
+    /// <summary>
+    /// An estimator for the remote peer's current tick.
+    /// </summary>
+    private readonly RailClock remoteClock;
+
     public IEnumerable<RailEntity> ControlledEntities
     {
       get { return this.controlledEntities; }
     }
 
-    internal IEnumerable<RailEvent> ReliableEvents
+    internal RailClock RemoteClock 
     {
-      get { return this.outgoingReliable; }
-    }
-
-    internal IEnumerable<RailEvent> UnreliableEvents
-    {
-      get { return this.outgoingUnreliable; }
-    }
-
-    internal IEnumerable<RailEvent> AllEvents
-    {
-      get { return this.UnreliableEvents.Concat(this.ReliableEvents); }
+      get { return this.remoteClock; } 
     }
 
     // Server-only
-    protected internal virtual RailCommand LatestCommand
+    public virtual RailCommand LatestCommand
     {
       get { throw new NotImplementedException(); }
     }
 
     // Client-only
-    protected internal virtual IEnumerable<RailCommand> PendingCommands
+    public virtual IEnumerable<RailCommand> PendingCommands
     {
       get { throw new NotImplementedException(); }
     }
@@ -117,28 +100,20 @@ namespace Railgun
       this.netPeer.MessagesReady += this.OnMessagesReady;
 
       this.controlledEntities = new HashSet<RailEntity>();
-      this.outgoingReliable = new Queue<RailEvent>();
-      this.outgoingUnreliable = new List<RailEvent>();
+      this.outgoingGlobalEvents = new Queue<RailEvent>();
 
       this.lastEventId = EventId.INVALID;
+      this.lastReceivedEventId = EventId.INVALID;
+      this.remoteClock = new RailClock();
     }
 
-    public void QueueUnreliable(RailEvent evnt, Tick tick)
-    {
-      RailEvent clone = evnt.Clone();
-      clone.Initialize(
-        tick,
-        EventId.UNRELIABLE);
-      this.outgoingUnreliable.Add(clone);
-    }
-
-    public void QueueReliable(RailEvent evnt, Tick tick)
+    public void QueueGlobal(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();
       clone.Initialize(
         tick,
         EventId.Increment(ref this.lastEventId));
-      this.outgoingReliable.Enqueue(clone);
+      this.outgoingGlobalEvents.Enqueue(clone);
     }
 
     /// <summary>
@@ -166,25 +141,91 @@ namespace Railgun
       entity.SetController(null);
     }
 
-    internal void CleanReliableEvents(EventId lastReceivedId)
+    internal virtual int Update()
     {
-      while (true)
+      return this.remoteClock.Update();
+    }
+
+    protected virtual void PreparePacketBase(
+      RailPacket packet, 
+      Tick localTick)
+    {
+      packet.Initialize(
+        localTick,
+        this.remoteClock.LatestRemote,
+        this.lastReceivedEventId,
+        this.outgoingGlobalEvents);
+    }
+
+    /// <summary>
+    /// Records acknowledging information for the packet.
+    /// </summary>
+    protected virtual void ProcessPacket(RailPacket packet)
+    {
+      this.remoteClock.UpdateLatest(packet.SenderTick);
+
+      foreach (RailEvent evnt in this.GetNewEvents(packet))
+        this.ProcessEvent(evnt);
+
+      this.UpdateLastReceivedEvent(packet);
+      this.CleanReliableEvents();
+    }
+
+
+    /// <summary>
+    /// Gets all events that we haven't processed yet, in order.
+    /// </summary>
+    private IEnumerable<RailEvent> GetNewEvents(RailPacket packet)
+    {
+      foreach (RailEvent globalEvent in packet.GlobalEvents)
       {
-        if (lastReceivedId.IsValid == false) // They haven't received anything
+        if (this.lastReceivedEventId.IsValid == false)
+          yield return globalEvent;
+        else if (globalEvent.EventId.IsNewerThan(this.lastReceivedEventId))
+          yield return globalEvent;
+        else
           break;
-        if (this.outgoingReliable.Count == 0)
-          break;
-        if (this.outgoingReliable.Peek().EventId.IsNewerThan(lastReceivedId))
-          break;
-        RailPool.Free(this.outgoingReliable.Dequeue());
       }
     }
 
-    internal void CleanUnreliableEvents()
+    private void ProcessEvent(RailEvent evnt)
     {
-      foreach (RailEvent evnt in this.outgoingUnreliable)
-        RailPool.Free(evnt);
-      this.outgoingUnreliable.Clear();
+      // TODO: Move this to a more comprehensive solution
+      switch (evnt.EventType)
+      {
+        default:
+          CommonDebug.LogWarning("Unrecognized event: " + evnt.EventType);
+          break;
+      }
+    }
+
+    private void UpdateLastReceivedEvent(RailPacket packet)
+    {
+      foreach (RailEvent globalEvent in packet.GlobalEvents)
+      {
+        if (this.lastReceivedEventId.IsValid == false)
+          this.lastReceivedEventId = globalEvent.EventId;
+        else if (globalEvent.EventId.IsNewerThan(this.lastReceivedEventId))
+          this.lastReceivedEventId = globalEvent.EventId;
+      }
+    }
+
+    private void CleanReliableEvents()
+    {
+      while (true)
+      {
+        if (this.lastReceivedEventId.IsValid == false) // They haven't received anything
+          break;
+
+        if (this.outgoingGlobalEvents.Count == 0)
+          break;
+
+        RailEvent next = this.outgoingGlobalEvents.Peek();
+        if (next.EventId.IsNewerThan(this.lastReceivedEventId))
+          break;
+
+        RailPool.Free(this.outgoingGlobalEvents.Dequeue());
+      }
     }
   }
 }

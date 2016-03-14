@@ -51,7 +51,7 @@ namespace Railgun
       /// <summary>
       /// The latest usable command in the dejitter buffer.
       /// </summary>
-      protected internal override RailCommand LatestCommand
+      public override RailCommand LatestCommand
       {
         get { return this.latestCommand; }
       }
@@ -75,13 +75,12 @@ namespace Railgun
       /// <summary>
       /// A history of received packets from the client. Used on the server.
       /// </summary>
-      private readonly RailRingBuffer<RailCommand> incomingBuffer;
+      private readonly RailRingBuffer<RailCommand> commandBuffer;
 
       // Records the last tick we sent a given entity to our client
       private readonly RailView lastSentView;
 
       private readonly RailScope scope;
-      private readonly RailClock clientClock;
 
       private RailCommand latestCommand;
 
@@ -90,19 +89,15 @@ namespace Railgun
       {
         this.LastAckedServerTick = Tick.INVALID;
         this.LastProcessedCommandTick = Tick.INVALID;
+        this.latestCommand = null;
+        this.lastSentView = new RailView();
+        this.scope = new RailScope();
 
         // We use no divisor for storing commands because commands are sent in
         // batches that we can use to fill in the holes between send ticks
-        this.incomingBuffer =
+        this.commandBuffer =
           new RailRingBuffer<RailCommand>(
             RailConfig.DEJITTER_BUFFER_LENGTH);
-
-        this.lastSentView = new RailView();
-
-        this.scope = new RailScope();
-        this.clientClock = new RailClock();
-
-        this.latestCommand = null;
       }
 
       internal Tick GetLastAcked(EntityId id)
@@ -110,28 +105,36 @@ namespace Railgun
         return this.lastSentView.GetLatest(id);
       }
 
-      internal void Update()
+      internal override int Update()
       {
-        this.clientClock.Update();
+        int ticks = base.Update();
+
         this.latestCommand = 
-          this.incomingBuffer.GetLatestAt(
-            this.clientClock.EstimatedRemote);
+          this.commandBuffer.GetLatestAt(
+            this.RemoteClock.EstimatedRemote);
 
         if (this.latestCommand != null)
           this.LastProcessedCommandTick = this.latestCommand.Tick;
+
+        return ticks;
       }
 
       internal void ProcessPacket(RailClientPacket packet)
       {
-        this.LastAckedServerTick = packet.LastReceivedServerTick;
-        this.clientClock.UpdateLatest(packet.ClientTick);
-        this.lastSentView.Integrate(packet.View);
+        base.ProcessPacket(packet);
 
         foreach (RailCommand command in packet.Commands)
-          this.incomingBuffer.Store(command);
+          this.commandBuffer.Store(command);
+        this.lastSentView.Integrate(packet.View);
+      }
 
-        this.CleanReliableEvents(packet.LastReceivedEventId);
-        this.CleanUnreliableEvents();
+      internal void PreparePacket(
+        RailServerPacket packet, 
+        Tick localTick)
+      {
+        base.PreparePacketBase(packet, localTick);
+
+        packet.InitializeServer(this.LastProcessedCommandTick);
       }
 
       internal void Shutdown()
@@ -264,13 +267,9 @@ namespace Railgun
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
       {
-        RailServerPacket packet = 
-          RailResource.Instance.AllocateServerPacket();
-
-        packet.Initialize(
-          this.world.Tick,
-          clientPeer.LastProcessedCommandTick,
-          clientPeer.AllEvents);
+        RailServerPacket packet = new RailServerPacket();
+          //RailResource.Instance.AllocateServerPacket();
+        clientPeer.PreparePacket(packet, this.world.Tick);
 
         // Evaluate scope and pack entities
         IEnumerable<RailEntity> scopedEntities =
@@ -286,6 +285,9 @@ namespace Railgun
         // Record all the entities we actually sent
         foreach (EntityId entityId in packet.SentEntities)
           clientPeer.RegisterEntitySent(entityId, this.world.Tick);
+
+        // Free the packet
+        //RailPool.Free(packet);
       }
     }
 

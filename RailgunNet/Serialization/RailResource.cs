@@ -36,8 +36,8 @@ namespace Railgun
       RailResource.Instance = new RailResource();
     }
 
-    private RailPool<RailServerPacket> serverPacketPool;
-    private RailPool<RailClientPacket> clientPacketPool;
+    private RailPoolGeneric<RailServerPacket> serverPacketPool;
+    private RailPoolGeneric<RailClientPacket> clientPacketPool;
 
     private RailPool<RailCommand> commandPool;
 
@@ -48,10 +48,8 @@ namespace Railgun
 
     private RailResource()
     {
-      this.serverPacketPool = 
-        new RailPool<RailServerPacket, RailServerPacket>();
-      this.clientPacketPool = 
-        new RailPool<RailClientPacket, RailClientPacket>();
+      this.serverPacketPool = new RailPoolGeneric<RailServerPacket>();
+      this.clientPacketPool = new RailPoolGeneric<RailClientPacket>();
 
       this.commandPool = null;
       this.statePools = new Dictionary<int, RailPool<RailState>>();
@@ -64,20 +62,20 @@ namespace Railgun
       where TState : RailState, new()
     {
       this.entityFactories[type] = new RailFactory<RailEntity, TEntity>();
-      this.statePools[type] = new RailPool<RailState, TState>();
+      this.statePools[type] = new RailPoolGeneric<RailState, TState>();
     }
 
     internal void RegisterEventType<TEvent>(int type)
       where TEvent : RailEvent, new()
     {
-      this.eventPools[type] = new RailPool<RailEvent, TEvent>();
+      this.eventPools[type] = new RailPoolGeneric<RailEvent, TEvent>();
     }
 
     internal void RegisterCommandType<TCommand>()
       where TCommand : RailCommand, new()
     {
       CommonDebug.Assert(this.commandPool == null);
-      this.commandPool = new RailPool<RailCommand, TCommand>();
+      this.commandPool = new RailPoolGeneric<RailCommand, TCommand>();
     }
 
     internal RailEntity CreateEntity(int type)

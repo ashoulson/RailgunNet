@@ -61,7 +61,18 @@ namespace Railgun
     }
   }
 
-  internal class RailPool<TBase, TDerived> : RailPool<TBase>
+  internal class RailPoolGeneric<TBase> : RailPool<TBase>
+    where TBase : IRailPoolable, new()
+  {
+    internal override TBase Allocate()
+    {
+      TBase newDerived = new TBase();
+      newDerived.Pool = this;
+      return newDerived;
+    }
+  }
+
+  internal class RailPoolGeneric<TBase, TDerived> : RailPool<TBase>
     where TBase : IRailPoolable
     where TDerived : TBase, new()
   {

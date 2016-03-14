@@ -41,6 +41,7 @@
     <Compile Include="Connection\RailPeer.cs" />
     <Compile Include="Connection\Scope\RailScope.cs" />
     <Compile Include="Connection\Scope\RailScopeEvaluator.cs" />
+    <Compile Include="Serialization\Container\Packet\RailPacket.cs" />
     <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
     <Compile Include="Serialization\Container\RailView.cs" />
     <Compile Include="Serialization\Encoding\Encoder\TypedEncoder.cs" />
