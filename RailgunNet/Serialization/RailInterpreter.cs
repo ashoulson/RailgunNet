@@ -64,7 +64,7 @@ namespace Railgun
         // Read: [Packet]
         RailClientPacket result = RailClientPacket.Decode(this.bitBuffer);
 
-        CommonDebug.Assert(this.bitBuffer.Position == 0, "Bad packet read");
+        CommonDebug.Assert(this.bitBuffer.IsFinished, "Bad packet read");
         yield return result;
       }
     }
@@ -98,7 +98,7 @@ namespace Railgun
             this.bitBuffer,
             knownEntities);
 
-        CommonDebug.Assert(this.bitBuffer.Position == 0, "Bad packet read");
+        CommonDebug.Assert(this.bitBuffer.IsFinished, "Bad packet read");
         yield return result;
       }
     }

@@ -21,6 +21,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 using CommonTools;
 
@@ -28,13 +29,11 @@ namespace Railgun
 {
   public class BitBuffer
   {
-    // This class works with both uint-based and byte-based storage,
-    // so you can adjust these constants accordingly with data type
     private const int SIZE_BYTE = 8;
     private const int SIZE_INPUT = sizeof(uint) * SIZE_BYTE;
     private const int SIZE_STORAGE = sizeof(uint) * SIZE_BYTE;
     private const int BYTES_PER_CHUNK = SIZE_STORAGE / SIZE_BYTE;
-    private const uint STORAGE_MASK = (uint)((1L << SIZE_STORAGE) - 1);
+    private const ulong STORAGE_MASK = (1L << SIZE_STORAGE) - 1;
 
     private const int GROW_FACTOR = 2;
     private const int MIN_GROW = 1;
@@ -43,7 +42,12 @@ namespace Railgun
     /// <summary>
     /// The position of the next-to-be-written bit.
     /// </summary>
-    private int position;
+    private int writePos;
+
+    /// <summary>
+    /// The position of the next-to-be-read bit.
+    /// </summary>
+    private int readPos;
 
     /// <summary>
     /// A stored potential rollback position.
@@ -56,14 +60,14 @@ namespace Railgun
     private uint[] chunks;
 
     /// <summary>
-    /// The number of bits currently stored in the buffer.
-    /// </summary>
-    public int Position { get { return this.position; } }
-
-    /// <summary>
     /// Size the buffer will require in bytes.
     /// </summary>
-    public int ByteSize { get { return (this.position / SIZE_BYTE) + 1; } }
+    public int ByteSize { get { return (this.writePos / SIZE_BYTE) + 1; } }
+
+    /// <summary>
+    /// Returns true iff we have read everything off of the buffer.
+    /// </summary>
+    public bool IsFinished { get { return (this.writePos == this.readPos); } }
 
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
@@ -81,7 +85,8 @@ namespace Railgun
     {
       for (int i = 0; i < this.chunks.Length; i++)
         this.chunks[i] = 0;
-      this.position = 0;
+      this.writePos = 0;
+      this.readPos = 0;
       this.rollback = 0;
     }
 
@@ -90,7 +95,7 @@ namespace Railgun
     /// </summary>
     public void SetRollback()
     {
-      this.rollback = this.position;
+      this.rollback = this.writePos;
     }
 
     /// <summary>
@@ -99,34 +104,34 @@ namespace Railgun
     /// </summary>
     public void Rollback()
     {
-      if (this.rollback > this.position)
+      if (this.rollback > this.writePos)
         throw new InvalidOperationException();
 
       int rollbackWritten = this.rollback - 1;
       int goalIndex = rollbackWritten / BitBuffer.SIZE_STORAGE;
-      int bitsRemaining = this.position - this.rollback;
+      int bitsRemaining = this.writePos - this.rollback;
 
       while (bitsRemaining > 0)
       {
         // Find our place
-        int lastWritten = this.position - 1;
+        int lastWritten = this.writePos - 1;
         int writtenIndex = lastWritten / BitBuffer.SIZE_STORAGE;
         int writtenUsed = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
 
         if (writtenIndex > goalIndex)
         {
           this.chunks[writtenIndex] = 0;
-          this.position -= writtenUsed;
+          this.writePos -= writtenUsed;
         }
         else
         {
           int bitsToSave = writtenUsed - bitsRemaining;
           ulong mask = (1UL << bitsToSave) - 1;
           this.chunks[writtenIndex] &= (uint)mask;
-          this.position = this.rollback;
+          this.writePos = this.rollback;
         }
 
-        bitsRemaining = this.position - this.rollback;
+        bitsRemaining = this.writePos - this.rollback;
       }
     }
 
@@ -143,8 +148,8 @@ namespace Railgun
       while (numBits > 0)
       {
         // Find our place
-        int index = this.position / BitBuffer.SIZE_STORAGE;
-        int used = this.position % BitBuffer.SIZE_STORAGE;
+        int index = this.writePos / BitBuffer.SIZE_STORAGE;
+        int used = this.writePos % BitBuffer.SIZE_STORAGE;
 
         // Increase our capacity if needed
         if (index >= this.chunks.Length)
@@ -162,7 +167,7 @@ namespace Railgun
 
         // Store and advance
         this.chunks[index] |= entry;
-        this.position += written;
+        this.writePos += written;
         numBits -= written;
       }
     }
@@ -177,22 +182,23 @@ namespace Railgun
         throw new ArgumentOutOfRangeException("Popping negatve bits");
       if (numBits > BitBuffer.SIZE_INPUT)
         throw new ArgumentOutOfRangeException("Popping too many bits");
-      if (numBits > this.position)
+      if (numBits > this.writePos)
         throw new AccessViolationException("BitBuffer pop underrun");
 
       uint output = 0;
       while (numBits > 0)
       {
         // Find the position of the last written bit
-        int lastWritten = this.position - 1;
+        int lastWritten = this.writePos - 1;
         int index = lastWritten / BitBuffer.SIZE_STORAGE;
         int used = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
 
         // Create the mask and extract the value
         int available = (numBits < used) ? numBits : used;
-        // Lower mask cuts out any data lower in the stack
+
+        // Lower mask cuts out any data lower in the chunk
         int ignoreBottom = used - available;
-        uint mask = STORAGE_MASK << ignoreBottom;
+        uint mask = (uint)(STORAGE_MASK << ignoreBottom);
 
         // Extract the value and flash the bits out of the data
         uint value = (this.chunks[index] & mask) >> ignoreBottom;
@@ -200,10 +206,53 @@ namespace Railgun
 
         // Update our position
         numBits -= available;
-        this.position -= available;
+        this.writePos -= available;
 
         // Merge the resulting value
         output |= value << numBits;
+      }
+
+      return output;
+    }
+
+    /// <summary>
+    /// Returns the next number of bits from the beginning of the buffer.
+    /// </summary>
+    public uint Read(int numBits)
+    {
+      if (numBits < 0)
+        throw new ArgumentOutOfRangeException("Popping negatve bits");
+      if (numBits > BitBuffer.SIZE_INPUT)
+        throw new ArgumentOutOfRangeException("Popping too many bits");
+      if ((numBits + this.readPos) > this.writePos)
+        throw new AccessViolationException("BitBuffer read underrun");
+
+      uint output = 0;
+      int bitsConsumed = 0;
+      while (numBits > 0)
+      {
+        // Find the position of the last read bit
+        int index = this.readPos / BitBuffer.SIZE_STORAGE;
+        int read = this.readPos % BitBuffer.SIZE_STORAGE;
+        int remaining = BitBuffer.SIZE_STORAGE - read;
+
+        // Create the mask and extract the value
+        int available = (numBits < remaining) ? numBits : remaining;
+
+        // Lower mask cuts out any data lower in the chunk
+        int ignoreTop = BitBuffer.SIZE_STORAGE - (remaining - available);
+        uint mask = (uint)(STORAGE_MASK << ignoreTop);
+
+        // Extract the value
+        uint value = (this.chunks[index] & ~mask) >> read;
+
+        // Merge the resulting value
+        output |= value << bitsConsumed;
+
+        // Update our position and tracking
+        numBits -= available;
+        bitsConsumed += available;
+        this.readPos += available;
       }
 
       return output;
@@ -219,38 +268,38 @@ namespace Railgun
         throw new ArgumentOutOfRangeException("Peeking negatve bits");
       if (numBits > BitBuffer.SIZE_INPUT)
         throw new ArgumentOutOfRangeException("Peeking too many bits");
-      if (numBits > this.position)
+      if (numBits > this.writePos)
         throw new AccessViolationException("BitBuffer peek underrun");
 
-      int startingPosition = this.position;
+      int startingPosition = this.writePos;
       uint output = 0;
-      while (numBits > 0)
-      {
-        // Find the position of the last written bit
-        int lastWritten = this.position - 1;
-        int index = lastWritten / BitBuffer.SIZE_STORAGE;
+      //while (numBits > 0)
+      //{
+      //  // Find the position of the last written bit
+      //  int lastWritten = this.writePos - 1;
+      //  int index = lastWritten / BitBuffer.SIZE_STORAGE;
 
-        // Add the +1 here because used is a count, not an index
-        int used = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
+      //  // Add the +1 here because used is a count, not an index
+      //  int used = (lastWritten % BitBuffer.SIZE_STORAGE) + 1;
 
-        // Create the mask and extract the value
-        int available = (numBits < used) ? numBits : used;
-        // Lower mask cuts out any data lower in the stack
-        int ignoreBottom = used - available;
-        uint mask = STORAGE_MASK << ignoreBottom;
+      //  // Create the mask and extract the value
+      //  int available = (numBits < used) ? numBits : used;
+      //  // Lower mask cuts out any data lower in the stack
+      //  int ignoreBottom = used - available;
+      //  uint mask = STORAGE_MASK << ignoreBottom;
 
-        // Extract the value, but don't flash out the data
-        uint value = (this.chunks[index] & mask) >> ignoreBottom;
+      //  // Extract the value, but don't flash out the data
+      //  uint value = (this.chunks[index] & mask) >> ignoreBottom;
 
-        // Update our position
-        numBits -= available;
-        this.position -= available;
+      //  // Update our position
+      //  numBits -= available;
+      //  this.writePos -= available;
 
-        // Merge the resulting value
-        output |= value << numBits;
-      }
+      //  // Merge the resulting value
+      //  output |= value << numBits;
+      //}
 
-      this.position = startingPosition;
+      //this.writePos = startingPosition;
       return output;
     }
 
@@ -263,7 +312,7 @@ namespace Railgun
       this.Push(1, 1);
 
       // Find the position of the last written bit
-      int lastWritten = this.position - 1;
+      int lastWritten = this.writePos - 1;
       int numChunks = (lastWritten / BitBuffer.SIZE_STORAGE) + 1;
       int numBytes = (lastWritten / BitBuffer.SIZE_BYTE) + 1;
 
@@ -306,11 +355,12 @@ namespace Railgun
       }
 
       // Find position and pop the sentinel bit
-      this.position = BitBuffer.FindPosition(data, length);
+      this.writePos = BitBuffer.FindPosition(data, length);
+      this.readPos = 0;
       this.Pop(1);
     }
 
-    public static void StoreValue(
+    private static void StoreValue(
       byte[] array,
       int index,
       int numToWrite,
@@ -320,7 +370,7 @@ namespace Railgun
         array[index + i] = (byte)(value >> (BitBuffer.SIZE_BYTE * i));
     }
 
-    public static uint ReadValue(
+    private static uint ReadValue(
       byte[] array,
       int index,
       int numToRead)
@@ -413,5 +463,22 @@ namespace Railgun
     }
     #endregion
     #endregion
+
+    public override string ToString()
+    {
+      StringBuilder raw = new StringBuilder();
+      for (int i = this.chunks.Length - 1; i >= 0; i--)
+        raw.Append(Convert.ToString(this.chunks[i], 2).PadLeft(32, '0'));
+
+      StringBuilder spaced = new StringBuilder();
+      for (int i = 0; i < raw.Length; i++)
+      {
+        spaced.Append(raw[i]);
+        if (((i + 1) % 8) == 0)
+          spaced.Append(" ");
+      }
+
+      return spaced.ToString();
+    }
   }
 }
