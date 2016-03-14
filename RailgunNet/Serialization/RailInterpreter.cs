@@ -43,7 +43,7 @@ namespace Railgun
     #region ClientPacket
     internal void SendClientPacket(
       RailPeer destinationPeer,
-      RailClientPacket packet)
+      RailPacketC2S packet)
     {
       this.bitBuffer.Clear();
 
@@ -54,7 +54,7 @@ namespace Railgun
       destinationPeer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailClientPacket> ReceiveClientPackets(
+    internal IEnumerable<RailPacketC2S> ReceiveClientPackets(
       RailPeer sourcePeer)
     {
       foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
@@ -62,7 +62,7 @@ namespace Railgun
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
         // Read: [Packet]
-        RailClientPacket result = RailClientPacket.Decode(this.bitBuffer);
+        RailPacketC2S result = RailPacketC2S.Decode(this.bitBuffer);
 
         CommonDebug.Assert(this.bitBuffer.IsFinished, "Bad packet read");
         yield return result;
@@ -73,7 +73,7 @@ namespace Railgun
     #region ServerPacket
     internal void SendServerPacket(
       RailPeer destinationPeer,
-      RailServerPacket packet)
+      RailPacketS2C packet)
     {
       this.bitBuffer.Clear();
 
@@ -84,7 +84,7 @@ namespace Railgun
       destinationPeer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailServerPacket> ReceiveServerPackets(
+    internal IEnumerable<RailPacketS2C> ReceiveServerPackets(
       RailPeer sourcePeer,
       IDictionary<EntityId, RailEntity> knownEntities)
     {
@@ -93,8 +93,8 @@ namespace Railgun
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
 
         // Read: [Packet]
-        RailServerPacket result = 
-          RailServerPacket.Decode(
+        RailPacketS2C result = 
+          RailPacketS2C.Decode(
             this.bitBuffer,
             knownEntities);
 

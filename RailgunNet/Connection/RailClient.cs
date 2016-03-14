@@ -53,7 +53,7 @@ namespace Railgun
         this.outgoingBuffer = new Queue<RailCommand>();
       }
 
-      internal void ProcessPacket(RailServerPacket packet)
+      internal void ProcessPacket(RailPacketS2C packet)
       {
         base.ProcessPacket(packet);
 
@@ -61,7 +61,7 @@ namespace Railgun
       }
 
       internal void PreparePacket(
-        RailClientPacket packet,
+        RailPacketC2S packet,
         Tick localTick,
         IEnumerable<RailCommand> commands,
         RailView view)
@@ -216,7 +216,7 @@ namespace Railgun
     /// </summary>
     private void SendPacket()
     {
-      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
+      RailPacketC2S packet = RailResource.Instance.AllocateClientPacket();
 
       this.peer.PreparePacket(
         packet, 
@@ -232,12 +232,12 @@ namespace Railgun
     #region Packet Receive
     private void OnMessagesReady(RailClient.RailClientPeer peer)
     {
-      IEnumerable<RailServerPacket> decode =
+      IEnumerable<RailPacketS2C> decode =
         this.interpreter.ReceiveServerPackets(
           this.peer, 
           this.knownEntities);
 
-      foreach (RailServerPacket packet in decode)
+      foreach (RailPacketS2C packet in decode)
       {
         this.peer.ProcessPacket(packet);
         this.ProcessPacket(packet);
@@ -245,7 +245,7 @@ namespace Railgun
       }
     }
 
-    private void ProcessPacket(RailServerPacket packet)
+    private void ProcessPacket(RailPacketS2C packet)
     {
       foreach (RailState state in packet.States)
         this.ProcessState(state);

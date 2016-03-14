@@ -27,9 +27,9 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// Packet sent from client to server
+  /// Packet sent from server to client.
   /// </summary>
-  public class RailServerPacket : RailPacket, IRailPoolable
+  public class RailPacketS2C : RailPacket, IRailPoolable
   {
     /// <summary>
     /// Maximum size for a single entity. We skip entities larger than this.
@@ -68,7 +68,7 @@ namespace Railgun
     // Client-only
     internal List<RailState> States { get; private set; }
 
-    public RailServerPacket() : base()
+    public RailPacketS2C() : base()
     {
       this.SentEntities = new List<EntityId>();
       this.pendingUpdates = new List<EntityUpdate>();
@@ -116,11 +116,11 @@ namespace Railgun
       CommonDebug.Assert(buffer.ByteSize <= RailConfig.MAX_MESSAGE_SIZE);
     }
 
-    internal static RailServerPacket Decode(
+    internal static RailPacketS2C Decode(
       BitBuffer buffer,
       IDictionary<EntityId, RailEntity> knownEntities)
     {
-      RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
+      RailPacketS2C packet = RailResource.Instance.AllocateServerPacket();
 
       // Read: [Header]
       packet.DecodeHeader(buffer);
@@ -170,7 +170,7 @@ namespace Railgun
             ") -- " +
             byteCost + "B");
         }
-        else if (buffer.ByteSize > RailServerPacket.MAX_PACKET_SIZE)
+        else if (buffer.ByteSize > RailPacketS2C.MAX_PACKET_SIZE)
         {
           buffer.Rollback();
           break;
