@@ -31,72 +31,104 @@ namespace Railgun
   /// <summary>
   /// The peer contained by the client representing the server.
   /// </summary>
-  internal class RailClientPeer : RailPeer
+  internal class RailClientPeer : 
+    RailPeer, IRailControllerInternal
   {
-    public event Action<RailClientPeer> MessagesReady;
-
-    /// <summary>
-    /// A history of sent commands to the server. Used on the client.
-    /// </summary>
-    private readonly Queue<RailCommand> outgoingBuffer;
+    internal event Action<IRailServerPacket> PacketReceived;
 
     /// <summary>
     /// Commands that have been sent to the server but not yet acked.
     /// </summary>
     public override IEnumerable<RailCommand> PendingCommands
     {
-      get { return this.outgoingBuffer; }
+      get { return this.pendingCommands; }
     }
 
-    internal RailClientPeer(IRailNetPeer netPeer)
-      : base(netPeer)
+    private readonly Queue<RailCommand> pendingCommands;
+    private readonly RailView localView;
+    private IDictionary<EntityId, RailEntity> entityReference;
+
+    internal RailClientPeer(
+      IRailNetPeer netPeer,
+      RailInterpreter interpreter,
+      IDictionary<EntityId, RailEntity> entityReference)
+      : base(netPeer, interpreter)
     {
-      this.outgoingBuffer = new Queue<RailCommand>();
+      this.pendingCommands = new Queue<RailCommand>();
+      this.localView = new RailView();
+
+      // Stored by reference, so no need to manually update
+      this.entityReference = entityReference;
     }
 
-    internal void ProcessPacket(RailServerPacket packet)
+    internal override int Update()
+    {
+      return base.Update();
+    }
+
+    internal void QueueCommand(RailCommand command)
+    {
+      if (this.pendingCommands.Count < RailConfig.COMMAND_BUFFER_COUNT)
+        this.pendingCommands.Enqueue(command);
+    }
+
+    internal void SendPacket(Tick localTick)
+    {
+      RailClientPacket packet =
+        base.AllocatePacketSend<RailClientPacket>(localTick);
+
+      // Set data
+      packet.AddCommands(this.pendingCommands);
+      packet.AddView(this.localView);
+
+      // Send the packet
+      base.SendPacket(packet);
+
+      RailPool.Free(packet);
+    }
+
+    protected override void PreparePacketForRead(RailPacket packet)
+    {
+      ((RailServerPacket)packet).Reference = this.entityReference;
+    }
+
+    protected override void ProcessPacket(RailPacket packet)
     {
       base.ProcessPacket(packet);
 
-      this.UpdateCommands(packet.LastProcessedCommandTick);
+      RailServerPacket serverPacket = (RailServerPacket)packet;
+
+      this.UpdateCommands(serverPacket.CommandTick);
+
+      // Update the view from what we've received
+      foreach (RailState state in serverPacket.States)
+        this.localView.RecordUpdate(state.EntityId, serverPacket.SenderTick);
+
+      if (this.PacketReceived != null)
+        this.PacketReceived.Invoke(serverPacket);
     }
 
-    internal void PreparePacket(
-      RailClientPacket packet,
-      Tick localTick,
-      IEnumerable<RailCommand> commands,
-      RailView view)
+    protected override RailPacket AllocateIncoming()
     {
-      base.PreparePacketBase(packet, localTick);
-
-      packet.InitializeClient(commands, view);
+      return RailResource.Instance.AllocateServerPacket();
     }
 
-    internal void QueueOutgoing(RailCommand command)
+    protected override RailPacket AllocateOutgoing()
     {
-      if (this.outgoingBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
-        this.outgoingBuffer.Enqueue(command);
+      return RailResource.Instance.AllocateClientPacket();
     }
 
-    internal void UpdateCommands(Tick lastReceivedTick)
+    private void UpdateCommands(Tick lastReceivedTick)
     {
       if (lastReceivedTick.IsValid == false)
         return;
 
-      while (true)
+      while (this.pendingCommands.Count > 0)
       {
-        if (this.outgoingBuffer.Count == 0)
+        if (this.pendingCommands.Peek().Tick > lastReceivedTick)
           break;
-        if (this.outgoingBuffer.Peek().Tick > lastReceivedTick)
-          break;
-        RailPool.Free(this.outgoingBuffer.Dequeue());
+        RailPool.Free(this.pendingCommands.Dequeue());
       }
-    }
-
-    protected override void OnMessagesReady(IRailNetPeer peer)
-    {
-      if (this.MessagesReady != null)
-        this.MessagesReady(this);
     }
   }
 }

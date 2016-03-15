@@ -36,7 +36,10 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Connection\Client\IRailClientPacket.cs" />
     <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="Connection\IRailPacket.cs" />
+    <Compile Include="Connection\Server\IRailServerPacket.cs" />
     <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
@@ -45,12 +48,12 @@
     <Compile Include="Connection\Server\RailServerPeer.cs" />
     <Compile Include="Connection\RailPacket.cs" />
     <Compile Include="Connection\Server\RailServerPacket.cs" />
-    <Compile Include="Serialization\Container\RailView.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\TypedEncoder.cs" />
+    <Compile Include="System\Container\RailView.cs" />
+    <Compile Include="System\Encoding\Encoder\TypedEncoder.cs" />
     <Compile Include="System\Types\IEncodableType.cs" />
     <Compile Include="Util\IRailCloneable.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />
-    <Compile Include="Serialization\Container\UserDefined\RailEvent.cs" />
+    <Compile Include="System\Container\UserDefined\RailEvent.cs" />
     <Compile Include="System\Types\EntityId.cs" />
     <Compile Include="System\Types\EventId.cs" />
     <Compile Include="System\Types\TickSpan.cs" />
@@ -67,30 +70,28 @@
     <Compile Include="Connection\Server\RailServer.cs" />
     <Compile Include="RailConfig.cs" />
     <Compile Include="Util\RingBuffer\RailRingDelta.cs" />
-    <Compile Include="Serialization\RailResource.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\BoolEncoder.cs" />
+    <Compile Include="System\RailResource.cs" />
+    <Compile Include="System\Encoding\Encoder\Typed\BoolEncoder.cs" />
     <Compile Include="Util\Common\CommonDebug.cs" />
     <Compile Include="Util\Pooling\IRailPoolable.cs" />
     <Compile Include="Util\Pooling\RailPool.cs" />
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\RingBuffer\RailRingBuffer.cs" />
-    <Compile Include="Serialization\Container\UserDefined\RailCommand.cs" />
+    <Compile Include="System\Container\UserDefined\RailCommand.cs" />
     <Compile Include="Connection\Client\RailClientPacket.cs" />
     <Compile Include="Logic\RailEntity.cs" />
-    <Compile Include="Serialization\RailInterpreter.cs" />
+    <Compile Include="System\RailInterpreter.cs" />
     <Compile Include="Logic\RailWorld.cs" />
-    <Compile Include="Serialization\Container\UserDefined\RailState.cs" />
-    <Compile Include="Serialization\Encoding\BitBuffer.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Encoder.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\FloatEncoder.cs" />
+    <Compile Include="System\Container\UserDefined\RailState.cs" />
+    <Compile Include="System\Encoding\BitBuffer.cs" />
+    <Compile Include="System\Encoding\Encoder\Encoder.cs" />
+    <Compile Include="System\Encoding\Encoder\Typed\FloatEncoder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Serialization\Encoding\Encoder\Typed\IntEncoder.cs" />
-    <Compile Include="Serialization\Encoding\RailEncoders.cs" />
+    <Compile Include="System\Encoding\Encoder\Typed\IntEncoder.cs" />
+    <Compile Include="System\Encoding\RailEncoders.cs" />
     <Compile Include="Logic\Smoothing\Smoothers\RailSmootherFloat.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Serialization\Container\Packet\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

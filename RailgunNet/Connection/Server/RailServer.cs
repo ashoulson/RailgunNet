@@ -50,10 +50,10 @@ namespace Railgun
     /// </summary>
     private Dictionary<IRailNetPeer, RailServerPeer> clients;
 
-    public RailServer()
+    public RailServer() : base()
     {
       RailConnection.IsServer = true;
-      this.world.InitializeServer();
+      this.World.InitializeServer();
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
     }
 
@@ -64,13 +64,11 @@ namespace Railgun
     {
       if (this.clients.ContainsKey(peer) == false)
       {
-        RailServerPeer clientPeer = new RailServerPeer(peer);
-        this.clients.Add(peer, clientPeer);
+        RailServerPeer client = new RailServerPeer(peer, this.Interpreter);
+        this.clients.Add(peer, client);
 
         if (this.ControllerJoined != null)
-          this.ControllerJoined.Invoke(clientPeer);
-
-        clientPeer.MessagesReady += this.OnMessagesReady;
+          this.ControllerJoined.Invoke(client);
       }
     }
 
@@ -102,15 +100,15 @@ namespace Railgun
       foreach (RailServerPeer client in this.clients.Values)
         client.Update();
 
-      this.world.UpdateServer();
+      this.World.UpdateServer();
 
-      if (this.world.Tick.IsSendTick)
+      if (this.World.Tick.IsSendTick)
       {
         this.BroadcastPackets();
 
         // Store only after everything else, this lets us keep the full
         // history for reference for as long as we need to process it
-        this.world.StoreStates();
+        this.World.StoreStates();
       }
     }
 
@@ -120,8 +118,8 @@ namespace Railgun
     public T AddNewEntity<T>(int type)
       where T : RailEntity
     {
-      RailEntity entity = this.world.CreateEntity<T>(type);
-      this.world.AddEntity(entity);
+      RailEntity entity = this.World.CreateEntity<T>(type);
+      this.World.AddEntity(entity);
       return (T)entity;
     }
 
@@ -131,41 +129,7 @@ namespace Railgun
     private void BroadcastPackets()
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
-      {
-        RailServerPacket packet =
-          RailResource.Instance.AllocateServerPacket();
-        clientPeer.PreparePacket(packet, this.world.Tick);
-
-        // Evaluate scope and pack entities
-        IEnumerable<RailEntity> scopedEntities =
-          clientPeer.EvaluateEntities(
-            this.world.Entities,
-            this.world.Tick);
-        foreach (RailEntity entity in scopedEntities)
-          packet.AddEntity(entity, clientPeer.GetLastAcked(entity.Id));
-
-        // Send the packet
-        this.interpreter.SendServerPacket(clientPeer, packet);
-
-        // Record all the entities we actually sent
-        foreach (EntityId entityId in packet.SentEntities)
-          clientPeer.RegisterEntitySent(entityId, this.world.Tick);
-
-        // Free the packet
-        RailPool.Free(packet);
-      }
-    }
-
-    private void OnMessagesReady(RailServerPeer clientPeer)
-    {
-      IEnumerable<RailClientPacket> decode = 
-        this.interpreter.ReceiveClientPackets(clientPeer);
-
-      foreach (RailClientPacket packet in decode)
-      {
-        clientPeer.ProcessPacket(packet);
-        RailPool.Free(packet);
-      }
+        clientPeer.SendPacket(this.World.Tick, this.World.Entities);
     }
   }
 }

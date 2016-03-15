@@ -35,14 +35,17 @@ namespace Railgun
     public static bool IsServer { get; protected set; }
 
     public RailWorld World { get { return this.world; } }
-    protected RailWorld world;
-    internal RailInterpreter interpreter;
+    internal RailInterpreter Interpreter { get { return this.interpreter; } }
+
+    private readonly RailWorld world;
+    private readonly RailInterpreter interpreter;
 
     public abstract void Update();
 
     protected RailConnection()
     {
       RailResource.Initialize();
+
       this.world = new RailWorld();
       this.interpreter = new RailInterpreter();
     }

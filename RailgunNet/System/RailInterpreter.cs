@@ -31,8 +31,8 @@ namespace Railgun
   /// </summary>
   internal class RailInterpreter
   {
-    private byte[] byteBuffer;
-    private BitBuffer bitBuffer;
+    private readonly byte[] byteBuffer;
+    private readonly BitBuffer bitBuffer;
 
     internal RailInterpreter()
     {
@@ -40,68 +40,23 @@ namespace Railgun
       this.bitBuffer = new BitBuffer();
     }
 
-    #region ClientPacket
-    internal void SendClientPacket(
-      RailPeer destinationPeer,
-      RailClientPacket packet)
+    internal void SendPacket(IRailNetPeer peer, RailPacket packet)
     {
       this.bitBuffer.Clear();
 
-      // Write: [Packet]
       packet.Encode(this.bitBuffer);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
-      destinationPeer.EnqueueSend(this.byteBuffer, length);
+      peer.EnqueueSend(this.byteBuffer, length);
     }
 
-    internal IEnumerable<RailClientPacket> ReceiveClientPackets(
-      RailPeer sourcePeer)
+    internal IEnumerable<BitBuffer> BeginReads(IRailNetPeer peer)
     {
-      foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
+      foreach (int length in peer.ReadReceived(this.byteBuffer))
       {
         this.bitBuffer.ReadBytes(this.byteBuffer, length);
-
-        // Read: [Packet]
-        RailClientPacket result = RailClientPacket.Decode(this.bitBuffer);
-
-        CommonDebug.Assert(this.bitBuffer.IsFinished, "Bad packet read");
-        yield return result;
+        yield return this.bitBuffer;
       }
     }
-    #endregion
-
-    #region ServerPacket
-    internal void SendServerPacket(
-      RailPeer destinationPeer,
-      RailServerPacket packet)
-    {
-      this.bitBuffer.Clear();
-
-      // Write: [Packet]
-      packet.Encode(this.bitBuffer, destinationPeer);
-
-      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
-      destinationPeer.EnqueueSend(this.byteBuffer, length);
-    }
-
-    internal IEnumerable<RailServerPacket> ReceiveServerPackets(
-      RailPeer sourcePeer,
-      IDictionary<EntityId, RailEntity> knownEntities)
-    {
-      foreach (int length in sourcePeer.ReadReceived(this.byteBuffer))
-      {
-        this.bitBuffer.ReadBytes(this.byteBuffer, length);
-
-        // Read: [Packet]
-        RailServerPacket result = 
-          RailServerPacket.Decode(
-            this.bitBuffer,
-            knownEntities);
-
-        CommonDebug.Assert(this.bitBuffer.IsFinished, "Bad packet read");
-        yield return result;
-      }
-    }
-    #endregion
   }
 }

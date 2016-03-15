@@ -3,84 +3,143 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using CommonTools;
+
 namespace Railgun
 {
-  public abstract class RailPacket
+  internal abstract class RailPacket : IRailPoolable, IRailPacket
   {
+    RailPool IRailPoolable.Pool { get; set; }
+    void IRailPoolable.Reset() { this.Reset(); }
+
     /// <summary>
     /// Minimum number of reliable events to send.
     /// </summary>
     internal const int MIN_EVENT_SEND = 3;
 
-    internal IEnumerable<RailEvent> GlobalEvents 
-    {
-      get { return this.globalEvents; } 
-    }
+    /// <summary>
+    /// The latest tick from the sender.
+    /// </summary>
+    internal Tick SenderTick { get { return this.senderTick; } }
 
-    internal Tick SenderTick { get; private set; }
-    protected Tick AckedTick { get; private set; }
-    protected EventId AckedEventId { get; private set; }
+    /// <summary>
+    /// The last tick the sender received.
+    /// </summary>
+    internal Tick AckTick { get { return this.ackTick; } }
+
+    /// <summary>
+    /// The last global reliable event id the sender received.
+    /// </summary>
+    internal EventId AckEventId { get { return this.ackEventId; } }
+
+    /// <summary>
+    /// Global reliable events from the sender, in order.
+    /// </summary>
+    internal IEnumerable<RailEvent> Events { get { return this.events; } }
+
+    private Tick senderTick;
+    private Tick ackTick;
+    private EventId ackEventId;
 
     private readonly List<RailEvent> pendingReliableEvents;
-    private readonly List<RailEvent> globalEvents;
+    private readonly List<RailEvent> events;
 
     public RailPacket()
     {
-      this.pendingReliableEvents = new List<RailEvent>();
-      this.globalEvents = new List<RailEvent>();
+      this.senderTick = Tick.INVALID;
+      this.ackTick = Tick.INVALID;
+      this.ackEventId = EventId.INVALID;
 
-      this.SenderTick = Tick.INVALID;
-      this.AckedTick = Tick.INVALID;
-      this.AckedEventId = EventId.INVALID;
+      this.pendingReliableEvents = new List<RailEvent>();
+      this.events = new List<RailEvent>();
     }
 
     internal void Initialize(
       Tick senderTick,
-      Tick lastReceivedTick,
-      EventId lastReceivedEventId,
-      IEnumerable<RailEvent> reliableEvents)
+      Tick ackTick,
+      EventId ackEventId,
+      IEnumerable<RailEvent> events)
     {
-      this.SenderTick = senderTick;
-      this.AckedTick = lastReceivedTick;
-      this.AckedEventId = lastReceivedEventId;
-      this.pendingReliableEvents.AddRange(reliableEvents);
+      this.senderTick = senderTick;
+      this.ackTick = ackTick;
+      this.ackEventId = ackEventId;
+      this.pendingReliableEvents.AddRange(events);
     }
 
     protected virtual void Reset()
     {
-      this.SenderTick = Tick.INVALID;
-      this.AckedTick = Tick.INVALID;
-      this.AckedEventId = EventId.INVALID;
+      this.senderTick = Tick.INVALID;
+      this.ackTick = Tick.INVALID;
+      this.ackEventId = EventId.INVALID;
 
       this.pendingReliableEvents.Clear();
-      this.globalEvents.Clear();
+      this.events.Clear();
     }
 
     #region Encoding/Decoding
+    public void Encode(BitBuffer buffer)
+    {
+      // Write: [Header]
+      this.EncodeHeader(buffer);
+
+      // Write: [Events]
+      this.EncodeEvents(buffer);
+
+      // Write: [Payload]
+      this.EncodePayload(buffer);
+
+      // TODO: Second pass to pack remaining space with events
+    }
+
+    internal void Decode(BitBuffer buffer)
+    {
+      // Write: [Header]
+      this.DecodeHeader(buffer);
+
+      // Write: [Events]
+      this.DecodeEvents(buffer);
+
+      // Write: [Payload]
+      this.DecodePayload(buffer);
+
+      // TODO: Second pass to get extra packed events
+    }
+
+    protected abstract void EncodePayload(BitBuffer buffer);
+    protected abstract void DecodePayload(BitBuffer buffer);
 
     #region Header
     protected void EncodeHeader(BitBuffer buffer)
     {
       // Write: [LocalTick]
-      buffer.Write(RailEncoders.Tick, this.SenderTick);
+      buffer.Write(RailEncoders.Tick, this.senderTick);
 
-      // Write: [AckedTick]
-      buffer.Write(RailEncoders.Tick, this.AckedTick);
+      // Write: [AckTick]
+      buffer.Write(RailEncoders.Tick, this.ackTick);
+
+      // Write: [AckEventId]
+      buffer.Write(RailEncoders.EventId, this.ackEventId);
     }
 
     internal void DecodeHeader(BitBuffer buffer)
     {
       // Read: [LocalTick]
-      this.SenderTick = buffer.Read(RailEncoders.Tick);
+      this.senderTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [AckedTick]
-      this.AckedTick = buffer.Read(RailEncoders.Tick);
+      this.ackTick = buffer.Read(RailEncoders.Tick);
+
+      // Read: [AckEventId]
+      this.ackEventId = buffer.Read(RailEncoders.EventId);
     }
+
     #endregion
 
     #region Events
     protected void EncodeEvents(BitBuffer buffer)
     {
+      // TODO: Packing and maximum count
+
       // Write: [EventCount]
       buffer.Write(RailEncoders.EventCount, this.pendingReliableEvents.Count);
 
@@ -91,17 +150,14 @@ namespace Railgun
 
     protected void DecodeEvents(BitBuffer buffer)
     {
-      // TODO: Cap the number of event sends
-
       // Read: [EventCount]
       int eventCount = buffer.Read(RailEncoders.EventCount);
 
       // Read: [Events]
       for (int i = 0; i < eventCount; i++)
-        this.globalEvents.Add(RailEvent.Decode(buffer));
+        this.events.Add(RailEvent.Decode(buffer));
     }
     #endregion
-
     #endregion
   }
 }
