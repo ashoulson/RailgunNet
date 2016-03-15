@@ -53,10 +53,6 @@ namespace Railgun
     private T latest;
     private T earliest;
 
-    // Whether or not the earliest is still in the buffer (used for freeing)
-    private bool earliestInBuffer;
-    private bool latestInBuffer;
-
     internal IEnumerable<T> Values
     {
       get
