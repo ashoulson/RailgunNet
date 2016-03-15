@@ -32,7 +32,7 @@ namespace Railgun
   /// <summary>
   /// Packet sent from client to server.
   /// </summary>
-  public class RailPacketC2S : RailPacket, IRailPoolable
+  public class RailClientPacket : RailPacket, IRailPoolable
   {
     RailPool IRailPoolable.Pool { get; set; }
     void IRailPoolable.Reset() { this.Reset(); }
@@ -50,7 +50,7 @@ namespace Railgun
     private readonly List<RailCommand> commands;
     private readonly RailView view;
 
-    public RailPacketC2S() : base()
+    public RailClientPacket() : base()
     {
       this.view = new RailView();
       this.commands = new List<RailCommand>();
@@ -103,10 +103,10 @@ namespace Railgun
       this.EncodeEvents(buffer);
     }
 
-    internal static RailPacketC2S Decode(
+    internal static RailClientPacket Decode(
       BitBuffer buffer)
     {
-      RailPacketC2S packet = RailResource.Instance.AllocateClientPacket();
+      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
 
       // Read: [Header]
       packet.DecodeHeader(buffer);

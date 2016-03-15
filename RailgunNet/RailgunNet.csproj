@@ -36,13 +36,15 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Connection\IRailController.cs" />
+    <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
-    <Compile Include="Connection\Scope\RailScope.cs" />
-    <Compile Include="Connection\Scope\RailScopeEvaluator.cs" />
-    <Compile Include="Serialization\Container\Packet\RailPacket.cs" />
-    <Compile Include="Serialization\Container\Packet\RailServerPacket.cs" />
+    <Compile Include="Logic\Scope\RailScope.cs" />
+    <Compile Include="Logic\Scope\RailScopeEvaluator.cs" />
+    <Compile Include="Connection\Server\RailServerPeer.cs" />
+    <Compile Include="Connection\RailPacket.cs" />
+    <Compile Include="Connection\Server\RailServerPacket.cs" />
     <Compile Include="Serialization\Container\RailView.cs" />
     <Compile Include="Serialization\Encoding\Encoder\TypedEncoder.cs" />
     <Compile Include="System\Types\IEncodableType.cs" />
@@ -56,13 +58,13 @@
     <Compile Include="Util\Exception\BasisNotFoundException.cs" />
     <Compile Include="Util\RingBuffer\IRailRingValue.cs" />
     <Compile Include="Util\Tuple.cs" />
-    <Compile Include="World\Smoothing\RailSmoother.cs" />
-    <Compile Include="World\Smoothing\RailStateBuffer.cs" />
-    <Compile Include="World\Smoothing\RailStateDelta.cs" />
+    <Compile Include="Logic\Smoothing\RailSmoother.cs" />
+    <Compile Include="Logic\Smoothing\RailStateBuffer.cs" />
+    <Compile Include="Logic\Smoothing\RailStateDelta.cs" />
     <Compile Include="RailClock.cs" />
-    <Compile Include="Connection\RailClient.cs" />
+    <Compile Include="Connection\Client\RailClient.cs" />
     <Compile Include="Connection\IRailNetPeer.cs" />
-    <Compile Include="Connection\RailServer.cs" />
+    <Compile Include="Connection\Server\RailServer.cs" />
     <Compile Include="RailConfig.cs" />
     <Compile Include="Util\RingBuffer\RailRingDelta.cs" />
     <Compile Include="Serialization\RailResource.cs" />
@@ -73,10 +75,10 @@
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\RingBuffer\RailRingBuffer.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailCommand.cs" />
-    <Compile Include="Serialization\Container\Packet\RailClientPacket.cs" />
-    <Compile Include="World\RailEntity.cs" />
+    <Compile Include="Connection\Client\RailClientPacket.cs" />
+    <Compile Include="Logic\RailEntity.cs" />
     <Compile Include="Serialization\RailInterpreter.cs" />
-    <Compile Include="World\RailWorld.cs" />
+    <Compile Include="Logic\RailWorld.cs" />
     <Compile Include="Serialization\Container\UserDefined\RailState.cs" />
     <Compile Include="Serialization\Encoding\BitBuffer.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Encoder.cs" />
@@ -84,9 +86,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\Encoding\Encoder\Typed\IntEncoder.cs" />
     <Compile Include="Serialization\Encoding\RailEncoders.cs" />
-    <Compile Include="World\Smoothing\Smoothers\RailSmootherFloat.cs" />
+    <Compile Include="Logic\Smoothing\Smoothers\RailSmootherFloat.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Serialization\Container\Packet\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

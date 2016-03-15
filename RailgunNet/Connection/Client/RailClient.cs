@@ -30,76 +30,7 @@ namespace Railgun
 {
   public class RailClient : RailConnection
   {
-    private class RailClientPeer : RailPeer
-    {
-      public event Action<RailClientPeer> MessagesReady;
-
-      /// <summary>
-      /// A history of sent commands to the server. Used on the client.
-      /// </summary>
-      private readonly Queue<RailCommand> outgoingBuffer;
-
-      /// <summary>
-      /// Commands that have been sent to the server but not yet acked.
-      /// </summary>
-      public override IEnumerable<RailCommand> PendingCommands
-      {
-        get { return this.outgoingBuffer; }
-      }
-
-      internal RailClientPeer(IRailNetPeer netPeer)
-        : base(netPeer)
-      {
-        this.outgoingBuffer = new Queue<RailCommand>();
-      }
-
-      internal void ProcessPacket(RailPacketS2C packet)
-      {
-        base.ProcessPacket(packet);
-
-        this.UpdateCommands(packet.LastProcessedCommandTick);
-      }
-
-      internal void PreparePacket(
-        RailPacketC2S packet,
-        Tick localTick,
-        IEnumerable<RailCommand> commands,
-        RailView view)
-      {
-        base.PreparePacketBase(packet, localTick);
-
-        packet.InitializeClient(commands, view);
-      }
-
-      internal void QueueOutgoing(RailCommand command)
-      {
-        if (this.outgoingBuffer.Count < RailConfig.COMMAND_BUFFER_COUNT)
-          this.outgoingBuffer.Enqueue(command);
-      }
-
-      internal void UpdateCommands(Tick lastReceivedTick)
-      {
-        if (lastReceivedTick.IsValid == false)
-          return;
-
-        while (true)
-        {
-          if (this.outgoingBuffer.Count == 0)
-            break;
-          if (this.outgoingBuffer.Peek().Tick > lastReceivedTick)
-            break;
-          RailPool.Free(this.outgoingBuffer.Dequeue());
-        }
-      }
-
-      protected override void OnMessagesReady(IRailNetPeer peer)
-      {
-        if (this.MessagesReady != null)
-          this.MessagesReady(this);
-      }
-    }
-
-    private RailClient.RailClientPeer peer;
+    private RailClientPeer serverPeer;
 
     /// <summary>
     /// Entities that are waiting to be added to the world.
@@ -120,7 +51,7 @@ namespace Railgun
     {
       RailConnection.IsServer = false;
       this.world.InitializeClient();
-      this.peer = null;
+      this.serverPeer = null;
 
       this.localTick = Tick.START;
 
@@ -134,17 +65,17 @@ namespace Railgun
 
     public void SetPeer(IRailNetPeer netPeer)
     {
-      CommonDebug.Assert(this.peer == null, "Overwriting peer");
-      this.peer = new RailClient.RailClientPeer(netPeer);
-      this.peer.MessagesReady += this.OnMessagesReady;
+      CommonDebug.Assert(this.serverPeer == null, "Overwriting peer");
+      this.serverPeer = new RailClientPeer(netPeer);
+      this.serverPeer.MessagesReady += this.OnMessagesReady;
     }
 
     public override void Update()
     {
-      if (this.peer != null)
+      if (this.serverPeer != null)
       {
         this.UpdateCommands();
-        this.UpdateWorld(this.peer.Update());
+        this.UpdateWorld(this.serverPeer.Update());
 
         if (this.localTick.IsSendTick)
           this.SendPacket();
@@ -160,13 +91,13 @@ namespace Railgun
     /// </summary>
     private void UpdateCommands()
     {
-      if (this.peer != null)
+      if (this.serverPeer != null)
       {
         RailCommand command = RailResource.Instance.AllocateCommand();
         command.Populate();
         command.Tick = this.localTick;
 
-        this.peer.QueueOutgoing(command);
+        this.serverPeer.QueueOutgoing(command);
       }
     }
 
@@ -179,7 +110,7 @@ namespace Railgun
       for (; numTicks > 0; numTicks--)
       {
         Tick serverTick = 
-          (this.peer.RemoteClock.EstimatedRemote - numTicks) + 1;
+          (this.serverPeer.RemoteClock.EstimatedRemote - numTicks) + 1;
         this.UpdatePendingEntities(serverTick);
         this.world.UpdateClient(serverTick);
       }
@@ -216,36 +147,36 @@ namespace Railgun
     /// </summary>
     private void SendPacket()
     {
-      RailPacketC2S packet = RailResource.Instance.AllocateClientPacket();
+      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
 
-      this.peer.PreparePacket(
+      this.serverPeer.PreparePacket(
         packet, 
         this.localTick,
-        this.peer.PendingCommands, 
+        this.serverPeer.PendingCommands, 
         this.entityView);
 
-      this.interpreter.SendClientPacket(this.peer, packet);
+      this.interpreter.SendClientPacket(this.serverPeer, packet);
       RailPool.Free(packet);
     }
     #endregion
 
     #region Packet Receive
-    private void OnMessagesReady(RailClient.RailClientPeer peer)
+    private void OnMessagesReady(RailClientPeer peer)
     {
-      IEnumerable<RailPacketS2C> decode =
+      IEnumerable<RailServerPacket> decode =
         this.interpreter.ReceiveServerPackets(
-          this.peer, 
+          this.serverPeer, 
           this.knownEntities);
 
-      foreach (RailPacketS2C packet in decode)
+      foreach (RailServerPacket packet in decode)
       {
-        this.peer.ProcessPacket(packet);
+        this.serverPeer.ProcessPacket(packet);
         this.ProcessPacket(packet);
         RailPool.Free(packet);
       }
     }
 
-    private void ProcessPacket(RailPacketS2C packet)
+    private void ProcessPacket(RailServerPacket packet)
     {
       foreach (RailState state in packet.States)
         this.ProcessState(state);
@@ -272,9 +203,9 @@ namespace Railgun
     private void UpdateControlStatus(RailEntity entity, RailState state)
     {
       if (state.IsController && (entity.Controller == null))
-        this.peer.GrantControl(entity);
+        this.serverPeer.GrantControl(entity);
       if ((state.IsController == false) && (entity.Controller != null))
-        this.peer.RevokeControl(entity);
+        this.serverPeer.RevokeControl(entity);
     }
 
     private RailEntity GetEntity(EntityId entityId)
