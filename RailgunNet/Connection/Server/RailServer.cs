@@ -79,14 +79,14 @@ namespace Railgun
     {
       if (this.clients.ContainsKey(peer))
       {
-        RailServerPeer clientPeer = this.clients[peer];
+        RailServerPeer client = this.clients[peer];
         this.clients.Remove(peer);
 
         if (this.ControllerLeft != null)
-          this.ControllerLeft.Invoke(clientPeer);
+          this.ControllerLeft.Invoke(client);
 
         // Revoke control of all the entities controlled by that controller
-        clientPeer.Shutdown();
+        client.Shutdown();
       }
     }
 

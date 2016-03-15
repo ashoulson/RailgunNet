@@ -26,6 +26,11 @@ using CommonTools;
 
 namespace Railgun
 {
+  interface IRailServerPacket : IRailPacket
+  {
+    IEnumerable<RailState> States { get; }
+  }
+
   /// <summary>
   /// Packet sent from server to client.
   /// </summary>

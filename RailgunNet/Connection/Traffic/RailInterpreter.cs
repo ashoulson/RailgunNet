@@ -40,7 +40,7 @@ namespace Railgun
       this.bitBuffer = new BitBuffer();
     }
 
-    internal void SendPacket(IRailNetPeer peer, RailPacket packet)
+    internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
     {
       this.bitBuffer.Clear();
 

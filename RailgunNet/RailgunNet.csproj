@@ -36,10 +36,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Connection\Client\IRailClientPacket.cs" />
     <Compile Include="Connection\Client\RailClientPeer.cs" />
-    <Compile Include="Connection\IRailPacket.cs" />
-    <Compile Include="Connection\Server\IRailServerPacket.cs" />
     <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
@@ -66,7 +63,7 @@
     <Compile Include="Logic\Smoothing\RailStateDelta.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\Client\RailClient.cs" />
-    <Compile Include="Connection\IRailNetPeer.cs" />
+    <Compile Include="Connection\Traffic\IRailNetPeer.cs" />
     <Compile Include="Connection\Server\RailServer.cs" />
     <Compile Include="RailConfig.cs" />
     <Compile Include="Util\RingBuffer\RailRingDelta.cs" />
@@ -80,7 +77,7 @@
     <Compile Include="System\Container\UserDefined\RailCommand.cs" />
     <Compile Include="Connection\Client\RailClientPacket.cs" />
     <Compile Include="Logic\RailEntity.cs" />
-    <Compile Include="System\RailInterpreter.cs" />
+    <Compile Include="Connection\Traffic\RailInterpreter.cs" />
     <Compile Include="Logic\RailWorld.cs" />
     <Compile Include="System\Container\UserDefined\RailState.cs" />
     <Compile Include="System\Encoding\BitBuffer.cs" />
