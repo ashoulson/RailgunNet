@@ -29,23 +29,10 @@ namespace Railgun
 {
   internal abstract class RailPeer : IRailControllerInternal
   {
-    #region IRailNetPeer Wrapping
-    internal IRailNetPeer NetPeer { get { return this.NetPeer; } }
-
+    /// <summary>
+    /// The network I/O peer for sending/receiving data.
+    /// </summary>
     private readonly IRailNetPeer netPeer;
-
-    internal IEnumerable<int> ReadReceived(byte[] buffer)
-    {
-      return this.netPeer.ReadReceived(buffer);
-    }
-
-    internal void EnqueueSend(byte[] buffer, int length)
-    {
-      this.netPeer.EnqueueSend(buffer, length);
-    }
-
-    protected abstract void OnMessagesReady(IRailNetPeer peer);
-    #endregion
 
     /// <summary>
     /// The entities controlled by this controller.
@@ -72,6 +59,11 @@ namespace Railgun
     /// </summary>
     private readonly RailClock remoteClock;
 
+    /// <summary>
+    /// Interpreter for converting byte input to a BitBuffer.
+    /// </summary>
+    private readonly RailInterpreter interpreter;
+
     public IEnumerable<RailEntity> ControlledEntities
     {
       get { return this.controlledEntities; }
@@ -94,7 +86,12 @@ namespace Railgun
       get { throw new NotImplementedException(); }
     }
 
-    internal RailPeer(IRailNetPeer netPeer)
+    protected abstract RailPacket AllocateIncoming();
+    protected abstract RailPacket AllocateOutgoing();
+
+    internal RailPeer(
+      IRailNetPeer netPeer,
+      RailInterpreter interpreter)
     {
       this.netPeer = netPeer;
       this.netPeer.MessagesReady += this.OnMessagesReady;
@@ -105,6 +102,8 @@ namespace Railgun
       this.lastEventId = EventId.INVALID;
       this.lastReceivedEventId = EventId.INVALID;
       this.remoteClock = new RailClock();
+
+      this.interpreter = interpreter;
     }
 
     public void QueueGlobal(RailEvent evnt, Tick tick)
@@ -146,15 +145,42 @@ namespace Railgun
       return this.remoteClock.Update();
     }
 
-    protected virtual void PreparePacketBase(
-      RailPacket packet, 
-      Tick localTick)
+    protected void SendPacket(RailPacket packet)
     {
+      this.interpreter.SendPacket(this.netPeer, packet);
+    }
+
+    protected void OnMessagesReady(IRailNetPeer peer)
+    {
+      foreach (BitBuffer buffer in this.interpreter.BeginReads(this.netPeer))
+      {
+        RailPacket packet = this.AllocateIncoming();
+        this.PreparePacketForRead(packet);
+        packet.Decode(buffer);
+        this.ProcessPacket(packet);
+      }
+    }
+
+    /// <summary>
+    /// For adding pre-read information like an entity reference dictionary.
+    /// </summary>
+    protected virtual void PreparePacketForRead(RailPacket packet) 
+    { 
+    }
+
+    /// <summary>
+    /// Allocates a packet and writes common boilerplate information to it.
+    /// </summary>
+    protected T AllocatePacketSend<T>(Tick localTick)
+      where T : RailPacket
+    {
+      RailPacket packet = this.AllocateOutgoing();
       packet.Initialize(
         localTick,
         this.remoteClock.LatestRemote,
         this.lastReceivedEventId,
         this.outgoingGlobalEvents);
+      return (T)packet;
     }
 
     /// <summary>
@@ -163,12 +189,29 @@ namespace Railgun
     protected virtual void ProcessPacket(RailPacket packet)
     {
       this.remoteClock.UpdateLatest(packet.SenderTick);
+      this.RemoveAckedEvents(packet.AckEventId);
 
       foreach (RailEvent evnt in this.GetNewEvents(packet))
         this.ProcessEvent(evnt);
 
       this.UpdateLastReceivedEvent(packet);
-      this.CleanReliableEvents();
+    }
+
+    /// <summary>
+    /// Removes any events from the pending queue that have been acked.
+    /// </summary>
+    private void RemoveAckedEvents(EventId lastReceived)
+    {
+      if (lastReceived.IsValid == false)
+        return;
+
+      while (this.outgoingGlobalEvents.Count > 0)
+      {
+        RailEvent next = this.outgoingGlobalEvents.Peek();
+        if (next.EventId.IsNewerThan(lastReceived))
+          break;
+        RailPool.Free(this.outgoingGlobalEvents.Dequeue());
+      }
     }
 
     /// <summary>
@@ -176,7 +219,7 @@ namespace Railgun
     /// </summary>
     private IEnumerable<RailEvent> GetNewEvents(RailPacket packet)
     {
-      foreach (RailEvent globalEvent in packet.GlobalEvents)
+      foreach (RailEvent globalEvent in packet.Events)
       {
         if (this.lastReceivedEventId.IsValid == false)
           yield return globalEvent;
@@ -200,30 +243,13 @@ namespace Railgun
 
     private void UpdateLastReceivedEvent(RailPacket packet)
     {
-      foreach (RailEvent globalEvent in packet.GlobalEvents)
+      // TODO: Improve this, check github issue #9
+      foreach (RailEvent globalEvent in packet.Events)
       {
         if (this.lastReceivedEventId.IsValid == false)
           this.lastReceivedEventId = globalEvent.EventId;
         else if (globalEvent.EventId.IsNewerThan(this.lastReceivedEventId))
           this.lastReceivedEventId = globalEvent.EventId;
-      }
-    }
-
-    private void CleanReliableEvents()
-    {
-      while (true)
-      {
-        if (this.lastReceivedEventId.IsValid == false) // They haven't received anything
-          break;
-
-        if (this.outgoingGlobalEvents.Count == 0)
-          break;
-
-        RailEvent next = this.outgoingGlobalEvents.Peek();
-        if (next.EventId.IsNewerThan(this.lastReceivedEventId))
-          break;
-
-        RailPool.Free(this.outgoingGlobalEvents.Dequeue());
       }
     }
   }

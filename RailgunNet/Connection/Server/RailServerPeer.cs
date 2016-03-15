@@ -29,20 +29,10 @@ namespace Railgun
   /// <summary>
   /// A peer contained by the server representing a connected client.
   /// </summary>
-  internal class RailServerPeer : RailPeer, IRailControllerServer
+  internal class RailServerPeer : 
+    RailPeer, IRailControllerServer, IRailControllerInternal
   {
-    internal event Action<RailServerPeer> MessagesReady;
-
-    /// <summary>
-    /// The last tick that the client received a packet from the server.
-    /// Not all entities will be up to date with this tick.
-    /// </summary>
-    internal Tick LastAckedServerTick { get; set; }
-
-    /// <summary>
-    /// The last command tick that the server processed.
-    /// </summary>
-    internal Tick LastProcessedCommandTick { get; set; }
+    internal event Action<IRailClientPacket> PacketReceived;
 
     /// <summary>
     /// The latest usable command in the dejitter buffer.
@@ -53,52 +43,35 @@ namespace Railgun
     }
 
     /// <summary>
-    /// The scope used for filtering entity updates.
-    /// </summary>
-    internal RailScope Scope
-    {
-      get { return this.scope; }
-    }
-
-    /// <summary>
     /// Used for setting the scope evaluator heuristics.
     /// </summary>
     public RailScopeEvaluator ScopeEvaluator
     {
-      set { this.Scope.Evaluator = value; }
+      set { this.scope.Evaluator = value; }
     }
 
-    /// <summary>
-    /// A history of received packets from the client. Used on the server.
-    /// </summary>
     private readonly RailRingBuffer<RailCommand> commandBuffer;
-
-    // Records the last tick we sent a given entity to our client
-    private readonly RailView lastSentView;
-
     private readonly RailScope scope;
 
+    private readonly RailView ackedView;
     private RailCommand latestCommand;
+    private Tick latestCommandTick;
 
-    internal RailServerPeer(IRailNetPeer netPeer)
-      : base(netPeer)
+    internal RailServerPeer(
+      IRailNetPeer netPeer,
+      RailInterpreter interpreter)
+      : base(netPeer, interpreter)
     {
-      this.LastAckedServerTick = Tick.INVALID;
-      this.LastProcessedCommandTick = Tick.INVALID;
-      this.latestCommand = null;
-      this.lastSentView = new RailView();
-      this.scope = new RailScope();
-
       // We use no divisor for storing commands because commands are sent in
       // batches that we can use to fill in the holes between send ticks
       this.commandBuffer =
         new RailRingBuffer<RailCommand>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
-    }
+      this.scope = new RailScope();
 
-    internal Tick GetLastAcked(EntityId id)
-    {
-      return this.lastSentView.GetLatest(id);
+      this.ackedView = new RailView();
+      this.latestCommand = null;
+      this.latestCommandTick = Tick.INVALID;
     }
 
     internal override int Update()
@@ -110,27 +83,9 @@ namespace Railgun
           this.RemoteClock.EstimatedRemote);
 
       if (this.latestCommand != null)
-        this.LastProcessedCommandTick = this.latestCommand.Tick;
+        this.latestCommandTick = this.latestCommand.Tick;
 
       return ticks;
-    }
-
-    internal void ProcessPacket(RailClientPacket packet)
-    {
-      base.ProcessPacket(packet);
-
-      foreach (RailCommand command in packet.Commands)
-        this.commandBuffer.Store(command);
-      this.lastSentView.Integrate(packet.View);
-    }
-
-    internal void PreparePacket(
-      RailServerPacket packet,
-      Tick localTick)
-    {
-      base.PreparePacketBase(packet, localTick);
-
-      packet.InitializeServer(this.LastProcessedCommandTick);
     }
 
     internal void Shutdown()
@@ -140,26 +95,53 @@ namespace Railgun
       this.controlledEntities.Clear();
     }
 
-    #region Scope Actions
-    internal void RegisterEntitySent(
-      EntityId entityId,
-      Tick latestTick)
+    internal void SendPacket(
+      Tick localTick,
+      IEnumerable<RailEntity> entities)
     {
-      this.Scope.RegisterSent(entityId, latestTick);
+      RailServerPacket packet =
+        base.AllocatePacketSend<RailServerPacket>(localTick);
+
+      // Set data
+      packet.Destination = this; // (Not sent, but used for controller flags)
+      packet.CommandTick = this.latestCommandTick;
+
+      // Queue up all entities in scope for the packet to try to fit
+      foreach (RailEntity entity in this.scope.Evaluate(entities, localTick))
+        packet.QueueEntity(entity, this.ackedView.GetLatest(entity.Id));
+
+      // Send the packet
+      base.SendPacket(packet);
+
+      // Record which entities we packed in
+      foreach (EntityId id in packet.SentIds)
+        this.scope.RegisterSent(id, localTick);
+
+      RailPool.Free(packet);
     }
 
-    internal IEnumerable<RailEntity> EvaluateEntities(
-      IEnumerable<RailEntity> allEntities,
-      Tick tick)
+    protected override void ProcessPacket(RailPacket packet)
     {
-      return this.Scope.Evaluate(allEntities, tick);
-    }
-    #endregion
+      base.ProcessPacket(packet);
 
-    protected override void OnMessagesReady(IRailNetPeer peer)
+      RailClientPacket clientPacket = (RailClientPacket)packet;
+
+      this.ackedView.Integrate(clientPacket.View);
+      foreach (RailCommand command in clientPacket.Commands)
+        this.commandBuffer.Store(command);
+
+      if (this.PacketReceived != null)
+        this.PacketReceived.Invoke(clientPacket);
+    }
+
+    protected override RailPacket AllocateIncoming()
     {
-      if (this.MessagesReady != null)
-        this.MessagesReady(this);
+      return RailResource.Instance.AllocateClientPacket();
+    }
+
+    protected override RailPacket AllocateOutgoing()
+    {
+      return RailResource.Instance.AllocateServerPacket();
     }
   }
 }

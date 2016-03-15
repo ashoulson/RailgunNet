@@ -45,12 +45,10 @@ namespace Railgun
     // The local simulation tick, used for commands
     private Tick localTick;
 
-    private readonly RailView entityView;
-
     public RailClient()
     {
       RailConnection.IsServer = false;
-      this.world.InitializeClient();
+      this.World.InitializeClient();
       this.serverPeer = null;
 
       this.localTick = Tick.START;
@@ -59,15 +57,17 @@ namespace Railgun
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.knownEntities =
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
-
-      this.entityView = new RailView();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
     {
       CommonDebug.Assert(this.serverPeer == null, "Overwriting peer");
-      this.serverPeer = new RailClientPeer(netPeer);
-      this.serverPeer.MessagesReady += this.OnMessagesReady;
+      this.serverPeer = 
+        new RailClientPeer(
+          netPeer, 
+          this.Interpreter,
+          this.knownEntities);
+      this.serverPeer.PacketReceived += this.OnPacketReceived;
     }
 
     public override void Update()
@@ -78,7 +78,7 @@ namespace Railgun
         this.UpdateWorld(this.serverPeer.Update());
 
         if (this.localTick.IsSendTick)
-          this.SendPacket();
+          this.serverPeer.SendPacket(this.localTick);
 
         this.localTick = this.localTick.GetNext();
       }
@@ -97,7 +97,7 @@ namespace Railgun
         command.Populate();
         command.Tick = this.localTick;
 
-        this.serverPeer.QueueOutgoing(command);
+        this.serverPeer.QueueCommand(command);
       }
     }
 
@@ -112,7 +112,7 @@ namespace Railgun
         Tick serverTick = 
           (this.serverPeer.RemoteClock.EstimatedRemote - numTicks) + 1;
         this.UpdatePendingEntities(serverTick);
-        this.world.UpdateClient(serverTick);
+        this.World.UpdateClient(serverTick);
       }
     }
 
@@ -129,7 +129,7 @@ namespace Railgun
       {
         if (entity.HasLatest(serverTick))
         {
-          this.world.AddEntity(entity);
+          this.World.AddEntity(entity);
           toRemove.Add(entity);
         }
       }
@@ -139,44 +139,8 @@ namespace Railgun
     }
     #endregion
 
-    #region Packet I/O
-
-    #region Packet Send
-    /// <summary>
-    /// Packs and sends a client-to-server packet to the server.
-    /// </summary>
-    private void SendPacket()
-    {
-      RailClientPacket packet = RailResource.Instance.AllocateClientPacket();
-
-      this.serverPeer.PreparePacket(
-        packet, 
-        this.localTick,
-        this.serverPeer.PendingCommands, 
-        this.entityView);
-
-      this.interpreter.SendClientPacket(this.serverPeer, packet);
-      RailPool.Free(packet);
-    }
-    #endregion
-
     #region Packet Receive
-    private void OnMessagesReady(RailClientPeer peer)
-    {
-      IEnumerable<RailServerPacket> decode =
-        this.interpreter.ReceiveServerPackets(
-          this.serverPeer, 
-          this.knownEntities);
-
-      foreach (RailServerPacket packet in decode)
-      {
-        this.serverPeer.ProcessPacket(packet);
-        this.ProcessPacket(packet);
-        RailPool.Free(packet);
-      }
-    }
-
-    private void ProcessPacket(RailServerPacket packet)
+    private void OnPacketReceived(IRailServerPacket packet)
     {
       foreach (RailState state in packet.States)
         this.ProcessState(state);
@@ -188,7 +152,7 @@ namespace Railgun
       if (this.knownEntities.TryGetValue(state.EntityId, out entity) == false)
       {
         entity = 
-          this.world.CreateEntity<RailEntity>(
+          this.World.CreateEntity<RailEntity>(
             state.EntityType,
             state.EntityId);
         this.pendingEntities.Add(state.EntityId, entity);
@@ -196,7 +160,6 @@ namespace Railgun
       }
 
       entity.StateBuffer.Store(state);
-      this.entityView.RecordUpdate(entity.Id, state.Tick);
       this.UpdateControlStatus(entity, state);
     }
 
@@ -207,18 +170,6 @@ namespace Railgun
       if ((state.IsController == false) && (entity.Controller != null))
         this.serverPeer.RevokeControl(entity);
     }
-
-    private RailEntity GetEntity(EntityId entityId)
-    {
-      RailEntity entity;
-      if (this.world.TryGetEntity(entityId, out entity) == true)
-        return entity;
-      if (this.pendingEntities.TryGetValue(entityId, out entity) == true)
-        return entity;
-      return null;
-    }
-    #endregion
-
     #endregion
   }
 }

@@ -213,9 +213,9 @@ namespace Railgun
     #region Encoding/Decoding
     internal void EncodeState(
       BitBuffer buffer, 
+      IRailController destination,
       Tick latestTick, 
-      Tick basisTick,
-      IRailController destination)
+      Tick basisTick)
     {
       RailState basis = null;
       TickSpan span = TickSpan.OUT_OF_RANGE;
@@ -243,8 +243,8 @@ namespace Railgun
     /// </summary>
     internal static RailState DecodeState(
       BitBuffer buffer,
-      Tick latestTick,
-      IDictionary<EntityId, RailEntity> knownEntities)
+      IDictionary<EntityId, RailEntity> knownEntities,
+      Tick latestTick)
     {
       // Read: [TickSpan]
       TickSpan span = buffer.Read(RailEncoders.TickSpan);

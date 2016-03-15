@@ -29,134 +29,118 @@ namespace Railgun
   /// <summary>
   /// Packet sent from server to client.
   /// </summary>
-  public class RailServerPacket : RailPacket, IRailPoolable
+  internal class RailServerPacket : RailPacket, IRailServerPacket
   {
     /// <summary>
     /// Maximum size for a single entity. We skip entities larger than this.
     /// </summary>
     internal const int MAX_ENTITY_SIZE = 100;
 
-    /// <summary>
-    /// Maximum size for this packet when sending. Used for scoping.
-    /// </summary>
-    internal const int MAX_PACKET_SIZE = RailConfig.MAX_MESSAGE_SIZE;
-
-    private struct EntityUpdate
-    {
-      internal RailEntity Entity { get { return this.entity; } }
-      internal Tick BasisTick { get { return this.basisTick; } }
-
-      private readonly RailEntity entity;
-      private readonly Tick basisTick;
-
-      internal EntityUpdate(RailEntity entity, Tick basisTick)
-      {
-        this.entity = entity;
-        this.basisTick = basisTick;
-      }
+    public IEnumerable<RailState> States 
+    { 
+      get { return this.states; }
     }
 
-    RailPool IRailPoolable.Pool { get; set; }
-    void IRailPoolable.Reset() { this.Reset(); }
+    private readonly List<RailState> states;
 
-    internal Tick LastProcessedCommandTick { get; private set; }
+    // Values controlled by the peer
+    internal Tick CommandTick { get; set; }
+    internal IRailController Destination { private get; set; }
+    internal IEnumerable<EntityId> SentIds { get { return this.sentIds; } }
+    internal IDictionary<EntityId, RailEntity> Reference { private get; set; }
 
-    // Server-only
-    internal List<EntityId> SentEntities { get; private set; }
-    private readonly List<EntityUpdate> pendingUpdates;
-
-    // Client-only
-    internal List<RailState> States { get; private set; }
+    // Input/output information for entity scoping
+    private readonly List<KeyValuePair<RailEntity, Tick>> pendingEntities;
+    private readonly List<EntityId> sentIds;
 
     public RailServerPacket() : base()
     {
-      this.SentEntities = new List<EntityId>();
-      this.pendingUpdates = new List<EntityUpdate>();
-      this.States = new List<RailState>();
+      this.states = new List<RailState>();
 
-      this.Reset();
-    }
+      this.CommandTick = Tick.INVALID;
+      this.Destination = null;
 
-    internal void InitializeServer(
-      Tick lastProcessedCommandTick)
-    {
-      this.LastProcessedCommandTick = lastProcessedCommandTick;
-    }
+      this.pendingEntities = new List<KeyValuePair<RailEntity, Tick>>();
+      this.sentIds = new List<EntityId>();
 
-    internal void AddEntity(RailEntity entity, Tick basisTick)
-    {
-      this.pendingUpdates.Add(new EntityUpdate(entity, basisTick));
+      this.Reference = null;
     }
 
     protected override void Reset()
     {
       base.Reset();
 
-      this.pendingUpdates.Clear();
-      this.States.Clear();
+      this.states.Clear();
+
+      this.CommandTick = Tick.INVALID;
+      this.Destination = null;
+
+      this.pendingEntities.Clear();
+      this.sentIds.Clear();
+
+      this.Reference = null;
+    }
+
+    internal void QueueEntity(RailEntity entity, Tick lastAcked)
+    {
+      this.pendingEntities.Add(
+        new KeyValuePair<RailEntity, Tick>(
+          entity, 
+          lastAcked));
     }
 
     #region Encode/Decode
-    internal void Encode(
-      BitBuffer buffer,
-      IRailController destination)
+    protected override void EncodePayload(BitBuffer buffer)
     {
       // Write: [Header]
       this.EncodeHeader(buffer);
 
-      // Write: [LastProcessedCommandTick]
-      buffer.Write(RailEncoders.Tick, this.LastProcessedCommandTick);
+      // Write: [CommandTick]
+      buffer.Write(RailEncoders.Tick, this.CommandTick);
 
       // Write: [Events]
       this.EncodeEvents(buffer);
 
-      // Write: [Entities]
-      this.EncodeEntities(buffer, destination);
+      // Write: [States]
+      this.EncodeStates(buffer);
 
       CommonDebug.Assert(buffer.ByteSize <= RailConfig.MAX_MESSAGE_SIZE);
     }
 
-    internal static RailServerPacket Decode(
-      BitBuffer buffer,
-      IDictionary<EntityId, RailEntity> knownEntities)
+    protected override void DecodePayload(BitBuffer buffer)
     {
-      RailServerPacket packet = RailResource.Instance.AllocateServerPacket();
-
       // Read: [Header]
-      packet.DecodeHeader(buffer);
+      this.DecodeHeader(buffer);
 
-      // Read: [LastProcessedCommandTick]
-      packet.LastProcessedCommandTick = buffer.Read(RailEncoders.Tick);
+      // Read: [CommandTick]
+      this.CommandTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [Events]
-      packet.DecodeEvents(buffer);
+      this.DecodeEvents(buffer);
 
-      // Read: [Entities]
-      packet.DecodeEntities(buffer, knownEntities, packet.SenderTick);
+      // Read: [States]
+      this.DecodeStates(buffer);
 
       CommonDebug.Assert(buffer.IsFinished);
-      return packet;
     }
 
-    #region Entities
-    private void EncodeEntities(
-      BitBuffer buffer,
-      IRailController destination)
+    #region States
+    private void EncodeStates(BitBuffer buffer)
     {
       // Reserve: [Entity Count]
       buffer.Reserve(RailEncoders.EntityCount);
 
       // Write: [Entity States]
-      foreach (EntityUpdate pair in this.pendingUpdates)
+      foreach (KeyValuePair<RailEntity, Tick> pair in this.pendingEntities)
       {
         buffer.SetRollback();
         int beforeSize = buffer.ByteSize;
 
-        pair.Entity.EncodeState(
+        pair.Key.EncodeState(
           buffer,
-          this.SenderTick,
-          pair.BasisTick,
-          destination);
+          this.Destination,  // Make sure this is set!
+          this.SenderTick,             // Make sure this is set!
+          pair.Value);
 
         int byteCost = buffer.ByteSize - beforeSize;
         if (byteCost > MAX_ENTITY_SIZE)
@@ -164,31 +148,28 @@ namespace Railgun
           buffer.Rollback();
           CommonDebug.LogWarning(
             "Entity too big: " +
-            pair.Entity.Id +
+            pair.Key.Id +
             "(" +
-            pair.Entity.Type +
+            pair.Key.Type +
             ") -- " +
             byteCost + "B");
         }
-        else if (buffer.ByteSize > RailServerPacket.MAX_PACKET_SIZE)
+        else if (buffer.ByteSize > RailConfig.MAX_MESSAGE_SIZE)
         {
           buffer.Rollback();
           break;
         }
         else
         {
-          this.SentEntities.Add(pair.Entity.Id);
+          this.sentIds.Add(pair.Key.Id);
         }
       }
 
       // Reserved Write: [Entity Count]
-      buffer.WriteReserved(RailEncoders.EntityCount, this.SentEntities.Count);
+      buffer.WriteReserved(RailEncoders.EntityCount, this.sentIds.Count);
     }
 
-    private void DecodeEntities(
-      BitBuffer buffer,
-      IDictionary<EntityId, RailEntity> knownEntities,
-      Tick latestTick)
+    private void DecodeStates(BitBuffer buffer)
     {
       // Read: [Entity Count]
       int count = buffer.Read(RailEncoders.EntityCount);
@@ -202,10 +183,10 @@ namespace Railgun
           state =
             RailEntity.DecodeState(
               buffer,
-              latestTick,
-              knownEntities);
+              this.Reference,  // Make sure this is set!
+              this.SenderTick);        // Make sure this is decoded first!
           if (state != null)
-            this.States.Add(state);
+            this.states.Add(state);
         }
         catch (BasisNotFoundException bnfe)
         {
@@ -215,7 +196,6 @@ namespace Railgun
       }
     }
     #endregion
-
     #endregion
   }
 }
