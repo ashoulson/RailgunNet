@@ -29,7 +29,7 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// The peer contained by the client representing the server.
+  /// The peer created by the client representing the server.
   /// </summary>
   internal class RailClientPeer : 
     RailPeer, IRailControllerInternal

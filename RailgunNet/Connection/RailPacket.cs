@@ -7,6 +7,11 @@ using CommonTools;
 
 namespace Railgun
 {
+  interface IRailPacket
+  {
+    void Encode(BitBuffer buffer);
+  }
+
   internal abstract class RailPacket : IRailPoolable, IRailPacket
   {
     RailPool IRailPoolable.Pool { get; set; }

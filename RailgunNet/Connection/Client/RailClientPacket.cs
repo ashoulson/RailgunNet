@@ -28,6 +28,9 @@ using CommonTools;
 
 namespace Railgun
 {
+  interface IRailClientPacket
+  {
+  }
 
   /// <summary>
   /// Packet sent from client to server.

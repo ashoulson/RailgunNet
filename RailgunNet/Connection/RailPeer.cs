@@ -156,8 +156,13 @@ namespace Railgun
       {
         RailPacket packet = this.AllocateIncoming();
         this.PreparePacketForRead(packet);
+
         packet.Decode(buffer);
-        this.ProcessPacket(packet);
+
+        if (buffer.IsFinished)
+          this.ProcessPacket(packet);
+        else
+          CommonDebug.LogError("Bad packet read, discarding...");
       }
     }
 
