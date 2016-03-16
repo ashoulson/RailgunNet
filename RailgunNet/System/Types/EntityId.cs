@@ -46,10 +46,9 @@ namespace Railgun
     internal static readonly EntityIdComparer Comparer = 
       new EntityIdComparer();
 
+    // ID 0 is invalid so the range is [0, count] instead of [0, count - 1]
     internal static readonly IntEncoder Encoder =
-      new IntEncoder(
-        0, 
-        RailConfig.MAX_ENTITY_COUNT + 1); // ID 0 is invalid
+      new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
 
     public bool IsValid 
     { 

@@ -28,33 +28,70 @@ namespace Railgun
 {
   public struct EventId : IEncodableType<EventId>
   {
-    public class EventIdComparer : IEqualityComparer<EventId>
-    {
-      public bool Equals(EventId x, EventId y)
-      {
-        return (x.idValue == y.idValue);
-      }
-
-      public int GetHashCode(EventId x)
-      {
-        return x.idValue;
-      }
-    }
+    // "Max" isn't exactly an accurate term since this rolls over
+    private const int LOG_MAX_EVENTS = 10; // 10 -> 1023 max events
+    private const int MAX_EVENTS = (1 << EventId.LOG_MAX_EVENTS) - 1;
+    private const int HALF_WAY_POINT = EventId.MAX_EVENTS / 2;
+    private const int BIT_SHIFT = 32 - EventId.LOG_MAX_EVENTS;
 
     internal static readonly EventId INVALID = new EventId(0);
+    internal static readonly EventId START = new EventId(1);
 
-    internal static readonly IntEncoder Encoder =
-      new IntEncoder(
-        0, 
-        RailConfig.MAX_EVENT_COUNT + 1); // ID 0 is invalid
+    // ID 0 is invalid so the valid ID range is [0, count] instead of [0, count - 1]
+    internal static readonly IntEncoder Encoder = new IntEncoder(0, EventId.MAX_EVENTS);
+    internal static readonly IntEncoder CountEncoder = new IntEncoder(0, EventId.MAX_EVENTS - 1);
 
-    internal static readonly EventIdComparer Comparer = new EventIdComparer();
-
-    internal static EventId Increment(ref EventId current)
+    #region Operators
+    public static bool operator >(EventId a, EventId b)
     {
-      // TODO: Wrap-around arithmetic
-      current = new EventId(current.idValue + 1);
-      return current;
+      CommonDebug.Assert(a.IsValid);
+      CommonDebug.Assert(b.IsValid);
+
+      int difference =
+        (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
+              ((uint)b.idValue << EventId.BIT_SHIFT));
+      return difference > 0;
+    }
+
+    public static bool operator <(EventId a, EventId b)
+    {
+      CommonDebug.Assert(a.IsValid);
+      CommonDebug.Assert(b.IsValid);
+
+      int difference =
+        (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
+              ((uint)b.idValue << EventId.BIT_SHIFT));
+      return difference < 0;
+    }
+
+    public static bool operator ==(EventId a, EventId b)
+    {
+      CommonDebug.Assert(a.IsValid);
+      CommonDebug.Assert(b.IsValid);
+
+      return a.idValue == b.idValue;
+    }
+
+    public static bool operator !=(EventId a, EventId b)
+    {
+      CommonDebug.Assert(a.IsValid);
+      CommonDebug.Assert(b.IsValid);
+
+      return a.idValue != b.idValue;
+    }
+    #endregion
+
+    public EventId Next 
+    {
+      get
+      {
+        CommonDebug.Assert(this.IsValid);
+
+        int nextId = this.idValue + 1;
+        if (nextId > EventId.MAX_EVENTS)
+          nextId = 1;
+        return new EventId(nextId);
+      }
     }
 
     public bool IsValid
@@ -72,15 +109,6 @@ namespace Railgun
     public override int GetHashCode()
     {
       return this.idValue;
-    }
-
-    internal bool IsNewerThan(EventId other)
-    {
-      CommonDebug.Assert(this.IsValid);
-      CommonDebug.Assert(other.IsValid);
-
-      // TODO: Wrap-around arithmetic
-      return (this.idValue > other.idValue);
     }
 
     public override bool Equals(object obj)
