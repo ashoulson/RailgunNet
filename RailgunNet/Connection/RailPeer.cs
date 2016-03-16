@@ -99,7 +99,7 @@ namespace Railgun
       this.controlledEntities = new HashSet<RailEntity>();
       this.outgoingGlobalEvents = new Queue<RailEvent>();
 
-      this.lastEventId = EventId.INVALID;
+      this.lastEventId = EventId.START;
       this.lastReceivedEventId = EventId.INVALID;
       this.remoteClock = new RailClock();
 
@@ -109,10 +109,9 @@ namespace Railgun
     public void QueueGlobal(RailEvent evnt, Tick tick)
     {
       RailEvent clone = evnt.Clone();
-      clone.Initialize(
-        tick,
-        EventId.Increment(ref this.lastEventId));
+      clone.Initialize(tick, this.lastEventId);
       this.outgoingGlobalEvents.Enqueue(clone);
+      this.lastEventId = this.lastEventId.Next;
     }
 
     /// <summary>
@@ -198,22 +197,20 @@ namespace Railgun
 
       foreach (RailEvent evnt in this.GetNewEvents(packet))
         this.ProcessEvent(evnt);
-
-      this.UpdateLastReceivedEvent(packet);
     }
 
     /// <summary>
     /// Removes any events from the pending queue that have been acked.
     /// </summary>
-    private void RemoveAckedEvents(EventId lastReceived)
+    private void RemoveAckedEvents(EventId peerAcked)
     {
-      if (lastReceived.IsValid == false)
+      if (peerAcked.IsValid == false)
         return;
 
       while (this.outgoingGlobalEvents.Count > 0)
       {
         RailEvent next = this.outgoingGlobalEvents.Peek();
-        if (next.EventId.IsNewerThan(lastReceived))
+        if (next.EventId > peerAcked)
           break;
         RailPool.Free(this.outgoingGlobalEvents.Dequeue());
       }
@@ -226,12 +223,15 @@ namespace Railgun
     {
       foreach (RailEvent globalEvent in packet.Events)
       {
-        if (this.lastReceivedEventId.IsValid == false)
+        bool isExpected =
+          (this.lastReceivedEventId.IsValid == false) ||
+          (this.lastReceivedEventId.Next == globalEvent.EventId);
+
+        if (isExpected)
+        {
+          this.lastReceivedEventId = globalEvent.EventId;
           yield return globalEvent;
-        else if (globalEvent.EventId.IsNewerThan(this.lastReceivedEventId))
-          yield return globalEvent;
-        else
-          break;
+        }
       }
     }
 
@@ -243,18 +243,6 @@ namespace Railgun
         default:
           CommonDebug.LogWarning("Unrecognized event: " + evnt.EventType);
           break;
-      }
-    }
-
-    private void UpdateLastReceivedEvent(RailPacket packet)
-    {
-      // TODO: Improve this, check github issue #9
-      foreach (RailEvent globalEvent in packet.Events)
-      {
-        if (this.lastReceivedEventId.IsValid == false)
-          this.lastReceivedEventId = globalEvent.EventId;
-        else if (globalEvent.EventId.IsNewerThan(this.lastReceivedEventId))
-          this.lastReceivedEventId = globalEvent.EventId;
       }
     }
   }

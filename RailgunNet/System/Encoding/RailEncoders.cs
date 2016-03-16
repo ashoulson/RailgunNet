@@ -42,7 +42,7 @@ namespace Railgun
 
     // Counts
     internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
-    internal static readonly IntEncoder EventCount = new IntEncoder(0, RailConfig.MAX_EVENT_COUNT);
+    internal static IntEncoder EventCount { get { return Railgun.EventId.CountEncoder; } }
     internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
   }
 }

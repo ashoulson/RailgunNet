@@ -55,7 +55,7 @@
     <Compile Include="System\Types\EventId.cs" />
     <Compile Include="System\Types\TickSpan.cs" />
     <Compile Include="System\Types\Tick.cs" />
-    <Compile Include="Util\Exception\BasisNotFoundException.cs" />
+    <Compile Include="System\Exception\BasisNotFoundException.cs" />
     <Compile Include="Util\RingBuffer\IRailRingValue.cs" />
     <Compile Include="Util\Tuple.cs" />
     <Compile Include="Logic\Smoothing\RailSmoother.cs" />
