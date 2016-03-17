@@ -34,8 +34,12 @@ namespace Railgun
   /// <summary>
   /// Packet sent from server to client.
   /// </summary>
-  internal class RailServerPacket : RailPacket, IRailServerPacket
+  internal class RailServerPacket : 
+    RailPacket, IRailServerPacket, IRailPoolable<RailServerPacket>
   {
+    IRailPool<RailServerPacket> IRailPoolable<RailServerPacket>.Pool { get; set; }
+    void IRailPoolable<RailServerPacket>.Reset() { this.Reset(); }
+
     /// <summary>
     /// Maximum size for a single entity. We skip entities larger than this.
     /// </summary>

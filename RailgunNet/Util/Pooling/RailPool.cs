@@ -26,61 +26,85 @@ using CommonTools;
 
 namespace Railgun
 {
-  internal abstract class RailPool
+  internal interface IRailPoolable<T>
   {
-    internal abstract void DeallocateGeneric(object item);
+    IRailPool<T> Pool { get; set; }
+    void Reset();
+  }
 
-    internal static void Free(IRailPoolable item)
+  internal interface IRailPool<T>
+  {
+    T Allocate();
+    void Deallocate(T obj);
+  }
+
+  internal static class RailPool
+  {
+    internal static void Free<T>(T obj)
+      where T : IRailPoolable<T>
     {
-      item.Pool.DeallocateGeneric(item);
+      obj.Pool.Deallocate(obj);
     }
   }
 
-  internal abstract class RailPool<T> : RailPool
-    where T : IRailPoolable
+  internal class RailPool<T> : IRailPool<T>
+    where T : IRailPoolable<T>, new()
   {
-    internal Stack<T> freeList;
+    private readonly Stack<T> freeList;
 
     internal RailPool()
     {
       this.freeList = new Stack<T>();
     }
 
-    internal abstract T Allocate();
-
-    internal void Deallocate(T value)
+    public T Allocate()
     {
-      CommonDebug.Assert(value.Pool == this);
-      value.Reset();
-      this.freeList.Push(value);
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
+
+      T obj = new T();
+      obj.Pool = this;
+      obj.Reset();
+      return obj;
     }
 
-    internal override void DeallocateGeneric(object item)
+    public void Deallocate(T obj)
     {
-      this.Deallocate((T)item);
-    }
-  }
-
-  internal class RailPoolGeneric<TBase> : RailPool<TBase>
-    where TBase : IRailPoolable, new()
-  {
-    internal override TBase Allocate()
-    {
-      TBase newDerived = new TBase();
-      newDerived.Pool = this;
-      return newDerived;
+      CommonDebug.Assert(obj.Pool == this);
+      
+      obj.Reset();
+      this.freeList.Push(obj);
     }
   }
 
-  internal class RailPoolGeneric<TBase, TDerived> : RailPool<TBase>
-    where TBase : IRailPoolable
+  internal class RailPool<TBase, TDerived> : IRailPool<TBase>
+    where TBase : IRailPoolable<TBase>
     where TDerived : TBase, new()
   {
-    internal override TBase Allocate()
+    private readonly Stack<TBase> freeList;
+
+    internal RailPool()
     {
-      TDerived newDerived = new TDerived();
-      newDerived.Pool = this;
-      return newDerived;
+      this.freeList = new Stack<TBase>();
+    }
+
+    public TBase Allocate()
+    {
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
+
+      TBase obj = new TDerived();
+      obj.Pool = this;
+      obj.Reset();
+      return obj;
+    }
+
+    public void Deallocate(TBase obj)
+    {
+      CommonDebug.Assert(obj.Pool == this);
+      
+      obj.Reset();
+      this.freeList.Push(obj);
     }
   }
 }

@@ -70,7 +70,6 @@
     <Compile Include="System\RailResource.cs" />
     <Compile Include="System\Encoding\Encoder\Typed\BoolEncoder.cs" />
     <Compile Include="Util\Common\CommonDebug.cs" />
-    <Compile Include="Util\Pooling\IRailPoolable.cs" />
     <Compile Include="Util\Pooling\RailPool.cs" />
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\RingBuffer\RailRingBuffer.cs" />

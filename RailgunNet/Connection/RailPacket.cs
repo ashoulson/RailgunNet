@@ -12,11 +12,8 @@ namespace Railgun
     void Encode(BitBuffer buffer);
   }
 
-  internal abstract class RailPacket : IRailPoolable, IRailPacket
+  internal abstract class RailPacket : IRailPacket
   {
-    RailPool IRailPoolable.Pool { get; set; }
-    void IRailPoolable.Reset() { this.Reset(); }
-
     /// <summary>
     /// Minimum number of reliable events to send.
     /// </summary>

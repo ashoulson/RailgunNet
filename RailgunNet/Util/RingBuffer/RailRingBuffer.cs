@@ -25,7 +25,7 @@ using System.Collections.Generic;
 namespace Railgun
 {
   internal class RailRingBuffer<T>
-    where T : class, IRailRingValue, IRailPoolable, IRailCloneable<T>
+    where T : class, IRailRingValue, IRailPoolable<T>, IRailCloneable<T>
   {
     // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
