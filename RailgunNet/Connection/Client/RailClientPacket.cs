@@ -35,8 +35,12 @@ namespace Railgun
   /// <summary>
   /// Packet sent from client to server.
   /// </summary>
-  internal class RailClientPacket : RailPacket, IRailClientPacket
+  internal class RailClientPacket : 
+    RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
+    IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
+    void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
+
     #region Data Read
     /// <summary>
     /// A brief history of commands from the client. May not be sent in order.

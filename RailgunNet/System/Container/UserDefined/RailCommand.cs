@@ -30,7 +30,7 @@ namespace Railgun
   /// Commands contain input data from the client to be applied to entities.
   /// </summary>
   public abstract class RailCommand : 
-    IRailPoolable, IRailRingValue, IRailCloneable<RailCommand>
+    IRailPoolable<RailCommand>, IRailRingValue, IRailCloneable<RailCommand>
   {
     public static void RegisterCommandType<TCommand>()
       where TCommand : RailCommand, new()
@@ -38,8 +38,8 @@ namespace Railgun
       RailResource.Instance.RegisterCommandType<TCommand>();
     }
 
-    RailPool IRailPoolable.Pool { get; set; }
-    void IRailPoolable.Reset() { this.Reset(); }
+    IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
+    void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
     Tick IRailRingValue.Tick { get { return this.Tick; } }
 
     internal abstract void SetDataFrom(RailCommand other);

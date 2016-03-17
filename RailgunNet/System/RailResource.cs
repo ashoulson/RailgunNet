@@ -36,25 +36,25 @@ namespace Railgun
       RailResource.Instance = new RailResource();
     }
 
-    private RailPoolGeneric<RailServerPacket> serverPacketPool;
-    private RailPoolGeneric<RailClientPacket> clientPacketPool;
+    private IRailPool<RailServerPacket> serverPacketPool;
+    private IRailPool<RailClientPacket> clientPacketPool;
 
-    private RailPool<RailCommand> commandPool;
+    private IRailPool<RailCommand> commandPool;
 
-    private Dictionary<int, RailPool<RailState>> statePools;
-    private Dictionary<int, RailPool<RailEvent>> eventPools;
+    private Dictionary<int, IRailPool<RailState>> statePools;
+    private Dictionary<int, IRailPool<RailEvent>> eventPools;
 
-    private Dictionary<int, RailFactory<RailEntity>> entityFactories;
+    private Dictionary<int, IRailFactory<RailEntity>> entityFactories;
 
     private RailResource()
     {
-      this.serverPacketPool = new RailPoolGeneric<RailServerPacket>();
-      this.clientPacketPool = new RailPoolGeneric<RailClientPacket>();
+      this.serverPacketPool = new RailPool<RailServerPacket>();
+      this.clientPacketPool = new RailPool<RailClientPacket>();
 
       this.commandPool = null;
-      this.statePools = new Dictionary<int, RailPool<RailState>>();
-      this.eventPools = new Dictionary<int, RailPool<RailEvent>>();
-      this.entityFactories = new Dictionary<int, RailFactory<RailEntity>>();
+      this.statePools = new Dictionary<int, IRailPool<RailState>>();
+      this.eventPools = new Dictionary<int, IRailPool<RailEvent>>();
+      this.entityFactories = new Dictionary<int, IRailFactory<RailEntity>>();
     }
 
     internal void RegisterEntityType<TEntity, TState>(int type)
@@ -62,25 +62,25 @@ namespace Railgun
       where TState : RailState, new()
     {
       this.entityFactories[type] = new RailFactory<RailEntity, TEntity>();
-      this.statePools[type] = new RailPoolGeneric<RailState, TState>();
+      this.statePools[type] = new RailPool<RailState, TState>();
     }
 
     internal void RegisterEventType<TEvent>(int type)
       where TEvent : RailEvent, new()
     {
-      this.eventPools[type] = new RailPoolGeneric<RailEvent, TEvent>();
+      this.eventPools[type] = new RailPool<RailEvent, TEvent>();
     }
 
     internal void RegisterCommandType<TCommand>()
       where TCommand : RailCommand, new()
     {
       CommonDebug.Assert(this.commandPool == null);
-      this.commandPool = new RailPoolGeneric<RailCommand, TCommand>();
+      this.commandPool = new RailPool<RailCommand, TCommand>();
     }
 
     internal RailEntity CreateEntity(int type)
     {
-      RailEntity entity = this.entityFactories[type].Create();
+      RailEntity entity = this.entityFactories[type].Instantiate();
       entity.Initialize(type);
       return entity;
     }
