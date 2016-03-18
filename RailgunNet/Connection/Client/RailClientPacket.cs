@@ -149,12 +149,12 @@ namespace Railgun
       CommonDebug.Assert(buffer.IsAvailable(RailClientPacket.KEY_ROLLBACK));
       CommonDebug.Assert(buffer.IsAvailable(RailClientPacket.KEY_RESERVE));
 
-      // Reserve: [Entity Count]
-      buffer.Reserve(
-        RailClientPacket.KEY_RESERVE,
-        RailEncoders.EntityCount);
+      int reserveKey = RailClientPacket.KEY_RESERVE;
 
-      int writtenCount = 0;
+      // Reserve: [Entity Count]
+      buffer.Reserve(reserveKey, RailEncoders.EntityCount);
+
+      int numWritten = 0;
       foreach (KeyValuePair<EntityId, Tick> pair in this.view.GetOrdered())
       {
         buffer.SetRollback(RailClientPacket.KEY_ROLLBACK);
@@ -171,14 +171,11 @@ namespace Railgun
           break;
         }
 
-        writtenCount++;
+        numWritten++;
       }
 
       // Reserved Write: [Entity Count]
-      buffer.WriteReserved(
-        RailClientPacket.KEY_RESERVE,
-        RailEncoders.EntityCount, 
-        writtenCount);
+      buffer.WriteReserved(reserveKey, RailEncoders.EntityCount, numWritten);
     }
 
     public void DecodeView(BitBuffer buffer)

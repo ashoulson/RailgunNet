@@ -47,6 +47,7 @@ namespace Railgun
       packet.Encode(this.bitBuffer);
 
       int length = this.bitBuffer.StoreBytes(this.byteBuffer);
+      CommonDebug.Assert(length <= RailConfig.MESSAGE_MAX_SIZE);
       peer.EnqueueSend(this.byteBuffer, length);
     }
 
