@@ -105,8 +105,6 @@ namespace Railgun
 
       // Write: [States]
       this.EncodeStates(buffer);
-
-      CommonDebug.Assert(buffer.ByteSize <= RailConfig.MESSAGE_MAX_SIZE);
     }
 
     protected override void DecodePayload(BitBuffer buffer)
@@ -116,8 +114,6 @@ namespace Railgun
 
       // Read: [States]
       this.DecodeStates(buffer);
-
-      CommonDebug.Assert(buffer.IsFinished);
     }
 
     #region States
