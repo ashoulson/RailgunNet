@@ -38,6 +38,10 @@ namespace Railgun
   internal class RailClientPacket :
     RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
+    // String hashes (md5):
+    private const int KEY_RESERVE = 0x509B1C56;
+    private const int KEY_ROLLBACK = 0x42A09755;
+
     IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
     void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
 
@@ -142,13 +146,18 @@ namespace Railgun
     #region View
     protected void EncodeView(BitBuffer buffer)
     {
+      CommonDebug.Assert(buffer.IsAvailable(RailClientPacket.KEY_ROLLBACK));
+      CommonDebug.Assert(buffer.IsAvailable(RailClientPacket.KEY_RESERVE));
+
       // Reserve: [Entity Count]
-      buffer.Reserve(RailEncoders.EntityCount);
+      buffer.Reserve(
+        RailClientPacket.KEY_RESERVE,
+        RailEncoders.EntityCount);
 
       int writtenCount = 0;
       foreach (KeyValuePair<EntityId, Tick> pair in this.view.GetOrdered())
       {
-        buffer.SetRollback();
+        buffer.SetRollback(RailClientPacket.KEY_ROLLBACK);
 
         // Write: [EntityId]
         buffer.Write(RailEncoders.EntityId, pair.Key);
@@ -156,9 +165,9 @@ namespace Railgun
         // Write: [Tick]
         buffer.Write(RailEncoders.Tick, pair.Value);
 
-        if (buffer.ByteSize > RailConfig.MAX_MESSAGE_SIZE)
+        if (buffer.ByteSize > RailConfig.MESSAGE_MAX_SIZE)
         {
-          buffer.Rollback();
+          buffer.Rollback(RailClientPacket.KEY_ROLLBACK);
           break;
         }
 
@@ -166,7 +175,10 @@ namespace Railgun
       }
 
       // Reserved Write: [Entity Count]
-      buffer.WriteReserved(RailEncoders.EntityCount, writtenCount);
+      buffer.WriteReserved(
+        RailClientPacket.KEY_RESERVE,
+        RailEncoders.EntityCount, 
+        writtenCount);
     }
 
     public void DecodeView(BitBuffer buffer)

@@ -61,7 +61,22 @@ namespace Railgun
     /// The maximum message size that a packet can contain, based on known
     /// MTUs for internet traffic. Don't change this without a good reason.
     /// </summary>
-    internal const int MAX_MESSAGE_SIZE = 1400;
+    internal const int MESSAGE_MAX_SIZE = 1400;
+
+    /// <summary>
+    /// The size to go up to when doing a first pass on packing.
+    /// </summary>
+    internal const int MESSAGE_FIRST_PACK = 400;
+
+    /// <summary>
+    /// Maximum size for a single entity. We skip entities larger than this.
+    /// </summary>
+    internal const int MAX_ENTITY_SIZE = 100;
+
+    /// <summary>
+    /// Maximum size for a single event. We skip event larger than this.
+    /// </summary>
+    internal const int MAX_EVENT_SIZE = 50;
 
     #region Encoding Parameters
     /// <summary>
