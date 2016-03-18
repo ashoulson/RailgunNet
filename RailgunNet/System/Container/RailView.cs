@@ -7,6 +7,21 @@ namespace Railgun
 {
   internal class RailView
   {
+    private class ViewComparer :
+      Comparer<KeyValuePair<EntityId, Tick>>
+    {
+      private static readonly Comparer<Tick> Comparer = Tick.Comparer;
+
+      public override int Compare(
+        KeyValuePair<EntityId, Tick> x, 
+        KeyValuePair<EntityId, Tick> y)
+      {
+        return ViewComparer.Comparer.Compare(x.Value, y.Value);
+      }
+    }
+
+    private static readonly ViewComparer Comparer = new ViewComparer();
+
     private Dictionary<EntityId, Tick> latestUpdates;
 
     public RailView()
@@ -42,35 +57,18 @@ namespace Railgun
         this.RecordUpdate(pair.Key, pair.Value);
     }
 
-    public void Encode(BitBuffer buffer)
+    /// <summary>
+    /// Views sort in descending tick order. When sending a view to the server
+    /// we send the most recent updated entities since they're the most likely
+    /// to actually matter to the server/client scope.
+    /// </summary>
+    public IEnumerable<KeyValuePair<EntityId, Tick>> GetOrdered()
     {
-      // Write: [Count]
-      buffer.Write(RailEncoders.EntityCount, this.latestUpdates.Count);
-
-      foreach (KeyValuePair<EntityId, Tick> pair in this.latestUpdates)
-      {
-        // Write: [EntityId]
-        buffer.Write(RailEncoders.EntityId, pair.Key);
-
-        // Write: [Tick]
-        buffer.Write(RailEncoders.Tick, pair.Value);
-      }
-    }
-
-    public void Decode(BitBuffer buffer)
-    {
-      // Read: [Count]
-      int count = buffer.Read(RailEncoders.EntityCount);
-
-      for (int i = 0; i < count; i++)
-      {
-        this.RecordUpdate(
-          // Read: [EntityId]
-          buffer.Read(RailEncoders.EntityId),
-
-          // Read: [Tick]
-          buffer.Read(RailEncoders.Tick));
-      }
+      List<KeyValuePair<EntityId, Tick>> values =
+        new List<KeyValuePair<EntityId, Tick>>(this.latestUpdates);
+      values.Sort(RailView.Comparer);
+      values.Reverse();
+      return values;
     }
   }
 }

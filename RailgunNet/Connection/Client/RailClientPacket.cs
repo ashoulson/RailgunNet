@@ -35,7 +35,7 @@ namespace Railgun
   /// <summary>
   /// Packet sent from client to server.
   /// </summary>
-  internal class RailClientPacket : 
+  internal class RailClientPacket :
     RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
     IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
@@ -45,17 +45,17 @@ namespace Railgun
     /// <summary>
     /// A brief history of commands from the client. May not be sent in order.
     /// </summary>
-    public IEnumerable<RailCommand> Commands 
+    public IEnumerable<RailCommand> Commands
     {
-      get { return this.commands; } 
+      get { return this.commands; }
     }
 
     /// <summary>
     /// A (partial) view indicating the last update frame for each entity.
     /// </summary>
-    public RailView View 
-    { 
-      get { return this.view; } 
+    public RailView View
+    {
+      get { return this.view; }
     }
     #endregion
 
@@ -81,7 +81,8 @@ namespace Railgun
     private readonly List<RailCommand> commands;
     private readonly RailView view;
 
-    public RailClientPacket() : base()
+    public RailClientPacket()
+      : base()
     {
       this.view = new RailView();
       this.commands = new List<RailCommand>();
@@ -103,7 +104,7 @@ namespace Railgun
       this.EncodeCommands(buffer);
 
       // Write: [View]
-      this.view.Encode(buffer);
+      this.EncodeView(buffer);
     }
 
     protected override void DecodePayload(
@@ -113,7 +114,7 @@ namespace Railgun
       this.DecodeCommands(buffer);
 
       // Read: [View]
-      this.view.Decode(buffer);
+      this.DecodeView(buffer);
     }
 
     #region Commands
@@ -135,6 +136,54 @@ namespace Railgun
       // Read: [Commands]
       for (int i = 0; i < commandCount; i++)
         this.commands.Add(RailCommand.Decode(buffer));
+    }
+    #endregion
+
+    #region View
+    protected void EncodeView(BitBuffer buffer)
+    {
+      // Reserve: [Entity Count]
+      buffer.Reserve(RailEncoders.EntityCount);
+
+      int writtenCount = 0;
+      foreach (KeyValuePair<EntityId, Tick> pair in this.view.GetOrdered())
+      {
+        buffer.SetRollback();
+
+        // Write: [EntityId]
+        buffer.Write(RailEncoders.EntityId, pair.Key);
+
+        // Write: [Tick]
+        buffer.Write(RailEncoders.Tick, pair.Value);
+
+        if (buffer.ByteSize > RailConfig.MAX_MESSAGE_SIZE)
+        {
+          buffer.Rollback();
+          break;
+        }
+
+        writtenCount++;
+      }
+
+      // Reserved Write: [Entity Count]
+      buffer.WriteReserved(RailEncoders.EntityCount, writtenCount);
+    }
+
+    public void DecodeView(BitBuffer buffer)
+    {
+      // Read: [Count]
+      int count = buffer.Read(RailEncoders.EntityCount);
+
+      for (int i = 0; i < count; i++)
+      {
+        // Read: [EntityId]
+        EntityId id = buffer.Read(RailEncoders.EntityId);
+
+        // Read: [Tick]
+        Tick tick = buffer.Read(RailEncoders.Tick);
+
+        this.view.RecordUpdate(id, tick);
+      }
     }
     #endregion
     #endregion

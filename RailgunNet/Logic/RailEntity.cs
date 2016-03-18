@@ -217,6 +217,9 @@ namespace Railgun
       Tick latestTick, 
       Tick basisTick)
     {
+      CommonDebug.Assert(destination != null);
+      CommonDebug.Assert(latestTick.IsValid);
+
       RailState basis = null;
       TickSpan span = TickSpan.OUT_OF_RANGE;
       bool isController = (destination == this.Controller);
