@@ -147,8 +147,8 @@ namespace Railgun
 
         pair.Key.EncodeState(
           buffer,
-          this.Destination,  // Make sure this is set!
-          this.SenderTick,             // Make sure this is set!
+          this.Destination,  // Make sure this is set ahead of time!
+          this.SenderTick,   // Make sure this is set ahead of time!
           pair.Value);
 
         int byteCost = buffer.ByteSize - beforeSize;

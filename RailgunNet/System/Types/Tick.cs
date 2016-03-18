@@ -33,6 +33,21 @@ namespace Railgun
   /// </summary>
   public struct Tick : IEncodableType<Tick>
   {
+    internal class TickComparer : Comparer<Tick>
+    {
+      private static readonly Comparer<int> Comparer =
+        Comparer<int>.Default;
+
+      public override int Compare(Tick x, Tick y)
+      {
+        CommonDebug.Assert(x.IsValid);
+        CommonDebug.Assert(y.IsValid);
+        return TickComparer.Comparer.Compare(x.tickValue, y.tickValue);
+      }
+    }
+
+    internal static readonly Comparer<Tick> Comparer = new TickComparer();
+
     internal static Tick Create(Tick latest, TickSpan offset)
     {
       return latest - offset.RawValue;
