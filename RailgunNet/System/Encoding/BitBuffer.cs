@@ -48,24 +48,9 @@ namespace Railgun
     private int readPos;
 
     /// <summary>
-    /// A stored potential rollback position.
-    /// </summary>
-    private int rollbackPos;
-
-    /// <summary>
     /// The position of the next-to-be-written bit.
     /// </summary>
     private int writePos;
-
-    /// <summary>
-    /// A stored position for writing in a reserved slot.
-    /// </summary>
-    private int reservedPos;
-
-    /// <summary>
-    /// The size of the reserved slot. Used for error checking.
-    /// </summary>
-    private int reservedSize;
 
     /// <summary>
     /// Buffer of chunks for storing data.
@@ -83,11 +68,17 @@ namespace Railgun
     public bool IsFinished { get { return (this.writePos == this.readPos); } }
 
     /// <summary>
+    /// Collection of saved points for bookmarks or reserved writes.
+    /// </summary>
+    private readonly Dictionary<int, int> bookmarks;
+
+    /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
     public BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
     {
       this.chunks = new uint[capacity];
+      this.bookmarks = new Dictionary<int, int>();
 
       this.Clear();
     }
@@ -101,28 +92,41 @@ namespace Railgun
         this.chunks[i] = 0;
 
       this.readPos = 0;
-      this.rollbackPos = 0;
       this.writePos = 0;
 
-      this.reservedPos = -1;
-      this.reservedSize = -1;
+      this.bookmarks.Clear();
     }
 
     /// <summary>
     /// Sets a rollback point for later.
     /// </summary>
-    public void SetRollback()
+    public void ClearBookmark(int key)
     {
-      this.rollbackPos = this.writePos;
+      this.bookmarks.Remove(key);
+    }
+
+    /// <summary>
+    /// Checks to see if the buffer has a bookmark for a given key.
+    /// </summary>
+    public bool IsAvailable(int key)
+    {
+      return (this.bookmarks.ContainsKey(key) == false);
+    }
+
+    /// <summary>
+    /// Sets a rollback point for later.
+    /// </summary>
+    public void SetRollback(int key)
+    {
+      this.bookmarks[key] = this.writePos;
     }
 
     /// <summary>
     /// Reserves some room for writing later.
     /// </summary>
-    public void SetReserved(int numBits)
+    public void SetReserved(int key, int numBits)
     {
-      this.reservedPos = this.writePos;
-      this.reservedSize = numBits;
+      this.bookmarks[key] = this.writePos;
       this.writePos += numBits;
     }
 
@@ -130,14 +134,15 @@ namespace Railgun
     /// Returns the buffer to a previous point and clears out all data
     /// stored since that point.
     /// </summary>
-    public void Rollback()
+    public void Rollback(int key)
     {
-      if (this.rollbackPos > this.writePos)
+      int rollbackPos = this.bookmarks[key];
+      if (rollbackPos > this.writePos)
         throw new InvalidOperationException();
 
-      int rollbackWritten = this.rollbackPos - 1;
+      int rollbackWritten = rollbackPos - 1;
       int goalIndex = rollbackWritten / BitBuffer.SIZE_STORAGE;
-      int bitsRemaining = this.writePos - this.rollbackPos;
+      int bitsRemaining = this.writePos - rollbackPos;
 
       while (bitsRemaining > 0)
       {
@@ -156,11 +161,13 @@ namespace Railgun
           int bitsToSave = used - bitsRemaining;
           ulong mask = (1UL << bitsToSave) - 1;
           this.chunks[index] &= (uint)mask;
-          this.writePos = this.rollbackPos;
+          this.writePos = rollbackPos;
         }
 
-        bitsRemaining = this.writePos - this.rollbackPos;
+        bitsRemaining = this.writePos - rollbackPos;
       }
+
+      this.bookmarks.Remove(key);
     }
 
     /// <summary>
@@ -175,16 +182,11 @@ namespace Railgun
     /// <summary>
     /// Takes the lower numBits from the value and stores them in the buffer.
     /// </summary>
-    public void WriteReserved(int numBits, uint value)
+    public void WriteReserved(int key, int numBits, uint value)
     {
-      if (this.reservedPos < 0)
-        throw new AccessViolationException("No space reserved");
-      if (this.reservedSize < numBits)
-        throw new ArgumentOutOfRangeException("Not enough space reserved");
-
-      this.Write(numBits, value, this.reservedPos);
-      this.reservedPos = -1;
-      this.reservedSize = -1;
+      int reservedPos = this.bookmarks[key];
+      this.Write(numBits, value, reservedPos);
+      this.bookmarks.Remove(key);
     }
 
     /// <summary>
@@ -246,10 +248,6 @@ namespace Railgun
     /// </summary>
     public int StoreBytes(byte[] buffer)
     {
-      CommonDebug.Assert(
-        this.reservedPos < 0, 
-        "Serializing with reserved space");
-
       // Push a sentinel bit for finding position
       this.PushSentinel();
 
@@ -453,17 +451,17 @@ namespace Railgun
     /// <summary>
     /// Reserves a number of bits in the buffer.
     /// </summary>
-    public void Reserve<T>(Encoder<T> encoder)
+    public void Reserve<T>(int key, Encoder<T> encoder)
     {
-      encoder.Reserve(this);
+      encoder.Reserve(key, this);
     }
 
     /// <summary>
     /// Writes to a previously reserved space.
     /// </summary>
-    public void WriteReserved<T>(Encoder<T> encoder, T value)
+    public void WriteReserved<T>(int key, Encoder<T> encoder, T value)
     {
-      encoder.WriteReserved(this, value);
+      encoder.WriteReserved(key, this, value);
     }
 
     #region Conditional Serialization Helpers

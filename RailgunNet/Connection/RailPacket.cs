@@ -14,6 +14,11 @@ namespace Railgun
 
   internal abstract class RailPacket : IRailPacket
   {
+    // String hashes (md5):
+    private const int KEY_RESERVE_1 = 0x137CE785;
+    private const int KEY_RESERVE_2 = 0x4E9C95DA;
+    private const int KEY_ROLLBACK = 0x652FC8E6;
+
     /// <summary>
     /// Minimum number of reliable events to send.
     /// </summary>
@@ -43,8 +48,10 @@ namespace Railgun
     private Tick ackTick;
     private EventId ackEventId;
 
-    private readonly List<RailEvent> pendingReliableEvents;
+    private readonly List<RailEvent> pendingEvents;
     private readonly List<RailEvent> events;
+
+    private int eventsWritten;
 
     public RailPacket()
     {
@@ -52,8 +59,10 @@ namespace Railgun
       this.ackTick = Tick.INVALID;
       this.ackEventId = EventId.INVALID;
 
-      this.pendingReliableEvents = new List<RailEvent>();
+      this.pendingEvents = new List<RailEvent>();
       this.events = new List<RailEvent>();
+
+      this.eventsWritten = 0;
     }
 
     internal void Initialize(
@@ -65,7 +74,7 @@ namespace Railgun
       this.senderTick = senderTick;
       this.ackTick = ackTick;
       this.ackEventId = ackEventId;
-      this.pendingReliableEvents.AddRange(events);
+      this.pendingEvents.AddRange(events);
     }
 
     protected virtual void Reset()
@@ -74,23 +83,46 @@ namespace Railgun
       this.ackTick = Tick.INVALID;
       this.ackEventId = EventId.INVALID;
 
-      this.pendingReliableEvents.Clear();
+      this.pendingEvents.Clear();
       this.events.Clear();
+
+      this.eventsWritten = 0;
     }
 
     #region Encoding/Decoding
+    /// <summary>
+    /// After writing the header we write the packet data in three passes.
+    /// The first pass is a fill of events up to a percentage of the packet.
+    /// The second pass is the payload value, which will try to fill the
+    /// remaining packet space. If more space is available, we will try
+    /// to fill it with any remaining events, up to the maximum packet size.
+    /// </summary>
     public void Encode(BitBuffer buffer)
     {
+      CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_RESERVE_1));
+      CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_RESERVE_2));
+
+      int firstPack = RailConfig.MESSAGE_FIRST_PACK;
+      int secondPack = RailConfig.MESSAGE_MAX_SIZE;
+      this.eventsWritten = 0;
+
       // Write: [Header]
       this.EncodeHeader(buffer);
 
-      // Write: [Events]
-      this.EncodeEvents(buffer);
+      // Reserve: [Event Count] (for first pass)
+      buffer.Reserve(RailPacket.KEY_RESERVE_1, RailEncoders.EventCount);
 
-      // Write: [Payload]
+      // Reserve: [Event Count] (for third pass)
+      buffer.Reserve(RailPacket.KEY_RESERVE_2, RailEncoders.EventCount);
+
+      // Write: [Events] (first pass)
+      this.PartialEncodeEvents(buffer, RailPacket.KEY_RESERVE_1, firstPack);
+
+      // Write: [Payload] (second pass)
       this.EncodePayload(buffer);
 
-      // TODO: Second pass to pack remaining space with events
+      // Write: [Events] (third pass)
+      this.PartialEncodeEvents(buffer, RailPacket.KEY_RESERVE_2, secondPack);
     }
 
     internal void Decode(BitBuffer buffer)
@@ -98,20 +130,27 @@ namespace Railgun
       // Write: [Header]
       this.DecodeHeader(buffer);
 
-      // Write: [Events]
-      this.DecodeEvents(buffer);
+      // Read: [Event Count] (for first pass)
+      int firstCount = buffer.Read(RailEncoders.EventCount);
 
-      // Write: [Payload]
+      // Read: [Event Count] (for third pass)
+      int secondCount = buffer.Read(RailEncoders.EventCount);
+
+      // Read: [Events] (first pass)
+      this.PartialDecodeEvents(buffer, firstCount);
+
+      // Write: [Payload] (second pass)
       this.DecodePayload(buffer);
 
-      // TODO: Second pass to get extra packed events
+      // Read: [Events] (third pass)
+      this.PartialDecodeEvents(buffer, secondCount);
     }
 
     protected abstract void EncodePayload(BitBuffer buffer);
     protected abstract void DecodePayload(BitBuffer buffer);
 
     #region Header
-    protected void EncodeHeader(BitBuffer buffer)
+    private void EncodeHeader(BitBuffer buffer)
     {
       // Write: [LocalTick]
       buffer.Write(RailEncoders.Tick, this.senderTick);
@@ -123,7 +162,7 @@ namespace Railgun
       buffer.Write(RailEncoders.EventId, this.ackEventId);
     }
 
-    internal void DecodeHeader(BitBuffer buffer)
+    private void DecodeHeader(BitBuffer buffer)
     {
       // Read: [LocalTick]
       this.senderTick = buffer.Read(RailEncoders.Tick);
@@ -138,25 +177,51 @@ namespace Railgun
     #endregion
 
     #region Events
-    protected void EncodeEvents(BitBuffer buffer)
+    /// <summary>
+    /// Writes as many events as possible up to maxSize and returns the number
+    /// of events written in the batch. Also increments the total counter.
+    /// </summary>
+    private void PartialEncodeEvents(BitBuffer buffer, int key, int maxSize)
     {
-      // TODO: Packing and maximum count
+      CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_ROLLBACK));
 
-      // Write: [EventCount]
-      buffer.Write(RailEncoders.EventCount, this.pendingReliableEvents.Count);
+      int batchCount = 0;
+      while (this.eventsWritten < this.pendingEvents.Count)
+      {
+        buffer.SetRollback(RailPacket.KEY_ROLLBACK);
+        int beforeSize = buffer.ByteSize;
 
-      // Write: [Events]
-      foreach (RailEvent evnt in this.pendingReliableEvents)
+        RailEvent evnt = this.pendingEvents[this.eventsWritten];
+
+        // Write: [Event]
         evnt.Encode(buffer);
+
+        int byteCost = buffer.ByteSize - beforeSize;
+        if (byteCost > RailConfig.MAX_EVENT_SIZE)
+        {
+          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
+          CommonDebug.LogWarning("Skipping " + evnt + " " + byteCost); 
+        }
+        else if (buffer.ByteSize > maxSize)
+        {
+          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
+          break;
+        }
+        else
+        {
+          this.eventsWritten++;
+          batchCount++;
+        }
+      }
+
+      // Write Reserved: [Event Count] (space already reserved in Encode)
+      buffer.WriteReserved(key, RailEncoders.EventCount, batchCount);
     }
 
-    protected void DecodeEvents(BitBuffer buffer)
+    private void PartialDecodeEvents(BitBuffer buffer, int count)
     {
-      // Read: [EventCount]
-      int eventCount = buffer.Read(RailEncoders.EventCount);
-
       // Read: [Events]
-      for (int i = 0; i < eventCount; i++)
+      for (int i = 0; i < count; i++)
         this.events.Add(RailEvent.Decode(buffer));
     }
     #endregion

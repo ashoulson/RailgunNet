@@ -46,14 +46,14 @@ namespace Railgun
       return this.Unpack(buffer.Peek(this.RequiredBits));
     }
 
-    internal virtual void Reserve(BitBuffer buffer)
+    internal virtual void Reserve(int key, BitBuffer buffer)
     {
-      buffer.SetReserved(this.RequiredBits);
+      buffer.SetReserved(key, this.RequiredBits);
     }
 
-    internal virtual void WriteReserved(BitBuffer buffer, T value)
+    internal virtual void WriteReserved(int key, BitBuffer buffer, T value)
     {
-      buffer.WriteReserved(this.RequiredBits, this.Pack(value));
+      buffer.WriteReserved(key, this.RequiredBits, this.Pack(value));
     }
   }
 }

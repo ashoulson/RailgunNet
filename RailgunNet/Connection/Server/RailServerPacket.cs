@@ -37,13 +37,12 @@ namespace Railgun
   internal class RailServerPacket : 
     RailPacket, IRailServerPacket, IRailPoolable<RailServerPacket>
   {
+    // String hashes (md5):
+    private const int KEY_RESERVE = 0x024BE210;
+    private const int KEY_ROLLBACK = 0x667C36AC;
+
     IRailPool<RailServerPacket> IRailPoolable<RailServerPacket>.Pool { get; set; }
     void IRailPoolable<RailServerPacket>.Reset() { this.Reset(); }
-
-    /// <summary>
-    /// Maximum size for a single entity. We skip entities larger than this.
-    /// </summary>
-    internal const int MAX_ENTITY_SIZE = 100;
 
     public IEnumerable<RailState> States 
     { 
@@ -101,31 +100,19 @@ namespace Railgun
     #region Encode/Decode
     protected override void EncodePayload(BitBuffer buffer)
     {
-      // Write: [Header]
-      this.EncodeHeader(buffer);
-
       // Write: [CommandTick]
       buffer.Write(RailEncoders.Tick, this.CommandTick);
-
-      // Write: [Events]
-      this.EncodeEvents(buffer);
 
       // Write: [States]
       this.EncodeStates(buffer);
 
-      CommonDebug.Assert(buffer.ByteSize <= RailConfig.MAX_MESSAGE_SIZE);
+      CommonDebug.Assert(buffer.ByteSize <= RailConfig.MESSAGE_MAX_SIZE);
     }
 
     protected override void DecodePayload(BitBuffer buffer)
     {
-      // Read: [Header]
-      this.DecodeHeader(buffer);
-
       // Read: [CommandTick]
       this.CommandTick = buffer.Read(RailEncoders.Tick);
-
-      // Read: [Events]
-      this.DecodeEvents(buffer);
 
       // Read: [States]
       this.DecodeStates(buffer);
@@ -136,13 +123,16 @@ namespace Railgun
     #region States
     private void EncodeStates(BitBuffer buffer)
     {
+      CommonDebug.Assert(buffer.IsAvailable(RailServerPacket.KEY_RESERVE));
+      CommonDebug.Assert(buffer.IsAvailable(RailServerPacket.KEY_ROLLBACK));
+
       // Reserve: [Entity Count]
-      buffer.Reserve(RailEncoders.EntityCount);
+      buffer.Reserve(RailServerPacket.KEY_RESERVE, RailEncoders.EntityCount);
 
       // Write: [Entity States]
       foreach (KeyValuePair<RailEntity, Tick> pair in this.pendingEntities)
       {
-        buffer.SetRollback();
+        buffer.SetRollback(RailServerPacket.KEY_ROLLBACK);
         int beforeSize = buffer.ByteSize;
 
         pair.Key.EncodeState(
@@ -152,20 +142,14 @@ namespace Railgun
           pair.Value);
 
         int byteCost = buffer.ByteSize - beforeSize;
-        if (byteCost > MAX_ENTITY_SIZE)
+        if (byteCost > RailConfig.MAX_ENTITY_SIZE)
         {
-          buffer.Rollback();
-          CommonDebug.LogWarning(
-            "Entity too big: " +
-            pair.Key.Id +
-            "(" +
-            pair.Key.Type +
-            ") -- " +
-            byteCost + "B");
+          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
+          CommonDebug.LogWarning("Skipping " + pair.Key + " " + byteCost); 
         }
-        else if (buffer.ByteSize > RailConfig.MAX_MESSAGE_SIZE)
+        else if (buffer.ByteSize > RailConfig.MESSAGE_MAX_SIZE)
         {
-          buffer.Rollback();
+          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
           break;
         }
         else
@@ -175,7 +159,10 @@ namespace Railgun
       }
 
       // Reserved Write: [Entity Count]
-      buffer.WriteReserved(RailEncoders.EntityCount, this.sentIds.Count);
+      buffer.WriteReserved(
+        RailServerPacket.KEY_RESERVE, 
+        RailEncoders.EntityCount, 
+        this.sentIds.Count);
     }
 
     private void DecodeStates(BitBuffer buffer)
