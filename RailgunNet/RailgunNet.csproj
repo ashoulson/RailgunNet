@@ -45,8 +45,12 @@
     <Compile Include="Connection\Server\RailServerPeer.cs" />
     <Compile Include="Connection\RailPacket.cs" />
     <Compile Include="Connection\Server\RailServerPacket.cs" />
+    <Compile Include="System\Attributes\RegisterCommandAttribute.cs" />
+    <Compile Include="System\Attributes\RegisterEntityAttribute.cs" />
+    <Compile Include="System\Attributes\RegisterEventAttribute.cs" />
     <Compile Include="System\Container\RailView.cs" />
     <Compile Include="System\Encoding\Encoder\TypedEncoder.cs" />
+    <Compile Include="System\RailRegistry.cs" />
     <Compile Include="System\Types\IEncodableType.cs" />
     <Compile Include="Util\IRailCloneable.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />

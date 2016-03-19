@@ -26,42 +26,24 @@ using CommonTools;
 
 namespace Railgun
 {
-  public enum EventType
-  {
-    InstantReliable,
-    InstantUnreliable,
-    // TODO: DelayedUnreliable
-  }
-
   /// <summary>
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
   public abstract class RailEvent : IRailPoolable<RailEvent>
   {
-    internal void RegisterEventType<TEvent>(int type)
-      where TEvent : RailEvent, new()
-    {
-      RailResource.Instance.RegisterEventType<TEvent>(type);
-    }
-
     IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
     void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
 
     /// <summary>
-    /// The tick this command was generated on (client or server).
-    /// </summary>
-    internal Tick Tick { get; private set; }
-
-    /// <summary>
     /// An optional id assigned to this event, used for reliability.
     /// </summary>
-    internal EventId EventId { get; private set; }
+    internal EventId EventId { get; set; }
 
     /// <summary>
     /// The int index for the type of event.
     /// </summary>
-    protected internal abstract int EventType { get; }
+    protected internal int EventType { get; set; }
 
     internal abstract void SetDataFrom(RailEvent other);
 
@@ -69,18 +51,14 @@ namespace Railgun
     protected abstract void DecodeData(BitBuffer buffer);
     protected abstract void ResetData();
 
-    internal void Initialize(
-      Tick tick,
-      EventId eventId)
+    internal void Initialize(int eventType)
     {
-      this.Tick = tick;
-      this.EventId = eventId;
+      this.EventType = eventType;
     }
 
     internal RailEvent Clone()
     {
       RailEvent clone = RailResource.Instance.AllocateEvent(this.EventType);
-      clone.Tick = this.Tick;
       clone.EventId = this.EventId;
       clone.SetDataFrom(this);
       return clone;
@@ -88,7 +66,6 @@ namespace Railgun
 
     protected internal void Reset()
     {
-      this.Tick = Tick.INVALID;
       this.EventId = EventId.INVALID;
       this.ResetData();
     }
@@ -99,9 +76,6 @@ namespace Railgun
     {
       // Write: [EventType]
       buffer.Write(RailEncoders.EventType, this.EventType);
-
-      // Write: [Tick]
-      buffer.Write(RailEncoders.Tick, this.Tick);
 
       // Write: [EventId]
       buffer.Write(RailEncoders.EventId, this.EventId);
@@ -117,9 +91,6 @@ namespace Railgun
       int eventType = buffer.Read(RailEncoders.EventType);
 
       RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
-
-      // Read: [Tick]
-      evnt.Tick = buffer.Read(RailEncoders.Tick);
 
       // Read: [EventId]
       evnt.EventId = buffer.Read(RailEncoders.EventId);

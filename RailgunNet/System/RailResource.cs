@@ -28,23 +28,33 @@ namespace Railgun
 {
   internal class RailResource
   {
-    // TODO: Make this thread-safe (like [ThreadStatic])
-    internal static RailResource Instance { get; private set; }
-
-    internal static void Initialize()
-    {
-      RailResource.Instance = new RailResource();
+    internal static RailResource Instance 
+    { 
+      get
+      {
+        if (RailResource.instance == null)
+          RailResource.instance = new RailResource();
+        return RailResource.instance;
+      }
     }
+
+    private static RailResource instance = null;
 
     private IRailPool<RailServerPacket> serverPacketPool;
     private IRailPool<RailClientPacket> clientPacketPool;
 
     private IRailPool<RailCommand> commandPool;
-
     private Dictionary<int, IRailPool<RailState>> statePools;
     private Dictionary<int, IRailPool<RailEvent>> eventPools;
-
     private Dictionary<int, IRailFactory<RailEntity>> entityFactories;
+
+    /// <summary>
+    /// Used for directly creating an entity type without the type Id.
+    /// </summary>
+    private Dictionary<Type, int> entityTypeToKey;
+    private Dictionary<Type, int> eventTypeToKey;
+
+    private bool isInitialized = false;
 
     private RailResource()
     {
@@ -55,27 +65,72 @@ namespace Railgun
       this.statePools = new Dictionary<int, IRailPool<RailState>>();
       this.eventPools = new Dictionary<int, IRailPool<RailEvent>>();
       this.entityFactories = new Dictionary<int, IRailFactory<RailEntity>>();
+
+      this.entityTypeToKey = new Dictionary<Type, int>();
+      this.eventTypeToKey = new Dictionary<Type, int>();
+
+      // TODO: When there's a thread-safe pass on this, make sure to clone
+      // the pools and factories rather than recreating them from searching
+      this.Initialize();
     }
 
-    internal void RegisterEntityType<TEntity, TState>(int type)
-      where TEntity : RailEntity<TState>, new()
-      where TState : RailState, new()
+    public void Initialize()
     {
-      this.entityFactories[type] = new RailFactory<RailEntity, TEntity>();
-      this.statePools[type] = new RailPool<RailState, TState>();
+      this.RegisterEntities();
+      this.RegisterEvents();
+      this.RegisterCommand();
+
+      this.CreateEncoder(this.statePools.Keys, ref RailEncoders.EntityType);
+      this.CreateEncoder(this.eventPools.Keys, ref RailEncoders.EventType);
+      this.isInitialized = true;
     }
 
-    internal void RegisterEventType<TEvent>(int type)
-      where TEvent : RailEvent, new()
+    private void RegisterEntities()
     {
-      this.eventPools[type] = new RailPool<RailEvent, TEvent>();
+      var entityTypes = RailRegistry.FindAll<RegisterEntityAttribute>();
+      foreach (var pair in entityTypes)
+      {
+        Type entityType = pair.Key;
+        Type stateType = pair.Value.StateType;
+
+        IRailPool<RailState> statePool =
+          RailRegistry.CreatePool<RailState>(stateType);
+        IRailFactory<RailEntity> entityFactory = 
+          RailRegistry.CreateFactory<RailEntity>(entityType);
+
+        int typeKey = this.statePools.Count;
+        this.statePools.Add(typeKey, statePool);
+        this.entityFactories.Add(typeKey, entityFactory);
+        this.entityTypeToKey.Add(entityType, typeKey);
+      }
     }
 
-    internal void RegisterCommandType<TCommand>()
-      where TCommand : RailCommand, new()
+    private void RegisterEvents()
     {
-      CommonDebug.Assert(this.commandPool == null);
-      this.commandPool = new RailPool<RailCommand, TCommand>();
+      var eventTypes = RailRegistry.FindAll<RegisterEventAttribute>();
+      foreach (var pair in eventTypes)
+      {
+        Type eventType = pair.Key;
+        IRailPool<RailEvent> statePool =
+          RailRegistry.CreatePool<RailEvent>(eventType);
+
+        int typeKey = this.eventPools.Count;
+        this.eventPools.Add(typeKey, statePool);
+        this.eventTypeToKey.Add(eventType, typeKey);
+      }
+    }
+
+    private void RegisterCommand()
+    {
+      var commandTypes = RailRegistry.FindAll<RegisterCommandAttribute>();
+      if (commandTypes.Count < 1)
+        throw new ApplicationException("No command type registerred");
+      else if (commandTypes.Count > 1)
+        throw new ApplicationException("Too many command types registerred");
+
+      var pair = commandTypes[0];
+      Type commandType = pair.Key;
+      this.commandPool = RailRegistry.CreatePool<RailCommand>(commandType);
     }
 
     internal RailEntity CreateEntity(int type)
@@ -90,6 +145,27 @@ namespace Railgun
       RailState state = this.statePools[type].Allocate();
       state.Initialize(type);
       return state;
+    }
+
+    internal RailEvent AllocateEvent(int type)
+    {
+      RailEvent evnt = this.eventPools[type].Allocate();
+      evnt.Initialize(type);
+      return evnt;
+    }
+
+    internal T CreateEntity<T>()
+      where T : RailEntity
+    {
+      int key = this.entityTypeToKey[typeof(T)];
+      return (T)this.CreateEntity(key);
+    }
+
+    internal T AllocateEvent<T>()
+      where T : RailEvent
+    {
+      int key = this.eventTypeToKey[typeof(T)];
+      return (T)this.AllocateEvent(key);
     }
 
     internal RailServerPacket AllocateServerPacket()
@@ -107,9 +183,20 @@ namespace Railgun
       return this.commandPool.Allocate();
     }
 
-    internal RailEvent AllocateEvent(int type)
+    private void CreateEncoder(
+      IEnumerable<int> keys, 
+      ref IntEncoder destination)
     {
-      return this.eventPools[type].Allocate();
+      int lowest = 0;
+      int highest = 0;
+      foreach (int type in keys)
+      {
+        if (lowest > type)
+          lowest = type;
+        if (highest < type)
+          highest = type;
+      }
+      destination = new IntEncoder(lowest, highest);
     }
   }
 }

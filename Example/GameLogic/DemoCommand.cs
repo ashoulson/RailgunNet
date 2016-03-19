@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
+[RegisterCommand]
 public class DemoCommand : RailCommand<DemoCommand>
 {
   public bool Up { get; set; }

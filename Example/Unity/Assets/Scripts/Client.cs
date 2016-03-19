@@ -32,7 +32,6 @@ public class Client : MonoBehaviour
     this.netSocket.TimedOut += this.OnTimedOut;
 
     this.client = new RailClient();
-    Demo.RegisterTypes();
   }
 
   void Start()

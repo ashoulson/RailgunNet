@@ -52,7 +52,7 @@ namespace Railgun
   {
     private readonly Stack<T> freeList;
 
-    internal RailPool()
+    public RailPool()
     {
       this.freeList = new Stack<T>();
     }
@@ -83,7 +83,7 @@ namespace Railgun
   {
     private readonly Stack<TBase> freeList;
 
-    internal RailPool()
+    public RailPool()
     {
       this.freeList = new Stack<TBase>();
     }

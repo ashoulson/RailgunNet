@@ -106,10 +106,10 @@ namespace Railgun
       this.interpreter = interpreter;
     }
 
-    public void QueueGlobal(RailEvent evnt, Tick tick)
+    public void QueueGlobal(RailEvent evnt)
     {
       RailEvent clone = evnt.Clone();
-      clone.Initialize(tick, this.lastEventId);
+      clone.EventId = this.lastEventId;
       this.outgoingGlobalEvents.Enqueue(clone);
       this.lastEventId = this.lastEventId.Next;
     }

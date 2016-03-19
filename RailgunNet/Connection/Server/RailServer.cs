@@ -115,12 +115,18 @@ namespace Railgun
     /// <summary>
     /// Creates an entity of a given type and adds it to the world.
     /// </summary>
-    public T AddNewEntity<T>(int type)
+    public T AddNewEntity<T>()
       where T : RailEntity
     {
-      RailEntity entity = this.World.CreateEntity<T>(type);
+      T entity = this.World.CreateEntity<T>();
       this.World.AddEntity(entity);
       return (T)entity;
+    }
+
+    public void DestroyEntity(EntityId entityId)
+    {
+      this.World.RemoveEntity(entityId);
+
     }
 
     /// <summary>

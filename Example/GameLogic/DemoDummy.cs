@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
+[RegisterEntity(typeof(DemoState))]
 public class DemoDummy : RailEntity<DemoState>
 {
   public event Action Frozen;
@@ -36,7 +37,7 @@ public class DemoDummy : RailEntity<DemoState>
   private float direction = 1.0f;
   private float speed = 0.1f;
 
-  protected override void Start()
+  protected override void OnStart()
   {
     DemoEvents.OnDummyAdded(this);
 

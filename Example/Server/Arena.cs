@@ -40,8 +40,7 @@ namespace Example
       {
         for (int j = 0; j < 15; j++)
         {
-          DemoDummy dummy =
-            this.server.AddNewEntity<DemoDummy>(1);
+          DemoDummy dummy = this.server.AddNewEntity<DemoDummy>();
           dummy.State.ArchetypeId = 1;
           dummy.State.X = i * 5;
           dummy.State.Y = j * 5;
@@ -51,8 +50,7 @@ namespace Example
 
     private void OnControllerAdded(IRailControllerServer controller)
     {
-      DemoControlled controlled =
-        this.server.AddNewEntity<DemoControlled>(0);
+      DemoControlled controlled = this.server.AddNewEntity<DemoControlled>();
       controlled.State.ArchetypeId = 0;
       controller.GrantControl(controlled);
       controller.ScopeEvaluator = new DemoScopeEvaluator(controlled);

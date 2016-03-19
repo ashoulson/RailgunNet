@@ -44,7 +44,6 @@ namespace Example
 
       this.socket = new NetSocket();
       this.server = new RailServer();
-      Demo.RegisterTypes();
 
       this.wrapper = new NetServerWrapper(socket, server);
       this.arena = new Arena(this.server);

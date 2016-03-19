@@ -47,8 +47,8 @@ namespace Railgun
       new EntityIdComparer();
 
     // ID 0 is invalid so the range is [0, count] instead of [0, count - 1]
-    internal static readonly IntEncoder Encoder =
-      new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
+    internal static readonly IntEncoder Encoder = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
+    internal static readonly IntEncoder CountEncoder = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT - 1);
 
     public bool IsValid 
     { 
