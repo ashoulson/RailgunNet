@@ -52,6 +52,11 @@ namespace Railgun
     internal const int DEJITTER_BUFFER_LENGTH = 50;
 
     /// <summary>
+    /// Number of ticks without data before freezing an entity.
+    /// </summary>
+    internal const int TICKS_BEFORE_FREEZE = 20;
+
+    /// <summary>
     /// Data buffer size used for packet I/O. 
     /// Don't change this without a good reason.
     /// </summary>

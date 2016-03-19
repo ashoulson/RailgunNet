@@ -27,6 +27,9 @@ using UnityEngine;
 
 public class DemoDummy : RailEntity<DemoState>
 {
+  public event Action Frozen;
+  public event Action Unfrozen;
+
   private int ticks = 0;
 
   private float startX = 0.0f;
@@ -51,5 +54,17 @@ public class DemoDummy : RailEntity<DemoState>
 
     this.State.X += this.speed * this.direction;
     this.State.Y += this.speed * this.direction;
+  }
+
+  protected override void OnFrozen()
+  {
+    if (this.Frozen != null)
+      this.Frozen.Invoke();
+  }
+
+  protected override void OnUnfrozen()
+  {
+    if (this.Unfrozen != null)
+      this.Unfrozen.Invoke();
   }
 }

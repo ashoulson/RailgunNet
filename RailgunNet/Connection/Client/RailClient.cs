@@ -143,10 +143,12 @@ namespace Railgun
     private void OnPacketReceived(IRailServerPacket packet)
     {
       foreach (RailState state in packet.States)
-        this.ProcessState(state);
+        this.ProcessState(state, packet.LatestServerTick);
+      foreach (RailEntity entity in this.knownEntities.Values)
+        entity.UpdateFreeze(packet.LatestServerTick);
     }
 
-    private void ProcessState(RailState state)
+    private void ProcessState(RailState state, Tick latestServerTick)
     {
       RailEntity entity;
       if (this.knownEntities.TryGetValue(state.EntityId, out entity) == false)
@@ -160,6 +162,7 @@ namespace Railgun
       }
 
       entity.StateBuffer.Store(state);
+      entity.LastUpdatedServerTick = latestServerTick;
       this.UpdateControlStatus(entity, state);
     }
 

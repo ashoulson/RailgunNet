@@ -97,7 +97,7 @@ namespace Railgun
       }
 
       T prior = null;
-      T latest = null;
+      T current = null;
       T next = null;
 
       for (int i = 0; i < this.data.Length; i++)
@@ -112,10 +112,10 @@ namespace Railgun
           }
           else if ((prior == null) || (value.Tick > prior.Tick))
           {
-            if ((latest == null) || (value.Tick > latest.Tick))
+            if ((current == null) || (value.Tick > current.Tick))
             {
-              prior = latest;
-              latest = value;
+              prior = current;
+              current = value;
             }
             else
             {
@@ -125,7 +125,7 @@ namespace Railgun
         }
       }
 
-      delta.Set(prior, latest, next);
+      delta.Set(prior, current, next);
     }
 
     public T GetLatestAt(Tick tick)
