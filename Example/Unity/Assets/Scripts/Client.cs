@@ -8,11 +8,19 @@ using Railgun;
 
 public class Client : MonoBehaviour
 {
+  private const int BANDWIDTH_WINDOW_SIZE = 60;
+
   public static Client Instance { get; private set; }
 
   public string address;
   private NetSocket netSocket;
   private RailClient client;
+
+  public float kBps = 0.0f;
+
+  private int receivedThisFrame = 0;
+  private int framesActive = 0;
+  private int[] bandwidthWindow = new int[BANDWIDTH_WINDOW_SIZE];
 
   void Awake()
   {
@@ -43,6 +51,22 @@ public class Client : MonoBehaviour
     this.netSocket.Poll();
     this.client.Update();
     this.netSocket.Transmit();
+
+    this.UpdateBandwidth();
+  }
+
+  private void UpdateBandwidth()
+  {
+    this.bandwidthWindow[this.framesActive % BANDWIDTH_WINDOW_SIZE] =
+      this.receivedThisFrame;
+    this.framesActive++;
+    this.receivedThisFrame = 0;
+
+    int sum = 0;
+    foreach (int bytes in this.bandwidthWindow)
+      sum += bytes;
+    float average = (float)sum / (float)BANDWIDTH_WINDOW_SIZE;
+    this.kBps = (average / Time.fixedDeltaTime) / 1024.0f;
   }
 
   private void OnConnected(NetPeer peer)
@@ -67,6 +91,6 @@ public class Client : MonoBehaviour
   {
     byte[] buffer = new byte[2048];
     foreach (int length in source.ReadReceived(buffer))
-      Debug.Log("Received " + length + " bytes");
+      this.receivedThisFrame += length;
   }
 }

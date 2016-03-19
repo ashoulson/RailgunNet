@@ -27,6 +27,16 @@ namespace Railgun
   public class RailConfig
   {
     /// <summary>
+    /// The real time in seconds per simulation tick.
+    /// </summary>
+    public const float FIXED_DELTA_TIME = 0.02f;
+
+    /// <summary>
+    /// Network send rate in frames/packet.
+    /// </summary>
+    public const int NETWORK_SEND_RATE = 2;
+
+    /// <summary>
     /// Number of outgoing commands to send per packet.
     /// </summary>
     internal const int COMMAND_SEND_COUNT = 4;
@@ -35,16 +45,6 @@ namespace Railgun
     /// Number of commands to buffer for prediction.
     /// </summary>
     internal const int COMMAND_BUFFER_COUNT = 50;
-
-    /// <summary>
-    /// The real time in seconds per simulation tick.
-    /// </summary>
-    internal const float FIXED_DELTA_TIME = 0.02f;
-
-    /// <summary>
-    /// Network send rate in frames/packet.
-    /// </summary>
-    internal const int NETWORK_SEND_RATE = 2;
 
     /// <summary>
     /// Number of entries to store in a dejitter buffer.
