@@ -33,6 +33,8 @@ namespace Railgun
   public abstract class RailState : 
     IRailPoolable<RailState>, IRailRingValue, IRailCloneable<RailState>
   {
+    private const uint FLAGS_ALL = 0xFFFFFFFF;
+
     IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
     void IRailPoolable<RailState>.Reset() { this.Reset(); }
     Tick IRailRingValue.Tick { get { return this.Tick; } }
@@ -42,22 +44,28 @@ namespace Railgun
       this.Reset();
     }
 
-    // Synchronized
-    internal EntityId EntityId { get; private set; }
-    internal int EntityType { get; private set; }
-    internal Tick Tick { get; private set; }
+    // Client/Server
+    internal EntityId EntityId { get; private set; } // Synchronized
+    internal int EntityType { get; private set; }    // Synchronized
+    internal Tick Tick { get; private set; }         // Synchronized
 
     // Client-only -- always false on server
-    internal bool IsController { get; private set; }
-    internal bool IsPredicted { get; private set; }
+    internal bool IsController { get; private set; } // Synchronized (indirectly)
+    internal bool IsPredicted { get; private set; }  // Not synchronized
 
-    protected abstract void EncodeData(BitBuffer buffer);
-    protected abstract void DecodeData(BitBuffer buffer);
-    protected abstract void EncodeData(BitBuffer buffer, RailState basis);
-    protected abstract void DecodeData(BitBuffer buffer, RailState basis);
+    /// <summary>
+    /// Compares this state against a basis and returns a bitfield of which
+    /// properties are dirty.
+    /// </summary>
+    protected abstract uint GetDirtyFlags(RailState basis);
+    protected internal abstract void SetDataFrom(RailState other);
+
+    protected abstract int FlagBitsUsed { get; }
     protected abstract void ResetData();
-
-    internal abstract void SetDataFrom(RailState other);
+    protected abstract void EncodeImmutable(BitBuffer buffer);
+    protected abstract void DecodeImmutable(BitBuffer buffer);
+    protected abstract void EncodeMutable(BitBuffer buffer, uint flags);
+    protected abstract void DecodeMutable(BitBuffer buffer, uint flags);
 
     protected internal void Reset() 
     {
@@ -121,7 +129,8 @@ namespace Railgun
     internal void Encode(
       BitBuffer buffer, 
       RailState basis,
-      bool isController)
+      bool isController,
+      bool isFirst)
     {
       // Write: [Id]
       buffer.Write(RailEncoders.EntityId, this.EntityId);
@@ -129,61 +138,134 @@ namespace Railgun
       // Write: [IsController]
       buffer.Write(RailEncoders.Bool, isController);
 
-      if (basis == null) // Full Encode
-      {
-        // Write: [Type]
-        buffer.Write(RailEncoders.EntityType, this.EntityType);
+      // Write: [IsFirst]
+      buffer.Write(RailEncoders.Bool, isFirst);
 
-        // Write: [Data]
-        this.EncodeData(buffer);
-      }
-      else // Delta Encode
-      {
-        // No [Type] for deltas
+      // Write: [Type]
+      this.EncodeType(buffer, basis);
 
-        // Write: [Data]
-        this.EncodeData(buffer, basis);
-      }
+      // Write: [Mutable Data]
+      this.EncodeMutable(buffer, basis);
+
+      // Write: [Immutable Data] (if applicable)
+      if (isFirst)
+        this.EncodeImmutable(buffer);
     }
 
     internal static RailState Decode(
       BitBuffer buffer, 
       RailState basis,
-      Tick latestTick)
+      Tick latestTick,
+      bool isDelta) // If false, the basis is the latest state received
     {
-      RailState state = null;
-
       // Read: [Id]
       EntityId id = buffer.Read(RailEncoders.EntityId);
 
       // Read: [IsController]
       bool isController = buffer.Read(RailEncoders.Bool);
 
-      if (basis == null)
+      // Read: [IsFirst]
+      bool isFirst = buffer.Read(RailEncoders.Bool);
+
+      // Read: [Type]
+      int type = RailState.DecodeType(buffer, basis, isDelta);
+
+      // Create the state
+      RailState state = 
+        RailState.CreateState(basis, latestTick, id, type, isController);
+     
+      // Read: [Mutable Data]
+      state.DecodeMutable(buffer, isDelta);
+
+      // Read: [Immutable Data] (if applicable)
+      if (isFirst)
+        state.DecodeImmutable(buffer);
+
+      return state;
+    }
+
+    private void EncodeType(
+      BitBuffer buffer, 
+      RailState basis)
+    {
+      if (basis == null) // Full Encode
       {
-        // Read: [Type]
-        int type = buffer.Read(RailEncoders.EntityType);
-
-        // Create the state
-        state = RailResource.Instance.AllocateState(type);
-        state.SetOnDecode(latestTick, id, isController);
-
-        // Read: [Data]
-        state.DecodeData(buffer);
+        // Write: [Type]
+        buffer.Write(RailEncoders.EntityType, this.EntityType);
       }
       else
       {
         // No [Type] for deltas
-        int type = basis.EntityType;
-
-        // Create the state
-        state = RailResource.Instance.AllocateState(type);
-        state.SetOnDecode(latestTick, id, isController);
-
-        // Read: [Data]
-        state.DecodeData(buffer, basis);
       }
+    }
 
+    private static int DecodeType(
+      BitBuffer buffer, 
+      RailState basis, 
+      bool isDelta)
+    {
+      if (isDelta == false) // Full Decode
+      {
+        // Read: [Type]
+        return buffer.Read(RailEncoders.EntityType);
+      }
+      else // Delta Decode
+      {
+        // No [Type] for deltas -- use the basis
+        return basis.EntityType;
+      }
+    }
+
+    private void EncodeMutable(
+      BitBuffer buffer, 
+      RailState basis)
+    {
+      if (basis == null) // Full Encode
+      {
+        // Write: [Mutable Data] (full)
+        this.EncodeMutable(buffer, RailState.FLAGS_ALL);
+      }
+      else // Delta Encode
+      {
+        // Write: [Dirty Flags]
+        uint flags = this.GetDirtyFlags(basis);
+        buffer.Write(this.FlagBitsUsed, flags);
+
+        // Write: [Mutable Data] (delta)
+        this.EncodeMutable(buffer, flags);
+      }
+    }
+
+    private void DecodeMutable(
+      BitBuffer buffer, 
+      bool isDelta)
+    {
+      if (isDelta == false)
+      {
+        // Read: [Mutable Data] (full)
+        this.DecodeMutable(buffer, RailState.FLAGS_ALL);
+      }
+      else
+      {
+        // Write: [Dirty Flags]
+        uint flags = buffer.Read(this.FlagBitsUsed);
+
+        // Write: [Mutable Data] (delta)
+        this.DecodeMutable(buffer, flags);
+      }
+    }
+
+    private static RailState CreateState(
+      RailState basis,
+      Tick latestTick,
+      EntityId id,
+      int type,
+      bool isController)
+    {
+      RailState state = RailResource.Instance.AllocateState(type);
+      state.SetOnDecode(latestTick, id, isController);
+      if (basis != null)
+        state.SetDataFrom(basis); // Copy over mutable and immutable data
       return state;
     }
     #endregion
@@ -200,24 +282,18 @@ namespace Railgun
     where T : RailState<T>, new()
   {
     #region Casting Overrides
-    internal override void SetDataFrom(RailState other)
+    protected override uint GetDirtyFlags(RailState basis)
+    {
+      return this.GetDirtyFlags((T)basis);
+    }
+
+    protected internal override void SetDataFrom(RailState other)
     {
       this.SetDataFrom((T)other);
     }
-
-    protected override void EncodeData(BitBuffer buffer, RailState basis)
-    {
-      this.EncodeData(buffer, (T)basis);
-    }
-
-    protected override void DecodeData(BitBuffer buffer, RailState basis)
-    {
-      this.DecodeData(buffer, (T)basis);
-    }
     #endregion
 
+    protected abstract uint GetDirtyFlags(T basis);
     protected abstract void SetDataFrom(T other);
-    protected abstract void EncodeData(BitBuffer buffer, T basis);
-    protected abstract void DecodeData(BitBuffer buffer, T basis);
   }
 }

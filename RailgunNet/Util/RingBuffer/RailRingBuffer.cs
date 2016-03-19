@@ -40,18 +40,8 @@ namespace Railgun
       get { return this.latest; }
     }
 
-    /// <summary>
-    /// The earliest ever value stored in this buffer.
-    /// May no longer be in the buffer itself.
-    /// </summary>
-    internal T Earliest
-    {
-      get { return this.earliest; }
-    }
-
     private T[] data;
     private T latest;
-    private T earliest;
 
     internal IEnumerable<T> Values
     {
@@ -78,13 +68,7 @@ namespace Railgun
 
       this.data[index] = value;
 
-      if ((this.earliest == null) || (this.earliest.Tick > value.Tick))
-      {
-        if (this.earliest != null)
-          RailPool.Free(this.earliest);
-        this.earliest = value.Clone();
-      }
-
+      // Store the latest received value if it's newer than the current one
       if ((this.latest == null) || (this.latest.Tick < value.Tick))
       {
         if (this.latest != null)

@@ -32,61 +32,36 @@ public class DemoState : RailState<DemoState>
   // complexity hasn't seemed to be worth it so far...
 
   #region Flags
-  private const int FLAG_ARCHETYPE_ID = 0x01;
-  private const int FLAG_USER_ID = 0x02;
-  private const int FLAG_X = 0x04;
-  private const int FLAG_Y = 0x08;
-  private const int FLAG_ANGLE = 0x10;
-  private const int FLAG_STATUS = 0x20;
+  private const uint FLAG_X = 0x01;
+  private const uint FLAG_Y = 0x02;
+  private const uint FLAG_ANGLE = 0x04;
+  private const uint FLAG_STATUS = 0x08;
 
-  internal const int FLAG_ALL =
-    FLAG_ARCHETYPE_ID |
-    FLAG_USER_ID |
+  internal const uint FLAG_ALL =
     FLAG_X |
     FLAG_Y |
     FLAG_ANGLE |
     FLAG_STATUS;
+
+  protected override int FlagBitsUsed { get { return 4; } }
   #endregion
 
-  /// <summary>
-  /// Compares a state against a predecessor and returns a bit bucket of
-  /// which fields are dirty.
-  /// </summary>
-  public static int GetDirtyFlags(
-    DemoState state,
-    DemoState basis)
+  protected override uint GetDirtyFlags(DemoState basis)
   {
     return
-      (state.ArchetypeId == basis.ArchetypeId ? 0 : FLAG_ARCHETYPE_ID) |
-      (state.UserId == basis.UserId ? 0 : FLAG_USER_ID) |
-      (DemoMath.CoordinatesEqual(state.X, basis.X) ? 0 : FLAG_X) |
-      (DemoMath.CoordinatesEqual(state.Y, basis.Y) ? 0 : FLAG_Y) |
-      (DemoMath.AnglesEqual(state.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
-      (state.Status == basis.Status ? 0 : FLAG_STATUS);
+      (DemoMath.CoordinatesEqual(this.X, basis.X) ? 0 : FLAG_X) |
+      (DemoMath.CoordinatesEqual(this.Y, basis.Y) ? 0 : FLAG_Y) |
+      (DemoMath.AnglesEqual(this.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
+      (this.Status == basis.Status ? 0 : FLAG_STATUS);
   }
 
-  public int ArchetypeId { get; set; }
-  public int UserId { get; set; }
-  public float X { get; set; }
-  public float Y { get; set; }
-  public float Angle { get; set; }
-  public int Status { get; set; }
-
-  public void SetData(
-    int archetypeId,
-    int userId,
-    float x,
-    float y,
-    float angle,
-    int status)
-  {
-    this.ArchetypeId = archetypeId;
-    this.UserId = userId;
-    this.X = x;
-    this.Y = y;
-    this.Angle = angle;
-    this.Status = status;
-  }
+  // These should be properties, but we can't pass properties by ref
+  public int ArchetypeId;
+  public int UserId;
+  public float X;
+  public float Y;
+  public float Angle;
+  public int Status;
 
   protected override void ResetData()
   {
@@ -98,9 +73,6 @@ public class DemoState : RailState<DemoState>
     this.Status = 0;
   }
 
-  /// <summary>
-  /// Writes the values from another PawnState to this one.
-  /// </summary>
   protected override void SetDataFrom(DemoState other)
   {
     this.ArchetypeId = other.ArchetypeId;
@@ -111,65 +83,32 @@ public class DemoState : RailState<DemoState>
     this.Status = other.Status;
   }
 
-  /// <summary>
-  /// Write a fully populated encoding of this state.
-  /// </summary>
-  protected override void EncodeData(BitBuffer buffer)
+  protected override void EncodeImmutable(BitBuffer buffer)
   {
     buffer.Write(DemoEncoders.ArchetypeId, this.ArchetypeId);
     buffer.Write(DemoEncoders.UserId, this.UserId);
-    buffer.Write(DemoEncoders.Coordinate, this.X);
-    buffer.Write(DemoEncoders.Coordinate, this.Y);
-    buffer.Write(DemoEncoders.Angle, this.Angle);
-    buffer.Write(DemoEncoders.Status, this.Status);
   }
 
-  /// <summary>
-  /// Delta-encode this state relative to the given basis state.
-  /// </summary>
-  protected override void EncodeData(BitBuffer buffer, DemoState basis)
+  protected override void DecodeImmutable(BitBuffer buffer)
   {
-    int dirty = DemoState.GetDirtyFlags(this, basis);
-    buffer.Write(DemoEncoders.EntityDirty, dirty);
-
-    buffer.WriteIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, this.ArchetypeId);
-    buffer.WriteIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, this.UserId);
-    buffer.WriteIf(dirty, FLAG_X, DemoEncoders.Coordinate, this.X);
-    buffer.WriteIf(dirty, FLAG_Y, DemoEncoders.Coordinate, this.Y);
-    buffer.WriteIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, this.Angle);
-    buffer.WriteIf(dirty, FLAG_STATUS, DemoEncoders.Status, this.Status);
+    this.ArchetypeId = buffer.Read(DemoEncoders.ArchetypeId);
+    this.UserId = buffer.Read(DemoEncoders.UserId);
   }
 
-  /// <summary>
-  /// Decode a fully populated data packet and set values to this object.
-  /// </summary>
-  protected override void DecodeData(BitBuffer buffer)
+  protected override void EncodeMutable(BitBuffer buffer, uint flags)
   {
-    this.SetData(
-      buffer.Read(DemoEncoders.ArchetypeId),
-      buffer.Read(DemoEncoders.UserId),
-      buffer.Read(DemoEncoders.Coordinate),
-      buffer.Read(DemoEncoders.Coordinate),
-      buffer.Read(DemoEncoders.Angle),
-      buffer.Read(DemoEncoders.Status));
+    buffer.WriteIf(flags, FLAG_X, DemoEncoders.Coordinate, this.X);
+    buffer.WriteIf(flags, FLAG_Y, DemoEncoders.Coordinate, this.Y);
+    buffer.WriteIf(flags, FLAG_ANGLE, DemoEncoders.Angle, this.Angle);
+    buffer.WriteIf(flags, FLAG_STATUS, DemoEncoders.Status, this.Status);
   }
 
-  /// <summary>
-  /// Decode a delta-encoded packet against a given basis and set values
-  /// to this object.
-  /// </summary>
-  protected override void DecodeData(BitBuffer buffer, DemoState basis)
+  protected override void DecodeMutable(BitBuffer buffer, uint flags)
   {
-    // Retrieve delta metadata
-    int dirty = buffer.Read(DemoEncoders.EntityDirty);
-
-    this.SetData(
-      buffer.ReadIf(dirty, FLAG_ARCHETYPE_ID, DemoEncoders.ArchetypeId, basis.ArchetypeId),
-      buffer.ReadIf(dirty, FLAG_USER_ID, DemoEncoders.UserId, basis.UserId),
-      buffer.ReadIf(dirty, FLAG_X, DemoEncoders.Coordinate, basis.X),
-      buffer.ReadIf(dirty, FLAG_Y, DemoEncoders.Coordinate, basis.Y),
-      buffer.ReadIf(dirty, FLAG_ANGLE, DemoEncoders.Angle, basis.Angle),
-      buffer.ReadIf(dirty, FLAG_STATUS, DemoEncoders.Status, basis.Status));
+    buffer.ReadIf(flags, FLAG_X, DemoEncoders.Coordinate, ref this.X);
+    buffer.ReadIf(flags, FLAG_Y, DemoEncoders.Coordinate, ref this.Y);
+    buffer.ReadIf(flags, FLAG_ANGLE, DemoEncoders.Angle, ref this.Angle);
+    buffer.ReadIf(flags, FLAG_STATUS, DemoEncoders.Status, ref this.Status);
   }
 
   #region DEBUG

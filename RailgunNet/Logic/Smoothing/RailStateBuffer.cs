@@ -26,7 +26,6 @@ namespace Railgun
 {
   public class RailStateBuffer
   {
-    internal RailState Earliest { get { return this.buffer.Earliest; } }
     internal RailState Latest { get { return this.buffer.Latest; } }
 
     internal IEnumerable<RailState> Values 
