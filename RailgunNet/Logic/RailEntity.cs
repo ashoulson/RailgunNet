@@ -61,6 +61,16 @@ namespace Railgun
     protected Tick Tick { get; private set; }
 
     /// <summary>
+    /// CLIENT: Called when the entity has received no data and freezes.
+    /// </summary>
+    protected virtual void OnFrozen() { }
+
+    /// <summary>
+    /// CLIENT: Called when the entity is receiving data again.
+    /// </summary>
+    protected virtual void OnUnfrozen() { }
+
+    /// <summary>
     /// SERVER: Called when the entity has a new controller. 
     /// CLIENT: Called when local control is granted or revoked.
     /// 
@@ -90,7 +100,12 @@ namespace Railgun
     /// </summary>
     protected virtual void Simulate() { }
 
+    // Client-only. The last true (not delayed/predicted) packet server tick
+    // during which we received an update for this entity. Used for freezing.
+    internal Tick LastUpdatedServerTick { get; set; }
+
     private bool hadFirstTick;
+    private bool isFrozen;
 
     public bool IsPredicted
     {       
@@ -115,6 +130,7 @@ namespace Railgun
       this.State = null;
 
       this.hadFirstTick = false;
+      this.isFrozen = false;
     }
 
     internal void Initialize(int type)
@@ -168,9 +184,14 @@ namespace Railgun
         this.Tick = serverTick;
 
         if (this.Controller == null)
-          this.ReplicaSimulate(serverTick);
+        {
+          if (this.isFrozen == false)
+            this.ReplicaSimulate(serverTick);
+        }
         else
+        {
           this.ForwardSimulate();
+        }
       }
     }
 
@@ -179,9 +200,9 @@ namespace Railgun
       this.ClearDelta();
 
       this.StateDelta.Update(this.StateBuffer, serverTick);
-      if (this.StateDelta.Latest != null)
+      if (this.StateDelta.Current != null)
       {
-        this.State.SetDataFrom(this.StateDelta.Latest);
+        this.State.SetDataFrom(this.StateDelta.Current);
 
         if (this.hadFirstTick == false)
         {
@@ -208,6 +229,17 @@ namespace Railgun
       RailState state = this.State.Clone();
       state.SetOnStore(tick);
       this.StateBuffer.Store(state);
+    }
+
+    internal void UpdateFreeze(Tick lastReceivedServerTick)
+    {
+      int delta = lastReceivedServerTick - this.LastUpdatedServerTick;
+      bool shouldFreeze = (delta > RailConfig.TICKS_BEFORE_FREEZE);
+      if (shouldFreeze && (this.isFrozen == false))
+        this.OnFrozen();
+      else if ((shouldFreeze == false) && this.isFrozen)
+        this.OnUnfrozen();
+      this.isFrozen = shouldFreeze;
     }
 
     #region Encoding/Decoding
@@ -346,22 +378,22 @@ namespace Railgun
       float frameDelta, 
       RailSmoother<T> smoother)
     {
-      if ((this.StateDelta == null) || (this.StateDelta.Latest == null))
+      if ((this.StateDelta == null) || (this.StateDelta.Current == null))
         return default(T);
 
       // If we're predicting, advance to the prediction tick. This is
       // hacky in that it assumes that we'll only ever have a one-tick 
       // difference between any two states in the delta when doing prediction.
       Tick currentTick = this.World.Tick;
-      if (this.StateDelta.Latest.IsPredicted)
-        currentTick = this.StateDelta.Latest.Tick;
+      if (this.StateDelta.Current.IsPredicted)
+        currentTick = this.StateDelta.Current.Tick;
 
       if (this.StateDelta.Next != null)
       {
         return smoother.Smooth(
           frameDelta,
           currentTick,
-          this.StateDelta.Latest,
+          this.StateDelta.Current,
           this.StateDelta.Next);
       }
       else if (this.StateDelta.Prior != null)
@@ -370,11 +402,11 @@ namespace Railgun
           frameDelta,
           currentTick,
           this.StateDelta.Prior,
-          this.StateDelta.Latest);
+          this.StateDelta.Current);
       }
       else
       {
-        return smoother.Access(this.StateDelta.Latest);
+        return smoother.Access(this.StateDelta.Current);
       }
     }
     #endregion
@@ -406,7 +438,7 @@ namespace Railgun
     private void ClearDelta()
     {
       RailState prior = this.StateDelta.Prior;
-      RailState latest = this.StateDelta.Latest;
+      RailState latest = this.StateDelta.Current;
       RailState next = this.StateDelta.Next;
 
       if ((prior != null) && prior.IsPredicted)
@@ -456,8 +488,8 @@ namespace Railgun
         if (this.StateDelta.Prior != null)
           output += this.StateDelta.Prior.Tick;
         output += ",";
-        if (this.StateDelta.Latest != null)
-          output += this.StateDelta.Latest.Tick;
+        if (this.StateDelta.Current != null)
+          output += this.StateDelta.Current.Tick;
         output += ",";
         if (this.StateDelta.Next != null)
           output += this.StateDelta.Next.Tick;

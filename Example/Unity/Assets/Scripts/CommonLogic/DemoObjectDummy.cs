@@ -29,6 +29,8 @@ public class DemoObjectDummy : MonoBehaviour
 
   void Start()
   {
+    this.Entity.Frozen += this.OnFrozen;
+    this.Entity.Unfrozen += this.OnUnfrozen;
   }
 
   void Update()
@@ -74,5 +76,15 @@ public class DemoObjectDummy : MonoBehaviour
       else
         this.color = Color.red;
     }
+  }
+
+  private void OnFrozen()
+  {
+    this.gameObject.SetActive(false);
+  }
+
+  private void OnUnfrozen()
+  {
+    this.gameObject.SetActive(true);
   }
 }

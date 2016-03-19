@@ -28,20 +28,20 @@ namespace Railgun
     where T : class
   {
     public T Prior { get; private set; }
-    public T Latest { get; private set; }
+    public T Current { get; private set; }
     public T Next { get; private set; }
 
     public RailRingDelta()
     {
       this.Prior = null;
-      this.Latest = null;
+      this.Current = null;
       this.Next = null;
     }
 
-    public void Set(T prior, T latest, T next)
+    public void Set(T prior, T current, T next)
     {
       this.Prior = prior;
-      this.Latest = latest;
+      this.Current = current;
       this.Next = next;
     }
   }

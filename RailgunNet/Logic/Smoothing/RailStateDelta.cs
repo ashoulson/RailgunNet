@@ -29,7 +29,7 @@ namespace Railgun
     internal RailRingDelta<RailState> Delta { get; private set; }
 
     public RailState Prior { get { return this.Delta.Prior; } }
-    public RailState Latest { get { return this.Delta.Latest; } }
+    public RailState Current { get { return this.Delta.Current; } }
     public RailState Next { get { return this.Delta.Next; } }
 
     public RailStateDelta()
@@ -37,9 +37,9 @@ namespace Railgun
       this.Delta = new RailRingDelta<RailState>();
     }
 
-    public void Set(RailState prior, RailState latest, RailState next)
+    public void Set(RailState prior, RailState current, RailState next)
     {
-      this.Delta.Set(prior, latest, next);
+      this.Delta.Set(prior, current, next);
     }
 
     public void Update(RailStateBuffer buffer, Tick currentTick)
@@ -55,39 +55,39 @@ namespace Railgun
     internal RailState Push(RailState state)
     {
       RailState next = null;
-      RailState latest = null;
+      RailState current = null;
       RailState prior = null;
       RailState popped = null;
 
       if (this.Next != null)
       {
-        if (this.Latest != null)
+        if (this.Current != null)
         {
           if (this.Prior != null)
           {
             popped = this.Prior;
           }
 
-          prior = this.Latest;
+          prior = this.Current;
         }
 
-        latest = this.Next;
+        current = this.Next;
       }
 
       next = state;
 
-      this.Delta.Set(prior, latest, next);
+      this.Delta.Set(prior, current, next);
       return popped;
     }
 
     public bool CanInterpolate()
     {
-      return (this.Latest != null) && (this.Next != null);
+      return (this.Current != null) && (this.Next != null);
     }
 
     public bool CanExtrapolate()
     {
-      return (this.Latest != null) && (this.Prior != null);
+      return (this.Current != null) && (this.Prior != null);
     }
   }
 }

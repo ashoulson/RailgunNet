@@ -28,6 +28,7 @@ namespace Railgun
 {
   interface IRailServerPacket : IRailPacket
   {
+    Tick LatestServerTick { get; }
     IEnumerable<RailState> States { get; }
   }
 
@@ -47,6 +48,11 @@ namespace Railgun
     public IEnumerable<RailState> States 
     { 
       get { return this.states; }
+    }
+
+    public Tick LatestServerTick
+    {
+      get { return this.SenderTick; }
     }
 
     private readonly List<RailState> states;
