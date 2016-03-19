@@ -62,10 +62,16 @@ namespace Railgun
 
     protected abstract int FlagBitsUsed { get; }
     protected abstract void ResetData();
-    protected abstract void EncodeImmutable(BitBuffer buffer);
-    protected abstract void DecodeImmutable(BitBuffer buffer);
-    protected abstract void EncodeMutable(BitBuffer buffer, uint flags);
-    protected abstract void DecodeMutable(BitBuffer buffer, uint flags);
+
+    protected abstract void EncodeImmutableData(BitBuffer buffer);
+    protected abstract void DecodeImmutableData(BitBuffer buffer);
+
+    protected abstract void EncodeMutableData(BitBuffer buffer, uint flags);
+    protected abstract void DecodeMutableData(BitBuffer buffer, uint flags);
+    protected abstract void ResetControllerData();
+
+    protected abstract void EncodeControllerData(BitBuffer buffer);
+    protected abstract void DecodeControllerData(BitBuffer buffer);
 
     protected internal void Reset() 
     {
@@ -147,9 +153,13 @@ namespace Railgun
       // Write: [Mutable Data]
       this.EncodeMutable(buffer, basis);
 
+      // Write: [Controller Data] (if applicable)
+      if (isController)
+        this.EncodeControllerData(buffer);
+
       // Write: [Immutable Data] (if applicable)
       if (isFirst)
-        this.EncodeImmutable(buffer);
+        this.EncodeImmutableData(buffer);
     }
 
     internal static RailState Decode(
@@ -177,9 +187,13 @@ namespace Railgun
       // Read: [Mutable Data]
       state.DecodeMutable(buffer, isDelta);
 
+      // Read: [Controller Data] (if applicable)
+      if (isController)
+        state.DecodeControllerData(buffer);
+
       // Read: [Immutable Data] (if applicable)
       if (isFirst)
-        state.DecodeImmutable(buffer);
+        state.DecodeImmutableData(buffer);
 
       return state;
     }
@@ -223,7 +237,7 @@ namespace Railgun
       if (basis == null) // Full Encode
       {
         // Write: [Mutable Data] (full)
-        this.EncodeMutable(buffer, RailState.FLAGS_ALL);
+        this.EncodeMutableData(buffer, RailState.FLAGS_ALL);
       }
       else // Delta Encode
       {
@@ -232,7 +246,7 @@ namespace Railgun
         buffer.Write(this.FlagBitsUsed, flags);
 
         // Write: [Mutable Data] (delta)
-        this.EncodeMutable(buffer, flags);
+        this.EncodeMutableData(buffer, flags);
       }
     }
 
@@ -243,7 +257,7 @@ namespace Railgun
       if (isDelta == false)
       {
         // Read: [Mutable Data] (full)
-        this.DecodeMutable(buffer, RailState.FLAGS_ALL);
+        this.DecodeMutableData(buffer, RailState.FLAGS_ALL);
       }
       else
       {
@@ -251,7 +265,7 @@ namespace Railgun
         uint flags = buffer.Read(this.FlagBitsUsed);
 
         // Write: [Mutable Data] (delta)
-        this.DecodeMutable(buffer, flags);
+        this.DecodeMutableData(buffer, flags);
       }
     }
 

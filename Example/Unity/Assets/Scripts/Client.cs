@@ -16,7 +16,7 @@ public class Client : MonoBehaviour
   private NetSocket netSocket;
   private RailClient client;
 
-  public float kBps = 0.0f;
+  public float KBps = 0.0f;
 
   private int receivedThisFrame = 0;
   private int framesActive = 0;
@@ -66,7 +66,7 @@ public class Client : MonoBehaviour
     foreach (int bytes in this.bandwidthWindow)
       sum += bytes;
     float average = (float)sum / (float)BANDWIDTH_WINDOW_SIZE;
-    this.kBps = (average / Time.fixedDeltaTime) / 1024.0f;
+    this.KBps = (average / Time.fixedDeltaTime) / 1024.0f;
   }
 
   private void OnConnected(NetPeer peer)
