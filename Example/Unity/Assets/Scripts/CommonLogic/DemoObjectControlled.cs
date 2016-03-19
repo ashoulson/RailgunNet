@@ -29,12 +29,15 @@ public class DemoObjectControlled : MonoBehaviour
 
   void Start()
   {
+    this.Entity.Shutdown += this.OnShutdown;
   }
 
   void Update()
   {
     if (this.Entity != null)
+    {
       this.UpdatePosition();
+    }
 
     if (Input.GetKeyDown(KeyCode.Alpha1))
       this.DoSmoothing = true;
@@ -74,5 +77,10 @@ public class DemoObjectControlled : MonoBehaviour
       else
         this.color = Color.red;
     }
+  }
+
+  private void OnShutdown()
+  {
+    GameObject.Destroy(this.gameObject);
   }
 }

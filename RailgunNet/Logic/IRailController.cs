@@ -30,6 +30,8 @@ namespace Railgun
 {
   public interface IRailController
   {
+    object UserData { get; set; }
+
     IEnumerable<RailEntity> ControlledEntities { get; }
 
     void QueueGlobal(RailEvent evnt);

@@ -99,9 +99,18 @@ namespace Railgun
     /// </summary>
     protected virtual void Simulate() { }
 
-    // Client-only. The last true (not delayed/predicted) packet server tick
-    // during which we received an update for this entity. Used for freezing.
+    /// <summary>
+    /// Client-only. The last true (not delayed/predicted) packet server tick
+    /// during which we received an update for this entity. Used for freezing.
+    /// </summary>
     internal Tick LastUpdatedServerTick { get; set; }
+
+    /// <summary>
+    /// The tick this Entity was/will be destroyed on.
+    /// </summary>
+    internal Tick DestroyedTick { get; set; }
+
+    internal bool IsDestroyed { get { return this.DestroyedTick.IsValid; } }
 
     private bool hadFirstTick;
     private bool isFrozen;
@@ -127,6 +136,8 @@ namespace Railgun
 
       this.World = null;
       this.State = null;
+
+      this.DestroyedTick = Tick.INVALID;
 
       this.hadFirstTick = false;
       this.isFrozen = false;
@@ -228,11 +239,21 @@ namespace Railgun
       this.OnShutdown();
     }
 
+    // Server version
     internal void StoreState(Tick tick)
     {
       RailState state = this.State.Clone();
       state.SetOnStore(tick);
       this.StateBuffer.Store(state);
+    }
+
+    // Client version
+    internal void StoreState(RailState state)
+    {
+      if (state.IsDestroyed)
+        this.DestroyedTick = state.DestroyedTick;
+      else
+        this.StateBuffer.Store(state);
     }
 
     internal void UpdateFreeze(Tick lastReceivedServerTick)
@@ -261,6 +282,8 @@ namespace Railgun
       bool isController = (destination == this.Controller);
       bool isFirst = false;
 
+      Tick destroyed = this.DestroyedTick;
+
       if (basisTick.IsValid)
       {
         basis = this.StateBuffer.Get(basisTick);
@@ -276,7 +299,7 @@ namespace Railgun
       buffer.Write(RailEncoders.TickSpan, span);
 
       // Write: [State]
-      this.State.Encode(buffer, basis, isController, isFirst);
+      this.State.Encode(buffer, basis, isController, isFirst, destroyed);
     }
 
     /// <summary>

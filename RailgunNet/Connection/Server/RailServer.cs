@@ -50,11 +50,18 @@ namespace Railgun
     /// </summary>
     private Dictionary<IRailNetPeer, RailServerPeer> clients;
 
+    /// <summary>
+    /// Entities that have been destroyed.
+    /// </summary>
+    private Dictionary<EntityId, RailEntity> destroyedEntities;
+
     public RailServer() : base()
     {
       RailConnection.IsServer = true;
       this.World.InitializeServer();
+
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
+      this.destroyedEntities = new Dictionary<EntityId, RailEntity>();
     }
 
     /// <summary>
@@ -123,10 +130,16 @@ namespace Railgun
       return (T)entity;
     }
 
-    public void DestroyEntity(EntityId entityId)
+    /// <summary>
+    /// Removes an entity from the world and destroys it.
+    /// </summary>
+    public void DestroyEntity(RailEntity entity)
     {
-      this.World.RemoveEntity(entityId);
+      this.World.RemoveEntity(entity.Id);
+      this.destroyedEntities.Add(entity.Id, entity);
 
+      // We remove on the next tick since this tick may already be done
+      entity.DestroyedTick = this.World.Tick + 1;
     }
 
     /// <summary>
@@ -135,7 +148,10 @@ namespace Railgun
     private void BroadcastPackets()
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
-        clientPeer.SendPacket(this.World.Tick, this.World.Entities);
+        clientPeer.SendPacket(
+          this.World.Tick, 
+          this.World.Entities,
+          this.destroyedEntities.Values);
     }
   }
 }

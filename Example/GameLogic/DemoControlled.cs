@@ -28,6 +28,8 @@ using UnityEngine;
 [RegisterEntity(typeof(DemoState))]
 public class DemoControlled : RailEntity<DemoState, DemoCommand>
 {
+  public event Action Shutdown;
+
   protected override void OnStart()
   {
     DemoEvents.OnControlledAdded(this);
@@ -47,5 +49,11 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 
   protected override void Simulate()
   {
+  }
+
+  protected override void OnShutdown()
+  {
+    if (this.Shutdown != null)
+      this.Shutdown.Invoke();
   }
 }

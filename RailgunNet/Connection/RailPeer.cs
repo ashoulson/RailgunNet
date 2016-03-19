@@ -29,6 +29,8 @@ namespace Railgun
 {
   internal abstract class RailPeer : IRailControllerInternal
   {
+    object IRailController.UserData { get; set; }
+
     /// <summary>
     /// The network I/O peer for sending/receiving data.
     /// </summary>
