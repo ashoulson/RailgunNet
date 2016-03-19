@@ -83,19 +83,19 @@ public class DemoState : RailState<DemoState>
     this.Status = other.Status;
   }
 
-  protected override void EncodeImmutable(BitBuffer buffer)
+  protected override void EncodeImmutableData(BitBuffer buffer)
   {
     buffer.Write(DemoEncoders.ArchetypeId, this.ArchetypeId);
     buffer.Write(DemoEncoders.UserId, this.UserId);
   }
 
-  protected override void DecodeImmutable(BitBuffer buffer)
+  protected override void DecodeImmutableData(BitBuffer buffer)
   {
     this.ArchetypeId = buffer.Read(DemoEncoders.ArchetypeId);
     this.UserId = buffer.Read(DemoEncoders.UserId);
   }
 
-  protected override void EncodeMutable(BitBuffer buffer, uint flags)
+  protected override void EncodeMutableData(BitBuffer buffer, uint flags)
   {
     buffer.WriteIf(flags, FLAG_X, DemoEncoders.Coordinate, this.X);
     buffer.WriteIf(flags, FLAG_Y, DemoEncoders.Coordinate, this.Y);
@@ -103,12 +103,26 @@ public class DemoState : RailState<DemoState>
     buffer.WriteIf(flags, FLAG_STATUS, DemoEncoders.Status, this.Status);
   }
 
-  protected override void DecodeMutable(BitBuffer buffer, uint flags)
+  protected override void DecodeMutableData(BitBuffer buffer, uint flags)
   {
     buffer.ReadIf(flags, FLAG_X, DemoEncoders.Coordinate, ref this.X);
     buffer.ReadIf(flags, FLAG_Y, DemoEncoders.Coordinate, ref this.Y);
     buffer.ReadIf(flags, FLAG_ANGLE, DemoEncoders.Angle, ref this.Angle);
     buffer.ReadIf(flags, FLAG_STATUS, DemoEncoders.Status, ref this.Status);
+  }
+
+  protected override void EncodeControllerData(BitBuffer buffer)
+  {
+    buffer.Write(8, 255);
+  }
+
+  protected override void DecodeControllerData(BitBuffer buffer)
+  {
+    buffer.Read(8);
+  }
+
+  protected override void ResetControllerData()
+  {
   }
 
   #region DEBUG
