@@ -45,13 +45,16 @@ namespace Railgun
     }
 
     // Client/Server
-    internal EntityId EntityId { get; private set; } // Synchronized
-    internal int EntityType { get; private set; }    // Synchronized
-    internal Tick Tick { get; private set; }         // Synchronized
+    internal EntityId EntityId { get; private set; }  // Synchronized
+    internal int EntityType { get; private set; }     // Synchronized
+    internal Tick Tick { get; private set; }          // Synchronized
 
     // Client-only -- always false on server
-    internal bool IsController { get; private set; } // Synchronized (indirectly)
-    internal bool IsPredicted { get; private set; }  // Not synchronized
+    internal bool IsController { get; set; }          // Synchronized (indirectly)
+    internal bool IsPredicted { get; private set; }   // Not synchronized
+    internal Tick DestroyedTick { get; private set; } // Synchronized to client
+
+    internal bool IsDestroyed { get { return this.DestroyedTick.IsValid; } }
 
     /// <summary>
     /// Compares this state against a basis and returns a bitfield of which
@@ -81,6 +84,7 @@ namespace Railgun
 
       this.IsPredicted = false;
       this.IsController = false;
+      this.DestroyedTick = Tick.INVALID;
 
       this.ResetData();
     }
@@ -98,6 +102,7 @@ namespace Railgun
       clone.EntityType = this.EntityType;
       clone.IsController = this.IsController;
       clone.IsPredicted = this.IsPredicted;
+      clone.DestroyedTick = this.DestroyedTick;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -119,11 +124,10 @@ namespace Railgun
       this.Tick = tick;
     }
 
-    private void SetOnDecode(Tick tick, EntityId id, bool isController)
+    private void SetOnDecode(Tick tick, EntityId id)
     {
       this.Tick = tick;
       this.EntityId = id;
-      this.IsController = isController;
     }
 
     #region Encode/Decode
@@ -136,19 +140,32 @@ namespace Railgun
       BitBuffer buffer, 
       RailState basis,
       bool isController,
-      bool isFirst)
+      bool isFirst,
+      Tick destroyed)
     {
       // Write: [Id]
       buffer.Write(RailEncoders.EntityId, this.EntityId);
+
+      // Write: [Type]
+      this.EncodeType(buffer, basis);
+
+      // Write: [IsDestroyed]
+      buffer.Write(RailEncoders.Bool, destroyed.IsValid);
+
+      if (destroyed.IsValid)
+      {
+        // Write: [Destroyed Tick] (if applicable)
+        buffer.Write(RailEncoders.Tick, destroyed);
+
+        // End Write
+        return;
+      }
 
       // Write: [IsController]
       buffer.Write(RailEncoders.Bool, isController);
 
       // Write: [IsFirst]
       buffer.Write(RailEncoders.Bool, isFirst);
-
-      // Write: [Type]
-      this.EncodeType(buffer, basis);
 
       // Write: [Mutable Data]
       this.EncodeMutable(buffer, basis);
@@ -171,24 +188,35 @@ namespace Railgun
       // Read: [Id]
       EntityId id = buffer.Read(RailEncoders.EntityId);
 
-      // Read: [IsController]
-      bool isController = buffer.Read(RailEncoders.Bool);
-
-      // Read: [IsFirst]
-      bool isFirst = buffer.Read(RailEncoders.Bool);
-
       // Read: [Type]
       int type = RailState.DecodeType(buffer, basis, isDelta);
 
       // Create the state
-      RailState state = 
-        RailState.CreateState(basis, latestTick, id, type, isController);
+      RailState state = RailState.CreateState(basis, latestTick, id, type);
+
+      // Read: [IsDestroyed]
+      bool isDestroyed = buffer.Read(RailEncoders.Bool);
+
+      if (isDestroyed)
+      {
+        // Read: [Destroyed Tick] (if applicable)
+        state.DestroyedTick = buffer.Read(RailEncoders.Tick);
+
+        // End Read
+        return state;
+      }
+
+      // Read: [IsController]
+      state.IsController = buffer.Read(RailEncoders.Bool);
+
+      // Read: [IsFirst]
+      bool isFirst = buffer.Read(RailEncoders.Bool);
      
       // Read: [Mutable Data]
       state.DecodeMutable(buffer, isDelta);
 
       // Read: [Controller Data] (if applicable)
-      if (isController)
+      if (state.IsController)
         state.DecodeControllerData(buffer);
 
       // Read: [Immutable Data] (if applicable)
@@ -273,11 +301,10 @@ namespace Railgun
       RailState basis,
       Tick latestTick,
       EntityId id,
-      int type,
-      bool isController)
+      int type)
     {
       RailState state = RailResource.Instance.AllocateState(type);
-      state.SetOnDecode(latestTick, id, isController);
+      state.SetOnDecode(latestTick, id);
       if (basis != null)
         state.SetDataFrom(basis); // Copy over mutable and immutable data
       return state;

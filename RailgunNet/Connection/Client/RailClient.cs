@@ -45,6 +45,9 @@ namespace Railgun
     // The local simulation tick, used for commands
     private Tick localTick;
 
+    // Pre-allocated removal list
+    List<RailEntity> toRemove;
+
     public RailClient()
     {
       RailConnection.IsServer = false;
@@ -57,6 +60,8 @@ namespace Railgun
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.knownEntities =
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
+
+      this.toRemove = new List<RailEntity>();
     }
 
     public void SetPeer(IRailNetPeer netPeer)
@@ -122,20 +127,18 @@ namespace Railgun
     /// </summary>
     private void UpdatePendingEntities(Tick serverTick)
     {
-      // TODO: This list could be pre-allocated
-      List<RailEntity> toRemove = new List<RailEntity>();
-
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
         if (entity.HasLatest(serverTick))
         {
           this.World.AddEntity(entity);
-          toRemove.Add(entity);
+          this.toRemove.Add(entity);
         }
       }
 
-      foreach (RailEntity entity in toRemove)
+      foreach (RailEntity entity in this.toRemove)
         this.pendingEntities.Remove(entity.Id);
+      this.toRemove.Clear();
     }
     #endregion
 
@@ -158,7 +161,7 @@ namespace Railgun
         this.knownEntities.Add(state.EntityId, entity);
       }
 
-      entity.StateBuffer.Store(state);
+      entity.StoreState(state);
       entity.LastUpdatedServerTick = latestServerTick;
       this.UpdateControlStatus(entity, state);
     }

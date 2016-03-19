@@ -97,7 +97,8 @@ namespace Railgun
 
     internal void SendPacket(
       Tick localTick,
-      IEnumerable<RailEntity> entities)
+      IEnumerable<RailEntity> activeEntities,
+      IEnumerable<RailEntity> destroyedEntities)
     {
       RailServerPacket packet =
         base.AllocatePacketSend<RailServerPacket>(localTick);
@@ -106,8 +107,16 @@ namespace Railgun
       packet.Destination = this; // (Not sent, but used for controller flags)
       packet.CommandTick = this.latestCommandTick;
 
-      // Queue up all entities in scope for the packet to try to fit
-      foreach (RailEntity entity in this.scope.Evaluate(entities, localTick))
+      // Queue up all destroyed entities for the packet, these get priority
+      foreach (RailEntity entity in destroyedEntities)
+      {
+        Tick latest = this.ackedView.GetLatest(entity.Id);
+        if (latest.IsValid && (latest < entity.DestroyedTick))
+          packet.QueueEntity(entity, Tick.INVALID);
+      }
+
+      // Queue up all active entities in scope for the packet to try to fit
+      foreach (RailEntity entity in this.scope.Evaluate(activeEntities, localTick))
         packet.QueueEntity(entity, this.ackedView.GetLatest(entity.Id));
 
       // Send the packet

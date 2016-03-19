@@ -39,6 +39,9 @@ namespace Railgun
 
     private Dictionary<EntityId, RailEntity> entities;
 
+    // Pre-allocated removal list
+    private List<EntityId> toRemove;
+
     public bool TryGetEntity(EntityId id, out RailEntity value)
     {
       return this.entities.TryGetValue(id, out value);
@@ -49,6 +52,8 @@ namespace Railgun
       this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.nextEntityId = EntityId.INVALID.GetNext();
       this.Tick = Tick.INVALID;
+
+      this.toRemove = new List<EntityId>();
     }
 
     internal void InitializeServer()
@@ -113,7 +118,17 @@ namespace Railgun
     {
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
-        entity.UpdateClient(serverTick);
+      {
+        Tick destroyedTick = entity.DestroyedTick;
+        if (destroyedTick.IsValid && (destroyedTick <= serverTick))
+          this.toRemove.Add(entity.Id);
+        else
+          entity.UpdateClient(serverTick);
+      }
+
+      foreach (EntityId id in this.toRemove)
+        this.RemoveEntity(id);
+      this.toRemove.Clear();
     }
 
     internal void StoreStates()
