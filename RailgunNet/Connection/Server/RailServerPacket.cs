@@ -130,12 +130,13 @@ namespace Railgun
       {
         buffer.SetRollback(RailServerPacket.KEY_ROLLBACK);
         int beforeSize = buffer.ByteSize;
+        Tick basisTick = pair.Value;
 
         pair.Key.EncodeState(
           buffer,
           this.Destination,  // Make sure this is set ahead of time!
           this.SenderTick,   // Make sure this is set ahead of time!
-          pair.Value);
+          basisTick);
 
         int byteCost = buffer.ByteSize - beforeSize;
         if (byteCost > RailConfig.MAX_ENTITY_SIZE)

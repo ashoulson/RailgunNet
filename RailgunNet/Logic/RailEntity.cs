@@ -223,6 +223,7 @@ namespace Railgun
       RailState basis = null;
       TickSpan span = TickSpan.OUT_OF_RANGE;
       bool isController = (destination == this.Controller);
+      bool isFirst = false;
 
       if (basisTick.IsValid)
       {
@@ -230,12 +231,16 @@ namespace Railgun
         if (basis != null)
           span = TickSpan.Create(latestTick, basisTick);
       }
+      else
+      {
+        isFirst = true;
+      }
 
       // Write: [TickSpan]
       buffer.Write(RailEncoders.TickSpan, span);
 
       // Write: [State]
-      this.State.Encode(buffer, basis, isController);
+      this.State.Encode(buffer, basis, isController, isFirst);
     }
 
     /// <summary>
@@ -256,17 +261,43 @@ namespace Railgun
       // Peek: [State.Id]
       EntityId id = RailState.PeekId(buffer);
 
+      // There are three different situations that may occur with respect to
+      // the basis being null or not null and the value of isDelta:
+      //
+      // #  Description                         Basis       IsDelta
+      // 1  First received state                null        false
+      // 2  Full decode                         latest      false
+      // 3  Delta decode                        real basis  true
+      // 4  Bad/failed delta decode recovery    latest      true
+      //
+      // Case 4 can happen if something went wrong. In this case we try to
+      // recover by still decoding, but trash the result and move on. The 
+      // reason for this split between basis and isDelta is so we can copy
+      // over immutable values from previous states even if full decoding.
+
       RailEntity entity = null;
       RailState basis = null;
+      bool isDelta = true;
       bool canStore = true;
 
       if (knownEntities.TryGetValue(id, out entity) == false)
         entity = null;
+
       if (span.IsInRange)
+      {
         basis = RailEntity.GetBasis(entity, latestTick, span, out canStore);
+      }
+      else
+      {
+        // If there is no basis, try to substitute the latest state to get the
+        // immutable values since they will never change after initialization
+        if (entity != null)
+          basis = entity.StateBuffer.Latest;
+        isDelta = false;
+      }
 
       // Read: [State]
-      RailState state = RailState.Decode(buffer, basis, latestTick);
+      RailState state = RailState.Decode(buffer, basis, latestTick, isDelta);
 
       if (canStore)
         return state;

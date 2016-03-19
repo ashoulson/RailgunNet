@@ -466,8 +466,8 @@ namespace Railgun
 
     #region Conditional Serialization Helpers
     public void WriteIf<T>(
-      int flags,
-      int requiredFlag,
+      uint flags,
+      uint requiredFlag,
       Encoder<T> encoder,
       T value)
     {
@@ -475,15 +475,14 @@ namespace Railgun
         this.Write(encoder, value);
     }
 
-    public T ReadIf<T>(
-      int flags,
-      int requiredFlag,
+    public void ReadIf<T>(
+      uint flags,
+      uint requiredFlag,
       Encoder<T> encoder,
-      T basisVal)
+      ref T destination)
     {
       if ((flags & requiredFlag) == requiredFlag)
-        return this.Read(encoder);
-      return basisVal;
+        destination = this.Read(encoder);
     }
     #endregion
     #endregion
