@@ -61,21 +61,20 @@ namespace Railgun
       this.Tick = Tick.INVALID;
     }
 
-    internal T CreateEntity<T>(int type)
+    internal T CreateEntity<T>()
       where T : RailEntity
     {
       // TODO: Get some #defines in for this kind of thing
       CommonDebug.Assert(RailConnection.IsServer);
 
-      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      T entity = RailResource.Instance.CreateEntity<T>();
       entity.AssignId(this.nextEntityId);
       this.nextEntityId = this.nextEntityId.GetNext();
 
-      return (T)entity;
+      return entity;
     }
 
-    internal T CreateEntity<T>(int type, EntityId id)
-      where T : RailEntity
+    internal RailEntity CreateEntity(int type, EntityId id)
     {
       // TODO: Get some #defines in for this kind of thing
       CommonDebug.Assert(RailConnection.IsServer == false);
@@ -83,7 +82,7 @@ namespace Railgun
       RailEntity entity = RailResource.Instance.CreateEntity(type);
       entity.AssignId(id);
 
-      return (T)entity;
+      return entity;
     }
 
     internal void AddEntity(RailEntity entity)
@@ -92,9 +91,15 @@ namespace Railgun
       entity.World = this;
     }
 
-    internal void RemoveEntity(RailEntity entity)
+    internal void RemoveEntity(EntityId entityId)
     {
-      // TODO
+      RailEntity entity;
+      if (this.entities.TryGetValue(entityId, out entity))
+      {
+        this.entities.Remove(entityId);
+        entity.World = null;
+        entity.Shutdown();
+      }
     }
     
     internal void UpdateServer()
@@ -104,17 +109,17 @@ namespace Railgun
         entity.UpdateServer(this.Tick);
     }
 
-    internal void StoreStates()
-    {
-      foreach (RailEntity entity in this.entities.Values)
-        entity.StoreState(this.Tick);
-    }
-
     internal void UpdateClient(Tick serverTick)
     {
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
         entity.UpdateClient(serverTick);
+    }
+
+    internal void StoreStates()
+    {
+      foreach (RailEntity entity in this.entities.Values)
+        entity.StoreState(this.Tick);
     }
   }
 }

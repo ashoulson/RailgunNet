@@ -32,12 +32,6 @@ namespace Railgun
   public abstract class RailCommand : 
     IRailPoolable<RailCommand>, IRailRingValue, IRailCloneable<RailCommand>
   {
-    public static void RegisterCommandType<TCommand>()
-      where TCommand : RailCommand, new()
-    {
-      RailResource.Instance.RegisterCommandType<TCommand>();
-    }
-
     IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
     void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
     Tick IRailRingValue.Tick { get { return this.Tick; } }

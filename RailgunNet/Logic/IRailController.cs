@@ -32,7 +32,7 @@ namespace Railgun
   {
     IEnumerable<RailEntity> ControlledEntities { get; }
 
-    void QueueGlobal(RailEvent evnt, Tick tick);
+    void QueueGlobal(RailEvent evnt);
   }
 
   /// <summary>

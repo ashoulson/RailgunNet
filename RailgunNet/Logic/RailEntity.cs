@@ -28,13 +28,6 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
-    public static void RegisterEntityType<TEntity, TState>(int type)
-      where TEntity : RailEntity<TState>, new()
-      where TState : RailState, new()
-    {
-      RailResource.Instance.RegisterEntityType<TEntity, TState>(type);
-    }
-
     internal IRailController Controller { get {return this.controller; } }
     internal RailStateBuffer StateBuffer { get; private set; }
     internal RailStateDelta StateDelta { get; private set; }
@@ -82,7 +75,13 @@ namespace Railgun
     /// SERVER: Called before the first update tick.
     /// CLIENT: Called before the first update tick.
     /// </summary>
-    protected virtual void Start() { }
+    protected virtual void OnStart() { }
+
+    /// <summary>
+    /// SERVER: Called when the entity is removed from the world.
+    /// CLIENT: Called when the entity is removed from the world.
+    /// </summary>
+    protected virtual void OnShutdown() { }
 
     /// <summary>
     /// SERVER: Called every tick.
@@ -164,7 +163,7 @@ namespace Railgun
         if (this.hadFirstTick == false)
         {
           this.hadFirstTick = true;
-          this.Start();
+          this.OnStart();
           this.ControllerChanged();
         }
 
@@ -207,7 +206,7 @@ namespace Railgun
         if (this.hadFirstTick == false)
         {
           this.hadFirstTick = true;
-          this.Start();
+          this.OnStart();
           this.ControllerChanged();
         }
       }
@@ -222,6 +221,11 @@ namespace Railgun
     {
       if ((this.World != null) && this.hadFirstTick)
         this.OnControllerChanged();
+    }
+
+    internal void Shutdown()
+    {
+      this.OnShutdown();
     }
 
     internal void StoreState(Tick tick)
@@ -428,7 +432,7 @@ namespace Railgun
       if (this.hadFirstTick == false)
       {
         this.hadFirstTick = true;
-        this.Start();
+        this.OnStart();
         this.ControllerChanged();
       }
 

@@ -56,7 +56,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Demo.cs" />
     <Compile Include="DemoCommand.cs" />
     <Compile Include="DemoDummy.cs" />
     <Compile Include="DemoEncoders.cs" />

@@ -36,12 +36,12 @@ namespace Railgun
     internal static readonly TypedEncoder<EventId> EventId = new TypedEncoder<EventId>();
     internal static readonly TypedEncoder<TickSpan> TickSpan = new TypedEncoder<TickSpan>();
 
-    // Types
-    internal static readonly IntEncoder EntityType = new IntEncoder(0, 31);
-    internal static readonly IntEncoder EventType = new IntEncoder(-10, 117);
+    // Type Keys
+    internal static IntEncoder EntityType = null;
+    internal static IntEncoder EventType = null;
 
     // Counts
-    internal static readonly IntEncoder EntityCount = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
+    internal static IntEncoder EntityCount { get {return Railgun.EntityId.CountEncoder;} }
     internal static IntEncoder EventCount { get { return Railgun.EventId.CountEncoder; } }
     internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
   }

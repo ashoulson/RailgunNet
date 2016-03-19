@@ -25,9 +25,10 @@ using System.Collections.Generic;
 using Railgun;
 using UnityEngine;
 
+[RegisterEntity(typeof(DemoState))]
 public class DemoControlled : RailEntity<DemoState, DemoCommand>
 {
-  protected override void Start()
+  protected override void OnStart()
   {
     DemoEvents.OnControlledAdded(this);
   }

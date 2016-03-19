@@ -153,10 +153,7 @@ namespace Railgun
       RailEntity entity;
       if (this.knownEntities.TryGetValue(state.EntityId, out entity) == false)
       {
-        entity = 
-          this.World.CreateEntity<RailEntity>(
-            state.EntityType,
-            state.EntityId);
+        entity = this.World.CreateEntity(state.EntityType, state.EntityId);
         this.pendingEntities.Add(state.EntityId, entity);
         this.knownEntities.Add(state.EntityId, entity);
       }

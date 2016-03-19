@@ -44,8 +44,6 @@ namespace Railgun
 
     protected RailConnection()
     {
-      RailResource.Initialize();
-
       this.world = new RailWorld();
       this.interpreter = new RailInterpreter();
     }
