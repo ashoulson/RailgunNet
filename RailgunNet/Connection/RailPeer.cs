@@ -108,6 +108,9 @@ namespace Railgun
       this.interpreter = interpreter;
     }
 
+    /// <summary>
+    /// Allocates an event of a given type and returns it for writing.
+    /// </summary>
     public T OpenEvent<T>()
       where T : RailEvent
     {

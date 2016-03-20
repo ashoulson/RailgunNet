@@ -29,7 +29,7 @@ namespace Railgun
       this.latest = Tick.INVALID;
     }
 
-    public IEnumerable<RailEvent> Advance(Tick latest)
+    public IEnumerable<RailEvent> Advance(Tick latest, int maxAge)
     {
       if (this.latest.IsValid && (this.latest > latest))
         yield break;
@@ -42,8 +42,9 @@ namespace Railgun
 
         this.containedIds.Remove(evnt.EventId);
         this.events.PopFirst();
-        yield return evnt;
 
+        if ((latest - evnt.Tick) <= maxAge)
+          yield return evnt;
         RailPool.Free(evnt);
       }
 

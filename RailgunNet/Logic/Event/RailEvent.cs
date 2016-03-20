@@ -48,15 +48,10 @@ namespace Railgun
     internal Tick Tick { get; set; }
 
     /// <summary>
-    /// The number of times we will continue trying to send this event.
+    /// The maximum age for this event. Used for entity events.
     /// This value is not synchronized.
     /// </summary>
-    internal int NumRetries { get; set; }
-
-    /// <summary>
-    /// The maximum age for this event. This value is not synchronized.
-    /// </summary>
-    internal int MaximumAge { get; set; }
+    internal Tick Expiration { get; set; }
 
     /// <summary>
     /// The int index for the type of event.
@@ -70,6 +65,7 @@ namespace Railgun
     protected abstract void ResetData();
 
     protected internal virtual void Invoke() { }
+    protected internal virtual void Invoke(RailEntity entity) { }
 
     internal void Initialize(int eventType)
     {
@@ -81,6 +77,7 @@ namespace Railgun
       RailEvent clone = RailResource.Instance.AllocateEvent(this.EventType);
       clone.EventId = this.EventId;
       clone.Tick = this.Tick;
+      clone.Expiration = this.Expiration;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -89,11 +86,53 @@ namespace Railgun
     {
       this.EventId = EventId.INVALID;
       this.Tick = Tick.INVALID;
+      this.Expiration = Tick.INVALID;
       this.ResetData();
     }
 
     #region Encode/Decode/etc.
-    internal void Encode(
+    internal void Encode(BitBuffer buffer)
+    {
+      // Write: [Tick]
+      buffer.Write(RailEncoders.Tick, this.Tick);
+
+      // Write: [Contents]
+      this.EncodeContents(buffer);
+    }
+
+    internal void Encode(BitBuffer buffer, Tick latestTick)
+    {
+      TickSpan span = TickSpan.Create(latestTick, this.Tick);
+      CommonDebug.Assert(span.IsInRange);
+
+      // Write: [TickSpan]
+      buffer.Write(RailEncoders.TickSpan, span);
+
+      // Write: [Contents]
+      this.EncodeContents(buffer);
+    }
+
+    internal static RailEvent Decode(BitBuffer buffer)
+    {
+      // Read: [Tick]
+      Tick tick = buffer.Read(RailEncoders.Tick);
+
+      // Read: [Contents]
+      return RailEvent.DecodeContents(buffer, tick);
+    }
+
+    internal static RailEvent Decode(BitBuffer buffer, Tick latestTick)
+    {
+      // Read: [TickSpan]
+      TickSpan span = buffer.Read(RailEncoders.TickSpan);
+      CommonDebug.Assert(span.IsInRange);
+      Tick tick = Tick.Create(latestTick, span);
+
+      // Read: [Contents]
+      return RailEvent.DecodeContents(buffer, tick);
+    }
+
+    private void EncodeContents(
       BitBuffer buffer)
     {
       // Write: [EventType]
@@ -102,26 +141,21 @@ namespace Railgun
       // Write: [EventId]
       buffer.Write(RailEncoders.EventId, this.EventId);
 
-      // Write: [Tick]
-      buffer.Write(RailEncoders.Tick, this.Tick);
-
       // Write: [EventData]
       this.EncodeData(buffer);
     }
 
-    internal static RailEvent Decode(
-      BitBuffer buffer)
+    private static RailEvent DecodeContents(
+      BitBuffer buffer, Tick tick)
     {
       // Read: [EventType]
       int eventType = buffer.Read(RailEncoders.EventType);
 
       RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
+      evnt.Tick = tick;
 
       // Read: [EventId]
       evnt.EventId = buffer.Read(RailEncoders.EventId);
-
-      // Read: [Tick]
-      evnt.Tick = buffer.Read(RailEncoders.Tick);
 
       // Read: [EventData]
       evnt.DecodeData(buffer);

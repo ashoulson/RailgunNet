@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class IntEncoder : Encoder<int>
+  public class IntEncoder : RailEncoder<int>
   {
     private readonly int minValue;
     private readonly int maxValue;

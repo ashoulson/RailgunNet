@@ -146,36 +146,32 @@ namespace Railgun
     #region View
     protected void EncodeView(BitBuffer buffer)
     {
-      CommonDebug.Assert(buffer.IsAvailable(RailClientPacket.KEY_ROLLBACK));
-      CommonDebug.Assert(buffer.IsAvailable(RailClientPacket.KEY_RESERVE));
+      // Reserve: [Count]
+      buffer.Reserve(RailClientPacket.KEY_RESERVE, RailEncoders.EntityCount);
 
-      int reserveKey = RailClientPacket.KEY_RESERVE;
+      // Write: [View]
+      IEnumerable<KeyValuePair<EntityId, Tick>> packed =
+        buffer.PackToSize(
+          RailClientPacket.KEY_RESERVE,
+          RailClientPacket.KEY_ROLLBACK,
+          RailEncoders.EntityCount,
+          this.view.GetOrdered(),
+          RailConfig.MESSAGE_MAX_SIZE,
+          this.EncodeViewPair);
 
-      // Reserve: [Entity Count]
-      buffer.Reserve(reserveKey, RailEncoders.EntityCount);
+      foreach (var pair in packed)
+        ; // Pass
+    }
 
-      int numWritten = 0;
-      foreach (KeyValuePair<EntityId, Tick> pair in this.view.GetOrdered())
-      {
-        buffer.SetRollback(RailClientPacket.KEY_ROLLBACK);
+    private void EncodeViewPair(
+      BitBuffer buffer, 
+      KeyValuePair<EntityId, Tick> pair)
+    {
+      // Write: [EntityId]
+      buffer.Write(RailEncoders.EntityId, pair.Key);
 
-        // Write: [EntityId]
-        buffer.Write(RailEncoders.EntityId, pair.Key);
-
-        // Write: [Tick]
-        buffer.Write(RailEncoders.Tick, pair.Value);
-
-        if (buffer.ByteSize > RailConfig.MESSAGE_MAX_SIZE)
-        {
-          buffer.Rollback(RailClientPacket.KEY_ROLLBACK);
-          break;
-        }
-
-        numWritten++;
-      }
-
-      // Reserved Write: [Entity Count]
-      buffer.WriteReserved(reserveKey, RailEncoders.EntityCount, numWritten);
+      // Write: [Tick]
+      buffer.Write(RailEncoders.Tick, pair.Value);
     }
 
     public void DecodeView(BitBuffer buffer)

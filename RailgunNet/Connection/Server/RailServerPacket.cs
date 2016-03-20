@@ -125,52 +125,31 @@ namespace Railgun
     #region States
     private void EncodeStates(BitBuffer buffer)
     {
-      CommonDebug.Assert(buffer.IsAvailable(RailServerPacket.KEY_RESERVE));
-      CommonDebug.Assert(buffer.IsAvailable(RailServerPacket.KEY_ROLLBACK));
-
-      // Reserve: [Entity Count]
+      // Reserve: [Count]
       buffer.Reserve(RailServerPacket.KEY_RESERVE, RailEncoders.EntityCount);
 
-      // Write: [Entity States]
-      bool setRollback = false;
-      foreach (KeyValuePair<RailEntity, Tick> pair in this.pendingEntities)
-      {
-        buffer.SetRollback(RailServerPacket.KEY_ROLLBACK);
-        setRollback = true;
-        int beforeSize = buffer.ByteSize;
-        Tick basisTick = pair.Value;
+      // Write: [States]
+      IEnumerable<KeyValuePair<RailEntity, Tick>> packed = 
+        buffer.PackToSize(
+          RailServerPacket.KEY_RESERVE,
+          RailServerPacket.KEY_ROLLBACK,
+          RailEncoders.EntityCount,
+          this.pendingEntities,
+          RailConfig.MESSAGE_MAX_SIZE,
+          this.EncodeState);
 
-        pair.Key.EncodeState(
-          buffer,
-          this.Destination,  // Make sure this is set ahead of time!
-          this.SenderTick,   // Make sure this is set ahead of time!
-          basisTick);
+      foreach (var pair in packed)
+        this.sentIds.Add(pair.Key.Id);
+    }
 
-        int byteCost = buffer.ByteSize - beforeSize;
-        if (byteCost > RailConfig.MAX_ENTITY_SIZE)
-        {
-          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
-          CommonDebug.LogWarning("Skipping " + pair.Key + " " + byteCost); 
-        }
-        else if (buffer.ByteSize > RailConfig.MESSAGE_MAX_SIZE)
-        {
-          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
-          break;
-        }
-        else
-        {
-          this.sentIds.Add(pair.Key.Id);
-        }
-      }
-
-      // Reserved Write: [Entity Count]
-      buffer.WriteReserved(
-        RailServerPacket.KEY_RESERVE, 
-        RailEncoders.EntityCount, 
-        this.sentIds.Count);
-
-      if (setRollback)
-        buffer.ClearBookmark(RailServerPacket.KEY_ROLLBACK);
+    private void EncodeState(BitBuffer buffer, KeyValuePair<RailEntity, Tick> pair)
+    {
+      Tick basisTick = pair.Value;
+      pair.Key.EncodeState(
+        buffer,
+        this.Destination,  // Make sure this is set ahead of time!
+        this.SenderTick,   // Make sure this is set ahead of time!
+        basisTick);
     }
 
     private void DecodeStates(BitBuffer buffer)

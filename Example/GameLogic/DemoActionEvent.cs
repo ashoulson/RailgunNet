@@ -30,7 +30,7 @@ public class DemoActionEvent : RailEvent<DemoActionEvent>
     this.Key = 0;
   }
 
-  protected override void Invoke()
+  protected override void Invoke(RailEntity entity)
   {
     DemoEvents.OnDemoActionEvent(this);
   }

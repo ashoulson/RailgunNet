@@ -31,7 +31,6 @@ namespace Railgun
     public void QueueEvent(RailEvent evnt)
     {
       RailEvent clone = evnt.Clone();
-      clone.NumRetries = RailEvent.UNLIMITED;
       clone.EventId = this.lastEventId;
       this.outgoingEvents.Enqueue(clone);
       this.lastEventId = this.lastEventId.Next;

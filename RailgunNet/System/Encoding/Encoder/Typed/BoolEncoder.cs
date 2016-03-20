@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class BoolEncoder : Encoder<bool>
+  public class BoolEncoder : RailEncoder<bool>
   {
     internal override int RequiredBits
     {

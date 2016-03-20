@@ -74,14 +74,9 @@ namespace Railgun
     internal const int MESSAGE_FIRST_PACK = 400;
 
     /// <summary>
-    /// Maximum size for a single entity. We skip entities larger than this.
+    /// Maximum size for a single entity. Used when packing entity events.
     /// </summary>
     internal const int MAX_ENTITY_SIZE = 100;
-
-    /// <summary>
-    /// Maximum size for a single event. We skip event larger than this.
-    /// </summary>
-    internal const int MAX_EVENT_SIZE = 50;
 
     #region Encoding Parameters
     /// <summary>

@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class TypedEncoder<T> : Encoder<T>
+  public class TypedEncoder<T> : RailEncoder<T>
     where T : struct, IEncodableType<T>
   {
     private T dummy = default(T);
