@@ -91,8 +91,8 @@ namespace Railgun
 
     internal abstract void SetDataFrom(RailEvent other);
 
-    protected abstract void EncodeData(BitBuffer buffer);
-    protected abstract void DecodeData(BitBuffer buffer);
+    protected abstract void EncodeData(ByteBuffer buffer);
+    protected abstract void DecodeData(ByteBuffer buffer);
     protected abstract void ResetData();
 
     protected internal virtual void Invoke() { }
@@ -124,72 +124,72 @@ namespace Railgun
     }
 
     #region Encode/Decode/etc.
-    internal void Encode(BitBuffer buffer, Tick packetSenderTick)
+    internal void Encode(ByteBuffer buffer, Tick packetSenderTick)
     {
       EntityId entityId = EntityId.INVALID;
       if (this.Entity != null)
         entityId = this.Entity.Id;
 
-      // Write: [EventType]
-      buffer.Write(RailEncoders.EventType, this.EventType);
+      // Write: [EventData]
+      this.EncodeData(buffer);
 
-      // Write: [IsReliable]
-      buffer.Write(RailEncoders.Bool, this.IsReliable);
+      // Write: [EntityId]
+      buffer.WriteEntityId(entityId);
+
+      // Write: [EventId]
+      buffer.WriteEventId(this.EventId);
 
       if (this.IsReliable)
       {
         // Write: [Tick]
-        buffer.Write(RailEncoders.Tick, this.Tick);
+        buffer.WriteTick(this.Tick);
       }
       else
       {
         // Write: [TickSpan]
         TickSpan span = TickSpan.Create(packetSenderTick, this.Tick);
         CommonDebug.Assert(span.IsInRange);
-        buffer.Write(RailEncoders.TickSpan, span);
+        buffer.WriteTickSpan(span);
       }
 
-      // Write: [EventId]
-      buffer.Write(RailEncoders.EventId, this.EventId);
-      
-      // Write: [EntityId]
-      buffer.Write(RailEncoders.EntityId, entityId);
+      // Write: [IsReliable]
+      buffer.WriteBool(this.IsReliable);
 
-      // Write: [EventData]
-      this.EncodeData(buffer);
+      // Write: [EventType]
+      buffer.WriteInt(this.EventType);
     }
 
     internal static RailEvent Decode(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       Tick packetSenderTick,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [EventType]
-      int eventType = buffer.Read(RailEncoders.EventType);
+      int eventType = buffer.ReadInt();
 
       RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
 
       // Read: [IsReliable]
-      evnt.IsReliable = buffer.Read(RailEncoders.Bool);
+      evnt.IsReliable = buffer.ReadBool();
 
       if (evnt.IsReliable)
       {
         // Read: [Tick]
-        evnt.Tick = buffer.Read(RailEncoders.Tick);
+        evnt.Tick = buffer.ReadTick();
       }
       else
       {
         // Read: [TickSpan]
-        TickSpan span = buffer.Read(RailEncoders.TickSpan);
+        TickSpan span = buffer.ReadTickSpan();
         CommonDebug.Assert(span.IsInRange);
         evnt.Tick = Tick.Create(packetSenderTick, span);
       }
 
       // Read: [EventId]
-      evnt.EventId = buffer.Read(RailEncoders.EventId);
+      evnt.EventId = buffer.ReadEventId();
 
       // Read: [EntityId]
-      EntityId entityId = buffer.Read(RailEncoders.EntityId);
+      EntityId entityId = buffer.ReadEntityId();
 
       // Read: [EventData]
       evnt.DecodeData(buffer);

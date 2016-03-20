@@ -62,15 +62,15 @@ namespace Railgun
     protected abstract int FlagBitsUsed { get; }
     protected abstract void ResetData();
 
-    protected abstract void EncodeImmutableData(BitBuffer buffer);
-    protected abstract void DecodeImmutableData(BitBuffer buffer);
+    protected abstract void EncodeImmutableData(ByteBuffer buffer);
+    protected abstract void DecodeImmutableData(ByteBuffer buffer);
 
-    protected abstract void EncodeMutableData(BitBuffer buffer, uint flags);
-    protected abstract void DecodeMutableData(BitBuffer buffer, uint flags);
+    protected abstract void EncodeMutableData(ByteBuffer buffer, uint flags);
+    protected abstract void DecodeMutableData(ByteBuffer buffer, uint flags);
     protected abstract void ResetControllerData();
 
-    protected abstract void EncodeControllerData(BitBuffer buffer);
-    protected abstract void DecodeControllerData(BitBuffer buffer);
+    protected abstract void EncodeControllerData(ByteBuffer buffer);
+    protected abstract void DecodeControllerData(ByteBuffer buffer);
 
     // Client-only.
     private readonly List<RailEvent> entityEvents;
@@ -79,6 +79,11 @@ namespace Railgun
     {
       this.entityEvents = new List<RailEvent>();
       this.Reset();
+    }
+
+    protected bool Flag(uint flags, uint flag)
+    {
+      return ((flags & flag) == flag);
     }
 
     protected internal void Reset() 
@@ -143,62 +148,63 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    internal static EntityId PeekId(BitBuffer buffer)
+    internal static EntityId PeekId(ByteBuffer buffer)
     {
-      return buffer.Peek(RailEncoders.EntityId);
+      return buffer.PeekEntityId();
     }
 
     internal void Encode(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       RailState basis,
       bool isController,
       bool isFirst,
       Tick destroyed)
     {
-      // Write: [Id]
-      buffer.Write(RailEncoders.EntityId, this.EntityId);
+      if (destroyed.IsValid)
+      {
+        // Write: [Destroyed Tick] (if applicable)
+        buffer.WriteTick(destroyed);
+      }
+      else
+      {
+        // Write: [Controller Data] (if applicable)
+        if (isController)
+          this.EncodeControllerData(buffer);
+
+        // Write: [Immutable Data] (if applicable)
+        if (isFirst)
+          this.EncodeImmutableData(buffer);
+
+        // Write: [Mutable Data]
+        this.EncodeMutable(buffer, basis);
+      }
+
+      // TODO: Merge these bools into one byte
+
+      // Write: [IsFirst]
+      buffer.WriteBool(isFirst);
+
+      // Write: [IsController]
+      buffer.WriteBool(isController);
+
+      // Write: [IsDestroyed]
+      buffer.WriteBool(destroyed.IsValid);
 
       // Write: [Type]
       this.EncodeType(buffer, basis);
 
-      // Write: [IsDestroyed]
-      buffer.Write(RailEncoders.Bool, destroyed.IsValid);
-
-      if (destroyed.IsValid)
-      {
-        // Write: [Destroyed Tick] (if applicable)
-        buffer.Write(RailEncoders.Tick, destroyed);
-
-        // End Write
-        return;
-      }
-
-      // Write: [IsController]
-      buffer.Write(RailEncoders.Bool, isController);
-
-      // Write: [IsFirst]
-      buffer.Write(RailEncoders.Bool, isFirst);
-
-      // Write: [Mutable Data]
-      this.EncodeMutable(buffer, basis);
-
-      // Write: [Controller Data] (if applicable)
-      if (isController)
-        this.EncodeControllerData(buffer);
-
-      // Write: [Immutable Data] (if applicable)
-      if (isFirst)
-        this.EncodeImmutableData(buffer);
+      // Write: [Id]
+      buffer.WriteEntityId(this.EntityId);
     }
 
     internal static RailState Decode(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       RailState basis,
       Tick latestTick,
       bool isDelta) // If false, the basis is the latest state received
     {
       // Read: [Id]
-      EntityId id = buffer.Read(RailEncoders.EntityId);
+      EntityId id = buffer.ReadEntityId();
 
       // Read: [Type]
       int type = RailState.DecodeType(buffer, basis, isDelta);
@@ -207,45 +213,44 @@ namespace Railgun
       RailState state = RailState.CreateState(basis, latestTick, id, type);
 
       // Read: [IsDestroyed]
-      bool isDestroyed = buffer.Read(RailEncoders.Bool);
+      bool isDestroyed = buffer.ReadBool();
+
+      // Read: [IsController]
+      state.IsController = buffer.ReadBool();
+
+      // Read: [IsFirst]
+      bool isFirst = buffer.ReadBool();
 
       if (isDestroyed)
       {
         // Read: [Destroyed Tick] (if applicable)
-        state.DestroyedTick = buffer.Read(RailEncoders.Tick);
-
-        // End Read
-        return state;
+        state.DestroyedTick = buffer.ReadTick();
       }
+      else
+      {
+        // Read: [Mutable Data]
+        state.DecodeMutable(buffer, isDelta);
 
-      // Read: [IsController]
-      state.IsController = buffer.Read(RailEncoders.Bool);
+        // Read: [Immutable Data] (if applicable)
+        if (isFirst)
+          state.DecodeImmutableData(buffer);
 
-      // Read: [IsFirst]
-      bool isFirst = buffer.Read(RailEncoders.Bool);
-     
-      // Read: [Mutable Data]
-      state.DecodeMutable(buffer, isDelta);
-
-      // Read: [Controller Data] (if applicable)
-      if (state.IsController)
-        state.DecodeControllerData(buffer);
-
-      // Read: [Immutable Data] (if applicable)
-      if (isFirst)
-        state.DecodeImmutableData(buffer);
+        // Read: [Controller Data] (if applicable)
+        if (state.IsController)
+          state.DecodeControllerData(buffer);
+      }
 
       return state;
     }
 
     private void EncodeType(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       RailState basis)
     {
       if (basis == null) // Full Encode
       {
         // Write: [Type]
-        buffer.Write(RailEncoders.EntityType, this.EntityType);
+        buffer.WriteInt(this.EntityType);
       }
       else
       {
@@ -254,14 +259,14 @@ namespace Railgun
     }
 
     private static int DecodeType(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       RailState basis, 
       bool isDelta)
     {
       if (isDelta == false) // Full Decode
       {
         // Read: [Type]
-        return buffer.Read(RailEncoders.EntityType);
+        return buffer.ReadInt();
       }
       else // Delta Decode
       {
@@ -271,7 +276,7 @@ namespace Railgun
     }
 
     private void EncodeMutable(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       RailState basis)
     {
       if (basis == null) // Full Encode
@@ -281,17 +286,18 @@ namespace Railgun
       }
       else // Delta Encode
       {
-        // Write: [Dirty Flags]
         uint flags = this.GetDirtyFlags(basis);
-        buffer.Write(this.FlagBitsUsed, flags);
 
         // Write: [Mutable Data] (delta)
         this.EncodeMutableData(buffer, flags);
+
+        // Write: [Dirty Flags]
+        buffer.WriteUInt(flags);
       }
     }
 
     private void DecodeMutable(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       bool isDelta)
     {
       if (isDelta == false)
@@ -302,7 +308,7 @@ namespace Railgun
       else
       {
         // Write: [Dirty Flags]
-        uint flags = buffer.Read(this.FlagBitsUsed);
+        uint flags = buffer.ReadUInt();
 
         // Write: [Mutable Data] (delta)
         this.DecodeMutableData(buffer, flags);

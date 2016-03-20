@@ -37,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="System\Encoding\ByteBuffer.cs" />
     <Compile Include="System\IRailLookup.cs" />
     <Compile Include="Util\Buffer\IRailKeyedValue.cs" />
     <Compile Include="Util\Buffer\RailHeapBuffer.cs" />
@@ -52,9 +53,7 @@
     <Compile Include="System\Attributes\RegisterEntityAttribute.cs" />
     <Compile Include="System\Attributes\RegisterEventAttribute.cs" />
     <Compile Include="Logic\RailView.cs" />
-    <Compile Include="System\Encoding\Encoder\TypedEncoder.cs" />
     <Compile Include="System\RailRegistry.cs" />
-    <Compile Include="System\Types\IEncodableType.cs" />
     <Compile Include="Util\Heap.cs" />
     <Compile Include="Util\IRailCloneable.cs" />
     <Compile Include="Util\Iteration.cs" />
@@ -77,7 +76,6 @@
     <Compile Include="RailConfig.cs" />
     <Compile Include="Util\Buffer\RailRingDelta.cs" />
     <Compile Include="System\RailResource.cs" />
-    <Compile Include="System\Encoding\Encoder\Typed\BoolEncoder.cs" />
     <Compile Include="Util\Common\CommonDebug.cs" />
     <Compile Include="Util\Pooling\RailPool.cs" />
     <Compile Include="Util\RailMath.cs" />
@@ -88,12 +86,8 @@
     <Compile Include="Connection\Traffic\RailInterpreter.cs" />
     <Compile Include="Logic\RailWorld.cs" />
     <Compile Include="Logic\RailState.cs" />
-    <Compile Include="System\Encoding\BitBuffer.cs" />
-    <Compile Include="System\Encoding\Encoder\Encoder.cs" />
-    <Compile Include="System\Encoding\Encoder\Typed\FloatEncoder.cs" />
+    <Compile Include="System\Encoding\FloatCompressor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="System\Encoding\Encoder\Typed\IntEncoder.cs" />
-    <Compile Include="System\Encoding\RailEncoders.cs" />
     <Compile Include="Logic\Smoothing\Smoothers\RailSmootherFloat.cs" />
   </ItemGroup>
   <ItemGroup />

@@ -194,13 +194,13 @@ namespace Railgun
 
     protected void OnMessagesReady(IRailNetPeer peer)
     {
-      foreach (BitBuffer buffer in this.interpreter.BeginReads(this.netPeer))
+      foreach (ByteBuffer buffer in this.interpreter.BeginReads(this.netPeer))
       {
         RailPacket packet = this.AllocateIncoming();
 
         packet.Decode(buffer, this.entityLookup);
 
-        if (buffer.IsFinished)
+        if (buffer.IsEmpty)
           this.ProcessPacket(packet);
         else
           CommonDebug.LogError("Bad packet read, discarding...");

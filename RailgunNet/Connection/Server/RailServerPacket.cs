@@ -99,62 +99,50 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    protected override void EncodePayload(BitBuffer buffer)
+    protected override void EncodePayload(ByteBuffer buffer)
     {
-      // Write: [CommandTick]
-      buffer.Write(RailEncoders.Tick, this.CommandTick);
-
       // Write: [States]
       this.EncodeStates(buffer);
+
+      // Write: [CommandTick]
+      buffer.WriteTick(this.CommandTick);
     }
 
     protected override void DecodePayload(
-      BitBuffer buffer,
+      ByteBuffer buffer,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [CommandTick]
-      this.CommandTick = buffer.Read(RailEncoders.Tick);
+      this.CommandTick = buffer.ReadTick();
 
       // Read: [States]
       this.DecodeStates(buffer, entityLookup);
     }
 
     #region States
-    private void EncodeStates(BitBuffer buffer)
+    private void EncodeStates(ByteBuffer buffer)
     {
-      // Reserve: [Count]
-      buffer.Reserve(RailServerPacket.KEY_RESERVE, RailEncoders.EntityCount);
-
       // Write: [States]
-      IEnumerable<KeyValuePair<RailEntity, Tick>> packed = 
-        buffer.PackToSize(
-          RailServerPacket.KEY_RESERVE,
-          RailServerPacket.KEY_ROLLBACK,
-          RailEncoders.EntityCount,
-          this.pendingEntities,
-          RailConfig.MESSAGE_MAX_SIZE,
-          this.EncodeState);
+      foreach (KeyValuePair<RailEntity, Tick> pair in this.pendingEntities)
+      {
+        Tick basisTick = pair.Value;
+        pair.Key.EncodeState(
+          buffer,
+          this.Destination,  // Make sure this is set ahead of time!
+          this.SenderTick,   // Make sure this is set ahead of time!
+          basisTick);
+      }
 
-      foreach (var pair in packed)
-        this.sentIds.Add(pair.Key.Id);
-    }
-
-    private void EncodeState(BitBuffer buffer, KeyValuePair<RailEntity, Tick> pair)
-    {
-      Tick basisTick = pair.Value;
-      pair.Key.EncodeState(
-        buffer,
-        this.Destination,  // Make sure this is set ahead of time!
-        this.SenderTick,   // Make sure this is set ahead of time!
-        basisTick);
+      // Write: [Count]
+      buffer.WriteInt(this.pendingEntities.Count);
     }
 
     private void DecodeStates(
-      BitBuffer buffer,
+      ByteBuffer buffer,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [Entity Count]
-      int count = buffer.Read(RailEncoders.EntityCount);
+      int count = buffer.ReadInt();
 
       // Read: [Entity States]
       RailState state = null;

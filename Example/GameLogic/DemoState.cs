@@ -61,7 +61,7 @@ public class DemoState : RailState<DemoState>
   public float X;
   public float Y;
   public float Angle;
-  public int Status;
+  public byte Status;
 
   protected override void ResetData()
   {
@@ -83,42 +83,40 @@ public class DemoState : RailState<DemoState>
     this.Status = other.Status;
   }
 
-  protected override void EncodeImmutableData(BitBuffer buffer)
+  protected override void EncodeImmutableData(ByteBuffer buffer)
   {
-    buffer.Write(DemoEncoders.ArchetypeId, this.ArchetypeId);
-    buffer.Write(DemoEncoders.UserId, this.UserId);
+    buffer.WriteInt(this.UserId);
+    buffer.WriteInt(this.ArchetypeId);
   }
 
-  protected override void DecodeImmutableData(BitBuffer buffer)
+  protected override void DecodeImmutableData(ByteBuffer buffer)
   {
-    this.ArchetypeId = buffer.Read(DemoEncoders.ArchetypeId);
-    this.UserId = buffer.Read(DemoEncoders.UserId);
+    this.ArchetypeId = buffer.ReadInt();
+    this.UserId = buffer.ReadInt();
   }
 
-  protected override void EncodeMutableData(BitBuffer buffer, uint flags)
+  protected override void EncodeMutableData(ByteBuffer buffer, uint flags)
   {
-    buffer.WriteIf(flags, FLAG_X, DemoEncoders.Coordinate, this.X);
-    buffer.WriteIf(flags, FLAG_Y, DemoEncoders.Coordinate, this.Y);
-    buffer.WriteIf(flags, FLAG_ANGLE, DemoEncoders.Angle, this.Angle);
-    buffer.WriteIf(flags, FLAG_STATUS, DemoEncoders.Status, this.Status);
+    if (this.Flag(flags, FLAG_STATUS)) buffer.WriteByte(this.Status);
+    if (this.Flag(flags, FLAG_ANGLE))  buffer.WriteUInt(DemoCompressors.Angle.Pack(this.Angle));
+    if (this.Flag(flags, FLAG_Y))      buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.Y));
+    if (this.Flag(flags, FLAG_X))      buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.X));
   }
 
-  protected override void DecodeMutableData(BitBuffer buffer, uint flags)
+  protected override void DecodeMutableData(ByteBuffer buffer, uint flags)
   {
-    buffer.ReadIf(flags, FLAG_X, DemoEncoders.Coordinate, ref this.X);
-    buffer.ReadIf(flags, FLAG_Y, DemoEncoders.Coordinate, ref this.Y);
-    buffer.ReadIf(flags, FLAG_ANGLE, DemoEncoders.Angle, ref this.Angle);
-    buffer.ReadIf(flags, FLAG_STATUS, DemoEncoders.Status, ref this.Status);
+    if (this.Flag(flags, FLAG_X))      this.X = DemoCompressors.Coordinate.Unpack(buffer.ReadUInt());
+    if (this.Flag(flags, FLAG_Y))      this.Y = DemoCompressors.Coordinate.Unpack(buffer.ReadUInt());
+    if (this.Flag(flags, FLAG_ANGLE))  this.Angle = DemoCompressors.Angle.Unpack(buffer.ReadUInt());
+    if (this.Flag(flags, FLAG_STATUS)) this.Status = buffer.ReadByte();
   }
 
-  protected override void EncodeControllerData(BitBuffer buffer)
+  protected override void EncodeControllerData(ByteBuffer buffer)
   {
-    buffer.Write(8, 255);
   }
 
-  protected override void DecodeControllerData(BitBuffer buffer)
+  protected override void DecodeControllerData(ByteBuffer buffer)
   {
-    buffer.Read(8);
   }
 
   protected override void ResetControllerData()

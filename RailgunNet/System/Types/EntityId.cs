@@ -26,8 +26,38 @@ using CommonTools;
 
 namespace Railgun
 {
-  public struct EntityId : IEncodableType<EntityId>
+  public static class EntityIdExtensions
   {
+    public static void WriteEntityId(this ByteBuffer buffer, EntityId eventId)
+    {
+      buffer.WriteInt(eventId.Pack());
+    }
+
+    public static EntityId ReadEntityId(this ByteBuffer buffer)
+    {
+      return EntityId.Unpack(buffer.ReadInt());
+    }
+
+    public static EntityId PeekEntityId(this ByteBuffer buffer)
+    {
+      return EntityId.Unpack(buffer.PeekInt());
+    }
+  }
+
+  public struct EntityId
+  {
+    #region Encoding/Decoding
+    internal int Pack()
+    {
+      return this.idValue;
+    }
+
+    internal static EntityId Unpack(int value)
+    {
+      return new EntityId(value);
+    }
+    #endregion
+
     public class EntityIdComparer : IEqualityComparer<EntityId>
     {
       public bool Equals(EntityId x, EntityId y)
@@ -44,10 +74,6 @@ namespace Railgun
     internal static readonly EntityId INVALID = new EntityId(0);
     internal static readonly EntityIdComparer Comparer = new EntityIdComparer();
 
-    // ID 0 is invalid so the range is [0, count] instead of [0, count - 1]
-    internal static readonly IntEncoder Encoder = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT);
-    internal static readonly IntEncoder CountEncoder = new IntEncoder(0, RailConfig.MAX_ENTITY_COUNT - 1);
-
     public bool IsValid 
     { 
       get { return this.idValue > 0; } 
@@ -55,9 +81,9 @@ namespace Railgun
 
     private readonly int idValue;
 
-    private EntityId(int entityId)
+    private EntityId(int idValue)
     {
-      this.idValue = entityId;
+      this.idValue = idValue;
     }
 
     public EntityId GetNext()
@@ -81,22 +107,5 @@ namespace Railgun
     {
       return "EntityId:" + this.idValue;
     }
-
-    #region IEncodableType Members
-    int IEncodableType<EntityId>.RequiredBits
-    {
-      get { return EntityId.Encoder.RequiredBits; }
-    }
-
-    uint IEncodableType<EntityId>.Pack()
-    {
-      return EntityId.Encoder.Pack(this.idValue);
-    }
-
-    EntityId IEncodableType<EntityId>.Unpack(uint data)
-    {
-      return new EntityId(EntityId.Encoder.Unpack(data));
-    }
-    #endregion
   }
 }

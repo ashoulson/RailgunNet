@@ -285,7 +285,7 @@ namespace Railgun
 
     #region Encoding/Decoding
     internal void EncodeState(
-      BitBuffer buffer, 
+      ByteBuffer buffer, 
       IRailController destination,
       Tick latestTick, 
       Tick basisTick)
@@ -311,14 +311,11 @@ namespace Railgun
         isFirst = true;
       }
 
-      // Record starting size
-      int startingBytes = buffer.ByteSize;
+      // Encode: [State]
+      this.State.Encode(buffer, basis, isController, isFirst, destroyed);
 
       // Write: [TickSpan]
-      buffer.Write(RailEncoders.TickSpan, span);
-
-      // Write: [State]
-      this.State.Encode(buffer, basis, isController, isFirst, destroyed);
+      buffer.WriteTickSpan(span);
     }
 
     /// <summary>
@@ -328,12 +325,12 @@ namespace Railgun
     /// Throws a BasisNotFoundException if decoding is impossible.
     /// </summary>
     internal static RailState DecodeState(
-      BitBuffer buffer,
+      ByteBuffer buffer,
       Tick latestTick,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [TickSpan]
-      TickSpan span = buffer.Read(RailEncoders.TickSpan);
+      TickSpan span = buffer.ReadTickSpan();
       CommonDebug.Assert(span.IsValid);
 
       // Peek: [State.Id]

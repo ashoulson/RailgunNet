@@ -31,32 +31,32 @@ namespace Railgun
   /// </summary>
   internal class RailInterpreter
   {
-    private readonly byte[] byteBuffer;
-    private readonly BitBuffer bitBuffer;
+    private readonly byte[] bytes;
+    private readonly ByteBuffer byteBuffer;
 
     internal RailInterpreter()
     {
-      this.byteBuffer = new byte[RailConfig.DATA_BUFFER_SIZE];
-      this.bitBuffer = new BitBuffer();
+      this.bytes = new byte[RailConfig.DATA_BUFFER_SIZE];
+      this.byteBuffer = new ByteBuffer();
     }
 
     internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
     {
-      this.bitBuffer.Clear();
+      this.byteBuffer.Clear();
 
-      packet.Encode(this.bitBuffer);
+      packet.Encode(this.byteBuffer);
 
-      int length = this.bitBuffer.StoreBytes(this.byteBuffer);
+      int length = this.byteBuffer.Store(this.bytes);
       CommonDebug.Assert(length <= RailConfig.MESSAGE_MAX_SIZE);
-      peer.EnqueueSend(this.byteBuffer, length);
+      peer.EnqueueSend(this.bytes, length);
     }
 
-    internal IEnumerable<BitBuffer> BeginReads(IRailNetPeer peer)
+    internal IEnumerable<ByteBuffer> BeginReads(IRailNetPeer peer)
     {
-      foreach (int length in peer.ReadReceived(this.byteBuffer))
+      foreach (int length in peer.ReadReceived(this.bytes))
       {
-        this.bitBuffer.ReadBytes(this.byteBuffer, length);
-        yield return this.bitBuffer;
+        this.byteBuffer.Load(this.bytes, length);
+        yield return this.byteBuffer;
       }
     }
   }

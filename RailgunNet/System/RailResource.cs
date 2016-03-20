@@ -77,9 +77,6 @@ namespace Railgun
       this.RegisterEntities();
       this.RegisterEvents();
       this.RegisterCommand();
-
-      this.CreateEncoder(this.statePools.Keys, ref RailEncoders.EntityType);
-      this.CreateEncoder(this.eventPools.Keys, ref RailEncoders.EventType);
     }
 
     private void RegisterEntities()
@@ -178,22 +175,6 @@ namespace Railgun
     internal RailCommand AllocateCommand()
     {
       return this.commandPool.Allocate();
-    }
-
-    private void CreateEncoder(
-      IEnumerable<int> keys, 
-      ref IntEncoder destination)
-    {
-      int lowest = 0;
-      int highest = 0;
-      foreach (int type in keys)
-      {
-        if (lowest > type)
-          lowest = type;
-        if (highest < type)
-          highest = type;
-      }
-      destination = new IntEncoder(lowest, highest);
     }
   }
 }

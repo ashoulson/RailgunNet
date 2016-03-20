@@ -30,7 +30,7 @@ namespace Railgun
   /// Compresses floats to a given range with a given precision.
   /// http://stackoverflow.com/questions/8382629/compress-floating-point-numbers-with-specified-range-and-precision
   /// </summary>
-  public class FloatEncoder : RailEncoder<float>
+  public class FloatCompressor
   {
     private readonly float precision;
     private readonly float invPrecision;
@@ -41,9 +41,9 @@ namespace Railgun
     private readonly int requiredBits;
     private readonly uint mask;
 
-    internal override int RequiredBits { get { return this.requiredBits; } }
+    internal int RequiredBits { get { return this.requiredBits; } }
 
-    public FloatEncoder(float minValue, float maxValue, float precision)
+    public FloatCompressor(float minValue, float maxValue, float precision)
     {
       this.minValue = minValue;
       this.maxValue = maxValue;
@@ -54,14 +54,14 @@ namespace Railgun
       this.mask = (uint)((1L << requiredBits) - 1);
     }
 
-    internal override uint Pack(float value)
+    public uint Pack(float value)
     {
       value = RailMath.Clamp(value, this.minValue, this.maxValue);
       float adjusted = (value - this.minValue) * this.invPrecision;
       return (uint)(adjusted + 0.5f) & this.mask;
     }
 
-    internal override float Unpack(uint data)
+    public float Unpack(uint data)
     {
       float adjusted = ((float)data * this.precision) + this.minValue;
       return RailMath.Clamp(adjusted, this.minValue, this.maxValue);
