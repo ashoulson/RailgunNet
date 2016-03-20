@@ -130,14 +130,11 @@ namespace Railgun
       if (this.Entity != null)
         entityId = this.Entity.Id;
 
-      // Write: [EventData]
-      this.EncodeData(buffer);
+      // Write: [EventType]
+      buffer.WriteInt(this.EventType);
 
-      // Write: [EntityId]
-      buffer.WriteEntityId(entityId);
-
-      // Write: [EventId]
-      buffer.WriteEventId(this.EventId);
+      // Write: [IsReliable]
+      buffer.WriteBool(this.IsReliable);
 
       if (this.IsReliable)
       {
@@ -152,11 +149,14 @@ namespace Railgun
         buffer.WriteTickSpan(span);
       }
 
-      // Write: [IsReliable]
-      buffer.WriteBool(this.IsReliable);
+      // Write: [EventId]
+      buffer.WriteEventId(this.EventId);
 
-      // Write: [EventType]
-      buffer.WriteInt(this.EventType);
+      // Write: [EntityId]
+      buffer.WriteEntityId(entityId);
+
+      // Write: [EventData]
+      this.EncodeData(buffer);
     }
 
     internal static RailEvent Decode(

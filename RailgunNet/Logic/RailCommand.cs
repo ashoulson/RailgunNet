@@ -64,11 +64,11 @@ namespace Railgun
     internal void Encode(
       ByteBuffer buffer)
     {
-      // Write: [Command Data]
-      this.EncodeData(buffer);
-
       // Write: [Tick]
       buffer.WriteTick(this.Tick);
+
+      // Write: [Command Data]
+      this.EncodeData(buffer);
     }
 
     internal static RailCommand Decode(

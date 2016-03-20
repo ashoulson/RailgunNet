@@ -99,11 +99,11 @@ namespace Railgun
     /// </summary>
     public void Encode(ByteBuffer buffer)
     {
-      // Write: [Payload]
-      this.EncodePayload(buffer);
-
       // Write: [Header]
       this.EncodeHeader(buffer);
+
+      // Write: [Payload]
+      this.EncodePayload(buffer);
     }
 
     internal void Decode(
@@ -127,14 +127,14 @@ namespace Railgun
     #region Header
     private void EncodeHeader(ByteBuffer buffer)
     {
-      // Write: [AckEventId]
-      buffer.WriteEventId(this.ackEventId);
+      // Write: [LocalTick]
+      buffer.WriteTick(this.senderTick);
 
       // Write: [AckTick]
       buffer.WriteTick(this.ackTick);
 
-      // Write: [LocalTick]
-      buffer.WriteTick(this.senderTick);
+      // Write: [AckEventId]
+      buffer.WriteEventId(this.ackEventId);
     }
 
     private void DecodeHeader(ByteBuffer buffer)
