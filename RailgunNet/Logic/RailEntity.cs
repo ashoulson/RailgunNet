@@ -28,7 +28,7 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
-    internal IRailController Controller { get {return this.controller; } }
+    public IRailController Controller { get { return this.controller; } }
     internal RailStateBuffer StateBuffer { get; private set; }
     internal RailStateDelta StateDelta { get; private set; }
 
@@ -109,7 +109,6 @@ namespace Railgun
     /// The tick this Entity was/will be destroyed on.
     /// </summary>
     internal Tick DestroyedTick { get; set; }
-
     internal bool IsDestroyed { get { return this.DestroyedTick.IsValid; } }
 
     private bool hadFirstTick;

@@ -61,9 +61,9 @@ namespace Railgun
       this.entityReference = entityReference;
     }
 
-    internal override int Update()
+    internal override int Update(Tick localTick)
     {
-      return base.Update();
+      return base.Update(localTick);
     }
 
     internal void QueueCommand(RailCommand command)
@@ -72,10 +72,10 @@ namespace Railgun
         this.pendingCommands.Enqueue(command);
     }
 
-    internal void SendPacket(Tick localTick)
+    internal void SendPacket()
     {
       RailClientPacket packet =
-        base.AllocatePacketSend<RailClientPacket>(localTick);
+        base.AllocatePacketSend<RailClientPacket>(this.LocalTick);
 
       // Set data
       packet.AddCommands(this.pendingCommands);

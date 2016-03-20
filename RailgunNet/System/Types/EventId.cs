@@ -64,6 +64,28 @@ namespace Railgun
       return difference < 0;
     }
 
+    public static bool operator >=(EventId a, EventId b)
+    {
+      CommonDebug.Assert(a.IsValid);
+      CommonDebug.Assert(b.IsValid);
+
+      int difference =
+        (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
+              ((uint)b.idValue << EventId.BIT_SHIFT));
+      return difference >= 0;
+    }
+
+    public static bool operator <=(EventId a, EventId b)
+    {
+      CommonDebug.Assert(a.IsValid);
+      CommonDebug.Assert(b.IsValid);
+
+      int difference =
+        (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
+              ((uint)b.idValue << EventId.BIT_SHIFT));
+      return difference <= 0;
+    }
+
     public static bool operator ==(EventId a, EventId b)
     {
       CommonDebug.Assert(a.IsValid);
@@ -116,6 +138,13 @@ namespace Railgun
       if (obj is EventId)
         return (((EventId)obj).idValue == this.idValue);
       return false;
+    }
+
+    public override string ToString()
+    {
+      if (this.IsValid)
+        return "EVENTID:" + this.idValue;
+      return "EVENTID:INVALID";
     }
 
     #region IEncodableType Members

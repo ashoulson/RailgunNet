@@ -74,9 +74,9 @@ namespace Railgun
       this.latestCommandTick = Tick.INVALID;
     }
 
-    internal override int Update()
+    internal override int Update(Tick localTick)
     {
-      int ticks = base.Update();
+      int ticks = base.Update(localTick);
 
       this.latestCommand =
         this.commandBuffer.GetLatestAt(

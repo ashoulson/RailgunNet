@@ -80,10 +80,10 @@ namespace Railgun
       if (this.serverPeer != null)
       {
         this.UpdateCommands();
-        this.UpdateWorld(this.serverPeer.Update());
+        this.UpdateWorld(this.serverPeer.Update(this.localTick));
 
         if (this.localTick.IsSendTick)
-          this.serverPeer.SendPacket(this.localTick);
+          this.serverPeer.SendPacket();
 
         this.localTick = this.localTick.GetNext();
       }

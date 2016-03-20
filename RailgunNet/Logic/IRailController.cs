@@ -34,7 +34,8 @@ namespace Railgun
 
     IEnumerable<RailEntity> ControlledEntities { get; }
 
-    void QueueGlobal(RailEvent evnt);
+    T OpenEvent<T>() where T : RailEvent;
+    void QueueDirect(RailEvent evnt);
   }
 
   /// <summary>
