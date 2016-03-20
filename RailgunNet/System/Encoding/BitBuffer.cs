@@ -301,6 +301,49 @@ namespace Railgun
     }
 
     /// <summary>
+    /// Assumes you have reserved the space for writing the count.
+    /// </summary>
+    internal IEnumerable<T> PackToSize<T>(
+      int keyReserve,
+      int keyRollback,
+      RailEncoder<int> countEncoder,
+      IEnumerable<T> values,
+      int maxTotalSize,
+      Action<BitBuffer, T> encode)
+    {
+      CommonDebug.Assert(this.IsAvailable(keyRollback));
+
+      int written = 0;
+      bool setRollback = false;
+      foreach (T value in values)
+      {
+        this.SetRollback(keyRollback);
+        setRollback = true;
+        int beforeSize = this.ByteSize;
+
+        // Write: [Value]
+        encode.Invoke(this, value);
+
+        if (this.ByteSize > maxTotalSize)
+        {
+          this.Rollback(keyReserve);
+          break;
+        }
+        else
+        {
+          written++;
+          yield return value;
+        }
+      }
+
+      // Reserved Write: [Count]
+      this.WriteReserved(keyReserve, countEncoder, written);
+
+      if (setRollback)
+        this.ClearBookmark(keyRollback);
+    }
+
+    /// <summary>
     /// Takes the lower numBits from the value and stores them in the buffer.
     /// </summary>
     private void Write(int numBits, uint value, int position)
@@ -427,7 +470,7 @@ namespace Railgun
     /// <summary>
     /// Pushes an encodable value.
     /// </summary>
-    public void Write<T>(Encoder<T> encoder, T value)
+    public void Write<T>(RailEncoder<T> encoder, T value)
     {
       encoder.Write(this, value);
     }
@@ -435,7 +478,7 @@ namespace Railgun
     /// <summary>
     /// Reads a value and decodes it.
     /// </summary>
-    public T Read<T>(Encoder<T> encoder)
+    public T Read<T>(RailEncoder<T> encoder)
     {
       return encoder.Read(this);
     }
@@ -443,7 +486,7 @@ namespace Railgun
     /// <summary>
     /// Peeks at a value and decodes it.
     /// </summary>
-    public T Peek<T>(Encoder<T> encoder)
+    public T Peek<T>(RailEncoder<T> encoder)
     {
       return encoder.Peek(this);
     }
@@ -451,7 +494,7 @@ namespace Railgun
     /// <summary>
     /// Reserves a number of bits in the buffer.
     /// </summary>
-    public void Reserve<T>(int key, Encoder<T> encoder)
+    public void Reserve(int key, RailEncoder encoder)
     {
       encoder.Reserve(key, this);
     }
@@ -459,7 +502,7 @@ namespace Railgun
     /// <summary>
     /// Writes to a previously reserved space.
     /// </summary>
-    public void WriteReserved<T>(int key, Encoder<T> encoder, T value)
+    public void WriteReserved<T>(int key, RailEncoder<T> encoder, T value)
     {
       encoder.WriteReserved(key, this, value);
     }
@@ -468,7 +511,7 @@ namespace Railgun
     public void WriteIf<T>(
       uint flags,
       uint requiredFlag,
-      Encoder<T> encoder,
+      RailEncoder<T> encoder,
       T value)
     {
       if ((flags & requiredFlag) == requiredFlag)
@@ -478,7 +521,7 @@ namespace Railgun
     public void ReadIf<T>(
       uint flags,
       uint requiredFlag,
-      Encoder<T> encoder,
+      RailEncoder<T> encoder,
       ref T destination)
     {
       if ((flags & requiredFlag) == requiredFlag)

@@ -28,6 +28,12 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
+    private const int MAX_EVENT_AGE = 5;
+
+    // String hashes (md5):
+    private const int KEY_RESERVE = 0x54A849EE;
+    private const int KEY_ROLLBACK = 0x458D7549;
+
     public IRailController Controller { get { return this.controller; } }
     internal RailStateBuffer StateBuffer { get; private set; }
     internal RailStateDelta StateDelta { get; private set; }
@@ -114,6 +120,12 @@ namespace Railgun
     private bool hadFirstTick;
     private bool isFrozen;
 
+    // Server-only.
+    private RailEntityEventWriter eventWriter;
+    
+    // Client-only. TODO: This is expensive, make it only build on client.
+    private RailEntityEventBuffer eventBuffer;
+
     public bool IsPredicted
     {       
       get 
@@ -124,6 +136,30 @@ namespace Railgun
       }
     }
 
+    /// <summary>
+    /// Allocates an event of a given type and returns it for writing.
+    /// TODO: Make this server-only.
+    /// </summary>
+    public T OpenEvent<T>(int timeToLive = 1)
+      where T : RailEvent
+    {
+      T evnt = RailResource.Instance.AllocateEvent<T>();
+      evnt.Tick = this.World.Tick;
+      evnt.Expiration = this.World.Tick + timeToLive;
+      return evnt;
+    }
+
+    /// <summary>
+    /// Sends the event directly to the server (if on client) or to the 
+    /// controller's corresponding client (if on server).
+    /// TODO: Make this server-only.
+    /// </summary>
+    public void QueueEvent(RailEvent evnt)
+    {
+      this.eventWriter.QueueEvent(evnt);
+      RailPool.Free(evnt);
+    }
+
     internal RailEntity()
     {
       this.controller = null;
@@ -132,6 +168,9 @@ namespace Railgun
 
       this.StateBuffer = new RailStateBuffer();
       this.StateDelta = new RailStateDelta();
+
+      this.eventWriter = new RailEntityEventWriter();
+      this.eventBuffer = new RailEntityEventBuffer();
 
       this.World = null;
       this.State = null;
@@ -182,6 +221,9 @@ namespace Railgun
             this.SimulateCommand(this.controller.LatestCommand);
 
         this.Simulate();
+
+        // Clean up the outgoing event queue for any expired events
+        this.eventWriter.CleanOutgoing(serverTick);
       }
     }
 
@@ -199,9 +241,17 @@ namespace Railgun
         }
         else
         {
-          this.ForwardSimulate();
+          this.ForwardSimulate(serverTick);
         }
       }
+    }
+
+    private void ProcessEvents(Tick serverTick)
+    {
+      IEnumerable<RailEvent> incoming = 
+        this.eventBuffer.Advance(serverTick, RailEntity.MAX_EVENT_AGE);
+      foreach (RailEvent evnt in incoming)
+        evnt.Invoke(this);
     }
 
     internal void ReplicaSimulate(Tick serverTick)
@@ -219,6 +269,8 @@ namespace Railgun
           this.OnStart();
           this.ControllerChanged();
         }
+
+        this.ProcessEvents(serverTick);
       }
     }
 
@@ -253,6 +305,12 @@ namespace Railgun
         this.DestroyedTick = state.DestroyedTick;
       else
         this.StateBuffer.Store(state);
+    }
+
+    // Client-only.
+    internal void StoreEvent(RailEvent evnt)
+    {
+      this.eventBuffer.AddEvent(evnt);
     }
 
     internal void UpdateFreeze(Tick lastReceivedServerTick)
@@ -294,11 +352,17 @@ namespace Railgun
         isFirst = true;
       }
 
+      // Record starting size
+      int startingBytes = buffer.ByteSize;
+
       // Write: [TickSpan]
       buffer.Write(RailEncoders.TickSpan, span);
 
       // Write: [State]
       this.State.Encode(buffer, basis, isController, isFirst, destroyed);
+
+      // Write: [Events]
+      this.EncodeEvents(buffer, latestTick, startingBytes);
     }
 
     /// <summary>
@@ -357,9 +421,47 @@ namespace Railgun
       // Read: [State]
       RailState state = RailState.Decode(buffer, basis, latestTick, isDelta);
 
+      // Read: [Events]
+      RailEntity.DecodeEvents(buffer, state, latestTick);
+
       if (canStore)
         return state;
       return null;
+    }
+
+    private void EncodeEvents(
+      BitBuffer buffer, 
+      Tick latestTick,
+      int startingBytes)
+    {
+      // Reserve: [Count]
+      buffer.Reserve(RailEntity.KEY_RESERVE, RailEncoders.EventCount);
+
+      // Write: [Events]
+      IEnumerable<RailEvent> packed =
+        buffer.PackToSize(
+          RailEntity.KEY_RESERVE,
+          RailEntity.KEY_ROLLBACK,
+          RailEncoders.EventCount,
+          this.eventWriter.GetOutgoing(latestTick),
+          startingBytes + RailConfig.MAX_ENTITY_SIZE,
+          (buf, evnt) => evnt.Encode(buffer, latestTick));
+
+      foreach (var pair in packed)
+        ; // Pass
+    }
+
+    private static void DecodeEvents(
+      BitBuffer buffer, 
+      RailState state, 
+      Tick latestTick)
+    {
+      // Read: [Count]
+      int count = buffer.Read(RailEncoders.EventCount);
+
+      // Read: [Events]
+      for (int i = 0; i < count; i++)
+        state.AddEvent(RailEvent.Decode(buffer, latestTick));
     }
 
     private static RailState GetBasis(
@@ -438,7 +540,7 @@ namespace Railgun
     #endregion
 
     #region Prediction
-    private void ForwardSimulate()
+    private void ForwardSimulate(Tick serverTick)
     {
       if (this.StateDelta == null)
         return;
@@ -446,7 +548,7 @@ namespace Railgun
       this.ClearDelta();
 
       RailState latest = this.StateBuffer.Latest.Clone();
-      latest.SetOnPredict(this.World.Tick);
+      latest.SetOnPredict(serverTick);
 
       this.StateDelta.Set(null, latest, null);
       this.State.SetDataFrom(latest);
@@ -457,6 +559,8 @@ namespace Railgun
         this.OnStart();
         this.ControllerChanged();
       }
+
+      this.ProcessEvents(serverTick);
 
       this.ApplyCommands();
     }

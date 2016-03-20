@@ -39,20 +39,16 @@ namespace Railgun
     void IRailPoolable<RailState>.Reset() { this.Reset(); }
     Tick IRailRingValue.Tick { get { return this.Tick; } }
 
-    public RailState()
-    {
-      this.Reset();
-    }
-
     // Client/Server
     internal EntityId EntityId { get; private set; }  // Synchronized
     internal int EntityType { get; private set; }     // Synchronized
     internal Tick Tick { get; private set; }          // Synchronized
 
-    // Client-only -- always false on server
+    // Client-only -- always invalid on server
     internal bool IsController { get; set; }          // Synchronized (indirectly)
     internal bool IsPredicted { get; private set; }   // Not synchronized
     internal Tick DestroyedTick { get; private set; } // Synchronized to client
+    internal IEnumerable<RailEvent> Events { get { return this.entityEvents; } }
 
     internal bool IsDestroyed { get { return this.DestroyedTick.IsValid; } }
 
@@ -76,6 +72,15 @@ namespace Railgun
     protected abstract void EncodeControllerData(BitBuffer buffer);
     protected abstract void DecodeControllerData(BitBuffer buffer);
 
+    // Client-only.
+    private readonly List<RailEvent> entityEvents;
+
+    public RailState()
+    {
+      this.entityEvents = new List<RailEvent>();
+      this.Reset();
+    }
+
     protected internal void Reset() 
     {
       this.Tick = Tick.INVALID;
@@ -85,6 +90,8 @@ namespace Railgun
       this.IsPredicted = false;
       this.IsController = false;
       this.DestroyedTick = Tick.INVALID;
+
+      this.entityEvents.Clear();
 
       this.ResetData();
     }
@@ -128,6 +135,11 @@ namespace Railgun
     {
       this.Tick = tick;
       this.EntityId = id;
+    }
+
+    internal void AddEvent(RailEvent evnt)
+    {
+      this.entityEvents.Add(evnt);
     }
 
     #region Encode/Decode

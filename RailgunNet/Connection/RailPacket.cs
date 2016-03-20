@@ -181,46 +181,24 @@ namespace Railgun
     /// Writes as many events as possible up to maxSize and returns the number
     /// of events written in the batch. Also increments the total counter.
     /// </summary>
-    private void PartialEncodeEvents(BitBuffer buffer, int key, int maxSize)
+    private void PartialEncodeEvents(
+      BitBuffer buffer, 
+      int keyReserve, 
+      int maxSize)
     {
-      CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_ROLLBACK));
+      // Count slot is already reserved prior to calling
+      
+      IEnumerable<RailEvent> packed =
+        buffer.PackToSize<RailEvent>(
+          keyReserve,
+          RailPacket.KEY_ROLLBACK,
+          RailEncoders.EventCount,
+          this.GetWritableEvents(),
+          maxSize,
+          this.WriteEvent);
 
-      int batchCount = 0;
-      bool setRollback = false;
-      while (this.eventsWritten < this.pendingEvents.Count)
-      {
-        buffer.SetRollback(RailPacket.KEY_ROLLBACK);
-        setRollback = true;
-        int beforeSize = buffer.ByteSize;
-
-        RailEvent evnt = this.pendingEvents[this.eventsWritten];
-
-        // Write: [Event]
-        evnt.Encode(buffer);
-
-        int byteCost = buffer.ByteSize - beforeSize;
-        if (byteCost > RailConfig.MAX_EVENT_SIZE)
-        {
-          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
-          CommonDebug.LogWarning("Skipping " + evnt + " " + byteCost); 
-        }
-        else if (buffer.ByteSize > maxSize)
-        {
-          buffer.Rollback(RailServerPacket.KEY_ROLLBACK);
-          break;
-        }
-        else
-        {
-          this.eventsWritten++;
-          batchCount++;
-        }
-      }
-
-      // Write Reserved: [Event Count] (space already reserved in Encode)
-      buffer.WriteReserved(key, RailEncoders.EventCount, batchCount);
-
-      if (setRollback)
-        buffer.ClearBookmark(RailPacket.KEY_ROLLBACK);
+      foreach (RailEvent evnt in packed)
+        this.eventsWritten++;
     }
 
     private void PartialDecodeEvents(BitBuffer buffer, int count)
@@ -228,6 +206,18 @@ namespace Railgun
       // Read: [Events]
       for (int i = 0; i < count; i++)
         this.events.Add(RailEvent.Decode(buffer));
+    }
+
+    private IEnumerable<RailEvent> GetWritableEvents()
+    {
+      while (this.eventsWritten < this.pendingEvents.Count)
+        yield return this.pendingEvents[this.eventsWritten];
+    }
+
+    private void WriteEvent(BitBuffer buffer, RailEvent evnt)
+    {
+      // Write: [Event]
+      evnt.Encode(buffer);
     }
     #endregion
     #endregion

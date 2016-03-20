@@ -162,6 +162,8 @@ namespace Railgun
       }
 
       entity.StoreState(state);
+      foreach (RailEvent evnt in state.Events)
+        entity.StoreEvent(evnt);
       entity.LastUpdatedServerTick = latestServerTick;
       this.UpdateControlStatus(entity, state);
     }

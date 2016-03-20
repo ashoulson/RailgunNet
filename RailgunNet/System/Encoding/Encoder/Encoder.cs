@@ -24,10 +24,18 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public abstract class Encoder<T>
+  public abstract class RailEncoder
   {
     internal abstract int RequiredBits { get; }
 
+    internal virtual void Reserve(int key, BitBuffer buffer)
+    {
+      buffer.SetReserved(key, this.RequiredBits);
+    }
+  }
+
+  public abstract class RailEncoder<T> : RailEncoder
+  {
     internal abstract uint Pack(T value);
     internal abstract T Unpack(uint data);
 
@@ -44,11 +52,6 @@ namespace Railgun
     internal virtual T Peek(BitBuffer buffer)
     {
       return this.Unpack(buffer.Peek(this.RequiredBits));
-    }
-
-    internal virtual void Reserve(int key, BitBuffer buffer)
-    {
-      buffer.SetReserved(key, this.RequiredBits);
     }
 
     internal virtual void WriteReserved(int key, BitBuffer buffer, T value)

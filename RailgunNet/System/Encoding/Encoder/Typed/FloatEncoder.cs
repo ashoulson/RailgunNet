@@ -30,7 +30,7 @@ namespace Railgun
   /// Compresses floats to a given range with a given precision.
   /// http://stackoverflow.com/questions/8382629/compress-floating-point-numbers-with-specified-range-and-precision
   /// </summary>
-  public class FloatEncoder : Encoder<float>
+  public class FloatEncoder : RailEncoder<float>
   {
     private readonly float precision;
     private readonly float invPrecision;

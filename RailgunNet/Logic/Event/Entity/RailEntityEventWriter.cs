@@ -7,19 +7,6 @@ namespace Railgun
 {
   internal class RailEntityEventWriter
   {
-    private static bool IsValid(RailEvent evnt, Tick latest)
-    {
-      int numRetries = evnt.NumRetries;
-      if ((numRetries == RailEvent.UNLIMITED) || (numRetries > 0))
-        return true;
-
-      int maxAge = evnt.MaximumAge;
-      if ((maxAge == RailEvent.UNLIMITED) || (latest - evnt.Tick) <= maxAge)
-        return true;
-
-      return false;
-    }
-
     /// <summary>
     /// A rolling queue for outgoing events, in order.
     /// </summary>
@@ -41,25 +28,23 @@ namespace Railgun
     /// <summary>
     /// Queues an event for sending.
     /// </summary>
-    public void QueueEvent(RailEvent evnt, int numRetries, int maxAge)
+    public void QueueEvent(RailEvent evnt)
     {
       RailEvent clone = evnt.Clone();
-      clone.NumRetries = numRetries;
-      clone.MaximumAge = maxAge;
       clone.EventId = this.lastEventId;
       this.outgoingEvents.Enqueue(clone);
       this.lastEventId = this.lastEventId.Next;
     }
 
     /// <summary>
-    /// Cleans the outgoing queue for all events that have been acked.
+    /// Cleans the outgoing queue for all events that have expired.
     /// </summary>
     public void CleanOutgoing(Tick latest)
     {
       while (this.outgoingEvents.Count > 0)
       {
         RailEvent top = this.outgoingEvents.Peek();
-        if (RailEntityEventWriter.IsValid(top, latest))
+        if (top.Expiration > latest)
           break;
         RailPool.Free(this.outgoingEvents.Dequeue());
       }
@@ -71,7 +56,7 @@ namespace Railgun
     public IEnumerable<RailEvent> GetOutgoing(Tick latest)
     {
       foreach (RailEvent evnt in this.outgoingEvents)
-        if (RailEntityEventWriter.IsValid(evnt, latest))
+        if (evnt.Expiration > latest)
           yield return evnt;
     }
   }
