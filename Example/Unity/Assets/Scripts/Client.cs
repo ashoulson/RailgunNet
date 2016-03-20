@@ -31,7 +31,14 @@ public class Client : MonoBehaviour
     this.netSocket.Disconnected += this.OnDisconnected;
     this.netSocket.TimedOut += this.OnTimedOut;
 
+    DemoEvents.DemoActionEvent += OnDemoActionEvent;
+
     this.client = new RailClient();
+  }
+
+  void OnDemoActionEvent(DemoActionEvent evnt)
+  {
+    Debug.Log(evnt.Key);
   }
 
   void Start()

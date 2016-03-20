@@ -42,21 +42,6 @@ namespace Railgun
     protected readonly HashSet<RailEntity> controlledEntities;
 
     /// <summary>
-    /// A rolling queue for outgoing reliable events, in order.
-    /// </summary>
-    private readonly Queue<RailEvent> outgoingGlobalEvents;
-
-    /// <summary>
-    /// Used for uniquely identifying and ordering reliable events.
-    /// </summary>
-    private EventId lastEventId;
-
-    /// <summary>
-    /// The last received event id from the remote peer.
-    /// </summary>
-    private EventId lastReceivedEventId;
-
-    /// <summary>
     /// An estimator for the remote peer's current tick.
     /// </summary>
     private readonly RailClock remoteClock;
@@ -65,6 +50,23 @@ namespace Railgun
     /// Interpreter for converting byte input to a BitBuffer.
     /// </summary>
     private readonly RailInterpreter interpreter;
+
+    /// <summary>
+    /// The current local tick. Used for queuing events.
+    /// </summary>
+    private Tick localTick;
+
+    /// <summary>
+    /// Module responsible for maintaining outgoing events.
+    /// </summary>
+    private readonly RailEventWriter eventWriter;
+
+    /// <summary>
+    /// Module responsible for interpreting incoming events.
+    /// </summary>
+    private readonly RailEventReaderReliable eventReader;
+
+    protected Tick LocalTick { get { return this.localTick; } }
 
     public IEnumerable<RailEntity> ControlledEntities
     {
@@ -99,21 +101,30 @@ namespace Railgun
       this.netPeer.MessagesReady += this.OnMessagesReady;
 
       this.controlledEntities = new HashSet<RailEntity>();
-      this.outgoingGlobalEvents = new Queue<RailEvent>();
-
-      this.lastEventId = EventId.START;
-      this.lastReceivedEventId = EventId.INVALID;
+      this.eventWriter = new RailEventWriter();
+      this.eventReader = new RailEventReaderReliable();
       this.remoteClock = new RailClock();
 
       this.interpreter = interpreter;
     }
 
-    public void QueueGlobal(RailEvent evnt)
+    public T OpenEvent<T>()
+      where T : RailEvent
     {
-      RailEvent clone = evnt.Clone();
-      clone.EventId = this.lastEventId;
-      this.outgoingGlobalEvents.Enqueue(clone);
-      this.lastEventId = this.lastEventId.Next;
+      T evnt = RailResource.Instance.AllocateEvent<T>();
+      evnt.Tick = this.localTick;
+      return evnt;
+    }
+
+    /// <summary>
+    /// Sends the event directly to the server (if on client) or to the 
+    /// controller's corresponding client (if on server).
+    /// </summary>
+    public void QueueDirect(RailEvent evnt)
+    {
+      // All global events are sent reliably
+      this.eventWriter.QueueEvent(evnt, RailEvent.UNLIMITED);
+      RailPool.Free(evnt);
     }
 
     /// <summary>
@@ -141,8 +152,9 @@ namespace Railgun
       entity.SetController(null);
     }
 
-    internal virtual int Update()
+    internal virtual int Update(Tick localTick)
     {
+      this.localTick = localTick;
       return this.remoteClock.Update();
     }
 
@@ -184,8 +196,8 @@ namespace Railgun
       packet.Initialize(
         localTick,
         this.remoteClock.LatestRemote,
-        this.lastReceivedEventId,
-        this.outgoingGlobalEvents);
+        this.eventReader.LastReadEventId,
+        this.eventWriter.GetOutgoing());
       return (T)packet;
     }
 
@@ -195,57 +207,15 @@ namespace Railgun
     protected virtual void ProcessPacket(RailPacket packet)
     {
       this.remoteClock.UpdateLatest(packet.SenderTick);
-      this.RemoveAckedEvents(packet.AckEventId);
+      this.eventWriter.CleanOutgoing(packet.AckEventId);
 
-      foreach (RailEvent evnt in this.GetNewEvents(packet))
+      foreach (RailEvent evnt in this.eventReader.Filter(packet.Events))
         this.ProcessEvent(evnt);
-    }
-
-    /// <summary>
-    /// Removes any events from the pending queue that have been acked.
-    /// </summary>
-    private void RemoveAckedEvents(EventId peerAcked)
-    {
-      if (peerAcked.IsValid == false)
-        return;
-
-      while (this.outgoingGlobalEvents.Count > 0)
-      {
-        RailEvent next = this.outgoingGlobalEvents.Peek();
-        if (next.EventId > peerAcked)
-          break;
-        RailPool.Free(this.outgoingGlobalEvents.Dequeue());
-      }
-    }
-
-    /// <summary>
-    /// Gets all events that we haven't processed yet, in order.
-    /// </summary>
-    private IEnumerable<RailEvent> GetNewEvents(RailPacket packet)
-    {
-      foreach (RailEvent globalEvent in packet.Events)
-      {
-        bool isExpected =
-          (this.lastReceivedEventId.IsValid == false) ||
-          (this.lastReceivedEventId.Next == globalEvent.EventId);
-
-        if (isExpected)
-        {
-          this.lastReceivedEventId = globalEvent.EventId;
-          yield return globalEvent;
-        }
-      }
     }
 
     private void ProcessEvent(RailEvent evnt)
     {
-      // TODO: Move this to a more comprehensive solution
-      switch (evnt.EventType)
-      {
-        default:
-          CommonDebug.LogWarning("Unrecognized event: " + evnt.EventType);
-          break;
-      }
+      evnt.Invoke();
     }
   }
 }

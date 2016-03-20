@@ -186,9 +186,11 @@ namespace Railgun
       CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_ROLLBACK));
 
       int batchCount = 0;
+      bool setRollback = false;
       while (this.eventsWritten < this.pendingEvents.Count)
       {
         buffer.SetRollback(RailPacket.KEY_ROLLBACK);
+        setRollback = true;
         int beforeSize = buffer.ByteSize;
 
         RailEvent evnt = this.pendingEvents[this.eventsWritten];
@@ -216,6 +218,9 @@ namespace Railgun
 
       // Write Reserved: [Event Count] (space already reserved in Encode)
       buffer.WriteReserved(key, RailEncoders.EventCount, batchCount);
+
+      if (setRollback)
+        buffer.ClearBookmark(RailPacket.KEY_ROLLBACK);
     }
 
     private void PartialDecodeEvents(BitBuffer buffer, int count)

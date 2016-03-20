@@ -27,6 +27,8 @@ public class DemoEvents
   public static event Action<DemoControlled> ControlledCreated;
   public static event Action<DemoDummy> DummyCreated;
 
+  public static event Action<DemoActionEvent> DemoActionEvent;
+
   public static void OnControlledAdded(DemoControlled entity)
   {
     if (DemoEvents.ControlledCreated != null)
@@ -37,5 +39,11 @@ public class DemoEvents
   {
     if (DemoEvents.DummyCreated != null)
       DemoEvents.DummyCreated.Invoke(entity);
+  }
+
+  public static void OnDemoActionEvent(DemoActionEvent evnt)
+  {
+    if (DemoEvents.DemoActionEvent != null)
+      DemoEvents.DemoActionEvent.Invoke(evnt);
   }
 }

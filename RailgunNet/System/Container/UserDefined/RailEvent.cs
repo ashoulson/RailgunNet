@@ -32,13 +32,26 @@ namespace Railgun
   /// </summary>
   public abstract class RailEvent : IRailPoolable<RailEvent>
   {
+    internal const int UNLIMITED = -1;
+
     IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
     void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
 
     /// <summary>
-    /// An optional id assigned to this event, used for reliability.
+    /// An id assigned to this event, used for reliability.
     /// </summary>
     internal EventId EventId { get; set; }
+
+    /// <summary>
+    /// The tick (sender-side) that this event was generated.
+    /// </summary>
+    internal Tick Tick { get; set; }
+
+    /// <summary>
+    /// The number of times we will continue trying to send this event.
+    /// This value is not synchronized.
+    /// </summary>
+    internal int NumRetries { get; set; }
 
     /// <summary>
     /// The int index for the type of event.
@@ -51,6 +64,8 @@ namespace Railgun
     protected abstract void DecodeData(BitBuffer buffer);
     protected abstract void ResetData();
 
+    protected internal virtual void Invoke() { }
+
     internal void Initialize(int eventType)
     {
       this.EventType = eventType;
@@ -60,6 +75,7 @@ namespace Railgun
     {
       RailEvent clone = RailResource.Instance.AllocateEvent(this.EventType);
       clone.EventId = this.EventId;
+      clone.Tick = this.Tick;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -67,6 +83,7 @@ namespace Railgun
     protected internal void Reset()
     {
       this.EventId = EventId.INVALID;
+      this.Tick = Tick.INVALID;
       this.ResetData();
     }
 
@@ -79,6 +96,9 @@ namespace Railgun
 
       // Write: [EventId]
       buffer.Write(RailEncoders.EventId, this.EventId);
+
+      // Write: [Tick]
+      buffer.Write(RailEncoders.Tick, this.Tick);
 
       // Write: [EventData]
       this.EncodeData(buffer);
@@ -94,6 +114,9 @@ namespace Railgun
 
       // Read: [EventId]
       evnt.EventId = buffer.Read(RailEncoders.EventId);
+
+      // Read: [Tick]
+      evnt.Tick = buffer.Read(RailEncoders.Tick);
 
       // Read: [EventData]
       evnt.DecodeData(buffer);

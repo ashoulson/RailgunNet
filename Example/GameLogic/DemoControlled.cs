@@ -30,6 +30,8 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 {
   public event Action Shutdown;
 
+  int actionCount = 0;
+
   protected override void OnStart()
   {
     DemoEvents.OnControlledAdded(this);
@@ -45,6 +47,13 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
       this.State.X -= 5.0f * Time.fixedDeltaTime;
     if (command.Right)
       this.State.X += 5.0f * Time.fixedDeltaTime;
+
+    if (RailConnection.IsServer && command.Action)
+    {
+      DemoActionEvent evnt = this.Controller.OpenEvent<DemoActionEvent>();
+      evnt.Key = this.actionCount++;
+      this.Controller.QueueDirect(evnt);
+    }
   }
 
   protected override void Simulate()

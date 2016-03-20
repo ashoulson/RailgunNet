@@ -105,7 +105,7 @@ namespace Railgun
     public override void Update()
     {
       foreach (RailServerPeer client in this.clients.Values)
-        client.Update();
+        client.Update(this.World.Tick);
 
       this.World.UpdateServer();
 

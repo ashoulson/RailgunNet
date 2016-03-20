@@ -32,17 +32,20 @@ public class DemoCommand : RailCommand<DemoCommand>
   public bool Down { get; set; }
   public bool Left { get; set; }
   public bool Right { get; set; }
+  public bool Action { get; set; }
 
   public void SetData(
     bool up,
     bool down,
     bool left,
-    bool right)
+    bool right,
+    bool action)
   {
     this.Up = up;
     this.Down = down;
     this.Left = left;
     this.Right = right;
+    this.Action = action;
   }
 
   protected override void EncodeData(BitBuffer buffer)
@@ -51,6 +54,7 @@ public class DemoCommand : RailCommand<DemoCommand>
     buffer.Write(DemoEncoders.Bool, this.Down);
     buffer.Write(DemoEncoders.Bool, this.Left);
     buffer.Write(DemoEncoders.Bool, this.Right);
+    buffer.Write(DemoEncoders.Bool, this.Action);
   }
 
   protected override void DecodeData(BitBuffer buffer)
@@ -59,12 +63,13 @@ public class DemoCommand : RailCommand<DemoCommand>
       buffer.Read(DemoEncoders.Bool),
       buffer.Read(DemoEncoders.Bool),
       buffer.Read(DemoEncoders.Bool),
+      buffer.Read(DemoEncoders.Bool),
       buffer.Read(DemoEncoders.Bool));
   }
 
   protected override void ResetData()
   {
-    this.SetData(false, false, false, false);
+    this.SetData(false, false, false, false, false);
   }
 
   protected override void SetDataFrom(DemoCommand other)
@@ -73,7 +78,8 @@ public class DemoCommand : RailCommand<DemoCommand>
       other.Up,
       other.Down,
       other.Left,
-      other.Right);
+      other.Right,
+      other.Action);
   }
 
   protected override void Populate()
@@ -83,7 +89,8 @@ public class DemoCommand : RailCommand<DemoCommand>
       Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W),
       Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S),
       Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A),
-      Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D));
+      Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D),
+      Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.T));
 #endif
   }
 }

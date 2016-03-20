@@ -132,9 +132,11 @@ namespace Railgun
       buffer.Reserve(RailServerPacket.KEY_RESERVE, RailEncoders.EntityCount);
 
       // Write: [Entity States]
+      bool setRollback = false;
       foreach (KeyValuePair<RailEntity, Tick> pair in this.pendingEntities)
       {
         buffer.SetRollback(RailServerPacket.KEY_ROLLBACK);
+        setRollback = true;
         int beforeSize = buffer.ByteSize;
         Tick basisTick = pair.Value;
 
@@ -166,6 +168,9 @@ namespace Railgun
         RailServerPacket.KEY_RESERVE, 
         RailEncoders.EntityCount, 
         this.sentIds.Count);
+
+      if (setRollback)
+        buffer.ClearBookmark(RailServerPacket.KEY_ROLLBACK);
     }
 
     private void DecodeStates(BitBuffer buffer)
