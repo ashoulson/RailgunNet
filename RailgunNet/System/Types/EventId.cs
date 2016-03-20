@@ -28,6 +28,19 @@ namespace Railgun
 {
   public struct EventId : IEncodableType<EventId>
   {
+    public class EventIdComparer : IEqualityComparer<EventId>
+    {
+      public bool Equals(EventId x, EventId y)
+      {
+        return (x.idValue == y.idValue);
+      }
+
+      public int GetHashCode(EventId x)
+      {
+        return x.idValue;
+      }
+    }
+
     // "Max" isn't exactly an accurate term since this rolls over
     private const int LOG_MAX_EVENTS = 10; // 10 -> 1023 max events
     private const int MAX_EVENTS = (1 << EventId.LOG_MAX_EVENTS) - 1;
@@ -36,6 +49,7 @@ namespace Railgun
 
     internal static readonly EventId INVALID = new EventId(0);
     internal static readonly EventId START = new EventId(1);
+    internal static readonly EventIdComparer Comparer = new EventIdComparer();
 
     // ID 0 is invalid so the valid ID range is [0, count] instead of [0, count - 1]
     internal static readonly IntEncoder Encoder = new IntEncoder(0, EventId.MAX_EVENTS);

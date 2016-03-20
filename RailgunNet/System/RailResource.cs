@@ -54,8 +54,6 @@ namespace Railgun
     private Dictionary<Type, int> entityTypeToKey;
     private Dictionary<Type, int> eventTypeToKey;
 
-    private bool isInitialized = false;
-
     private RailResource()
     {
       this.serverPacketPool = new RailPool<RailServerPacket>();
@@ -82,7 +80,6 @@ namespace Railgun
 
       this.CreateEncoder(this.statePools.Keys, ref RailEncoders.EntityType);
       this.CreateEncoder(this.eventPools.Keys, ref RailEncoders.EventType);
-      this.isInitialized = true;
     }
 
     private void RegisterEntities()
