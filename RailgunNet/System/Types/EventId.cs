@@ -26,8 +26,38 @@ using CommonTools;
 
 namespace Railgun
 {
-  public struct EventId : IEncodableType<EventId>
+  public static class EventIdExtensions
   {
+    public static void WriteEventId(this ByteBuffer buffer, EventId eventId)
+    {
+      buffer.WriteInt(eventId.Pack());
+    }
+
+    public static EventId ReadEventId(this ByteBuffer buffer)
+    {
+      return EventId.Unpack(buffer.ReadInt());
+    }
+
+    public static EventId PeekEventId(this ByteBuffer buffer)
+    {
+      return EventId.Unpack(buffer.PeekInt());
+    }
+  }
+
+  public struct EventId
+  {
+    #region Encoding/Decoding
+    internal int Pack()
+    {
+      return this.idValue;
+    }
+
+    internal static EventId Unpack(int value)
+    {
+      return new EventId(value);
+    }
+    #endregion
+
     public class EventIdComparer : IEqualityComparer<EventId>
     {
       public bool Equals(EventId x, EventId y)
@@ -50,10 +80,6 @@ namespace Railgun
     internal static readonly EventId INVALID = new EventId(0);
     internal static readonly EventId START = new EventId(1);
     internal static readonly EventIdComparer Comparer = new EventIdComparer();
-
-    // ID 0 is invalid so the valid ID range is [0, count] instead of [0, count - 1]
-    internal static readonly IntEncoder Encoder = new IntEncoder(0, EventId.MAX_EVENTS);
-    internal static readonly IntEncoder CountEncoder = new IntEncoder(0, EventId.MAX_EVENTS - 1);
 
     #region Operators
     public static bool operator >(EventId a, EventId b)
@@ -137,9 +163,9 @@ namespace Railgun
 
     private readonly int idValue;
 
-    private EventId(int EventId)
+    private EventId(int idValue)
     {
-      this.idValue = EventId;
+      this.idValue = idValue;
     }
 
     public override int GetHashCode()
@@ -157,25 +183,8 @@ namespace Railgun
     public override string ToString()
     {
       if (this.IsValid)
-        return "EVENTID:" + this.idValue;
-      return "EVENTID:INVALID";
+        return "EventId:" + this.idValue;
+      return "EventId:INVALID";
     }
-
-    #region IEncodableType Members
-    int IEncodableType<EventId>.RequiredBits
-    {
-      get { return EventId.Encoder.RequiredBits; }
-    }
-
-    uint IEncodableType<EventId>.Pack()
-    {
-      return EventId.Encoder.Pack(this.idValue);
-    }
-
-    EventId IEncodableType<EventId>.Unpack(uint data)
-    {
-      return new EventId(EventId.Encoder.Unpack(data));
-    }
-    #endregion
   }
 }

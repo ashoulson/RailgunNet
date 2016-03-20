@@ -102,17 +102,17 @@ namespace Railgun
 
     #region Encode/Decode
     protected override void EncodePayload(
-      BitBuffer buffer)
+      ByteBuffer buffer)
     {
-      // Write: [Commands]
-      this.EncodeCommands(buffer);
-
       // Write: [View]
       this.EncodeView(buffer);
+
+      // Write: [Commands]
+      this.EncodeCommands(buffer);
     }
 
     protected override void DecodePayload(
-      BitBuffer buffer,
+      ByteBuffer buffer,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [Commands]
@@ -123,20 +123,20 @@ namespace Railgun
     }
 
     #region Commands
-    protected void EncodeCommands(BitBuffer buffer)
+    protected void EncodeCommands(ByteBuffer buffer)
     {
-      // Write: [CommandCount]
-      buffer.Write(RailEncoders.CommandCount, this.commands.Count);
-
       // Write: [Commands]
       foreach (RailCommand command in this.commands)
         command.Encode(buffer);
+
+      // Write: [CommandCount] TODO: BYTE
+      buffer.WriteInt(this.commands.Count);
     }
 
-    protected void DecodeCommands(BitBuffer buffer)
+    protected void DecodeCommands(ByteBuffer buffer)
     {
       // Read: [CommandCount]
-      int commandCount = buffer.Read(RailEncoders.CommandCount);
+      int commandCount = buffer.ReadInt();
 
       // Read: [Commands]
       for (int i = 0; i < commandCount; i++)
@@ -145,48 +145,37 @@ namespace Railgun
     #endregion
 
     #region View
-    protected void EncodeView(BitBuffer buffer)
+    protected void EncodeView(ByteBuffer buffer)
     {
-      // Reserve: [Count]
-      buffer.Reserve(RailClientPacket.KEY_RESERVE, RailEncoders.EntityCount);
+      int count = 0;
+      foreach (KeyValuePair<EntityId, Tick> pair in this.view.GetOrdered())
+      {
+        // Write: [Tick]
+        buffer.WriteTick(pair.Value);
 
-      // Write: [View]
-      IEnumerable<KeyValuePair<EntityId, Tick>> packed =
-        buffer.PackToSize(
-          RailClientPacket.KEY_RESERVE,
-          RailClientPacket.KEY_ROLLBACK,
-          RailEncoders.EntityCount,
-          this.view.GetOrdered(),
-          RailConfig.MESSAGE_MAX_SIZE,
-          this.EncodeViewPair);
+        // Write: [EntityId]
+        buffer.WriteEntityId(pair.Key);
 
-      foreach (var pair in packed)
-        ; // Pass
+        count++;
+      }
+
+      // Write: [Count]
+      buffer.WriteInt(count);
     }
 
-    private void EncodeViewPair(
-      BitBuffer buffer, 
-      KeyValuePair<EntityId, Tick> pair)
-    {
-      // Write: [EntityId]
-      buffer.Write(RailEncoders.EntityId, pair.Key);
 
-      // Write: [Tick]
-      buffer.Write(RailEncoders.Tick, pair.Value);
-    }
-
-    public void DecodeView(BitBuffer buffer)
+    public void DecodeView(ByteBuffer buffer)
     {
       // Read: [Count]
-      int count = buffer.Read(RailEncoders.EntityCount);
+      int count = buffer.ReadInt();
 
       for (int i = 0; i < count; i++)
       {
         // Read: [EntityId]
-        EntityId id = buffer.Read(RailEncoders.EntityId);
+        EntityId id = buffer.ReadEntityId();
 
         // Read: [Tick]
-        Tick tick = buffer.Read(RailEncoders.Tick);
+        Tick tick = buffer.ReadTick();
 
         this.view.RecordUpdate(id, tick);
       }

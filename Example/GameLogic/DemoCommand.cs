@@ -48,23 +48,23 @@ public class DemoCommand : RailCommand<DemoCommand>
     this.Action = action;
   }
 
-  protected override void EncodeData(BitBuffer buffer)
+  protected override void EncodeData(ByteBuffer buffer)
   {
-    buffer.Write(DemoEncoders.Bool, this.Up);
-    buffer.Write(DemoEncoders.Bool, this.Down);
-    buffer.Write(DemoEncoders.Bool, this.Left);
-    buffer.Write(DemoEncoders.Bool, this.Right);
-    buffer.Write(DemoEncoders.Bool, this.Action);
+    buffer.WriteBool(this.Action);
+    buffer.WriteBool(this.Right);
+    buffer.WriteBool(this.Left);
+    buffer.WriteBool(this.Down);
+    buffer.WriteBool(this.Up);
   }
 
-  protected override void DecodeData(BitBuffer buffer)
+  protected override void DecodeData(ByteBuffer buffer)
   {
     this.SetData(
-      buffer.Read(DemoEncoders.Bool),
-      buffer.Read(DemoEncoders.Bool),
-      buffer.Read(DemoEncoders.Bool),
-      buffer.Read(DemoEncoders.Bool),
-      buffer.Read(DemoEncoders.Bool));
+      buffer.ReadBool(),
+      buffer.ReadBool(),
+      buffer.ReadBool(),
+      buffer.ReadBool(),
+      buffer.ReadBool());
   }
 
   protected override void ResetData()

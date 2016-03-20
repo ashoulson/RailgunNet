@@ -22,27 +22,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Railgun
+using Railgun;
+using UnityEngine;
+
+public static class DemoCompressors
 {
-  internal static class RailEncoders
-  {
-    // Misc
-    public static readonly IntEncoder Bit = new IntEncoder(0, 1);
-    public static readonly BoolEncoder Bool = new BoolEncoder();
-
-    // Special Types
-    public static readonly TypedEncoder<EntityId> EntityId = new TypedEncoder<EntityId>();
-    public static readonly TypedEncoder<Tick> Tick = new TypedEncoder<Tick>();
-    internal static readonly TypedEncoder<EventId> EventId = new TypedEncoder<EventId>();
-    internal static readonly TypedEncoder<TickSpan> TickSpan = new TypedEncoder<TickSpan>();
-
-    // Type Keys
-    internal static IntEncoder EntityType = null;
-    internal static IntEncoder EventType = null;
-
-    // Counts
-    internal static IntEncoder EntityCount { get {return Railgun.EntityId.CountEncoder;} }
-    internal static IntEncoder EventCount { get { return Railgun.EventId.CountEncoder; } }
-    internal static readonly IntEncoder CommandCount = new IntEncoder(0, RailConfig.COMMAND_SEND_COUNT);
-  }
+  public static readonly FloatCompressor Coordinate = new FloatCompressor(-512.0f, 512.0f, DemoMath.COORDINATE_PRECISION / 10.0f);
+  public static readonly FloatCompressor Angle = new FloatCompressor(0.0f, 360.0f, DemoMath.ANGLE_PRECISION / 10.0f);
 }

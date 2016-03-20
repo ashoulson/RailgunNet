@@ -9,7 +9,7 @@ namespace Railgun
 {
   interface IRailPacket
   {
-    void Encode(BitBuffer buffer);
+    void Encode(ByteBuffer buffer);
   }
 
   internal abstract class RailPacket : IRailPacket
@@ -97,146 +97,111 @@ namespace Railgun
     /// remaining packet space. If more space is available, we will try
     /// to fill it with any remaining events, up to the maximum packet size.
     /// </summary>
-    public void Encode(BitBuffer buffer)
+    public void Encode(ByteBuffer buffer)
     {
-      CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_RESERVE_1));
-      CommonDebug.Assert(buffer.IsAvailable(RailPacket.KEY_RESERVE_2));
-
-      int firstPack = RailConfig.MESSAGE_FIRST_PACK;
-      int secondPack = RailConfig.MESSAGE_MAX_SIZE;
-
-      int firstKey = RailPacket.KEY_RESERVE_1;
-      int secondKey = RailPacket.KEY_RESERVE_2;
-
-      this.eventsWritten = 0;
+      // Write: [Payload]
+      this.EncodePayload(buffer);
 
       // Write: [Header]
       this.EncodeHeader(buffer);
-
-      // Reserve: [Event Count] (for first pass)
-      buffer.Reserve(firstKey, RailEncoders.EventCount);
-
-      // Reserve: [Event Count] (for third pass)
-      buffer.Reserve(secondKey, RailEncoders.EventCount);
-
-      // Write: [Events] (first pass)
-      this.PartialEncodeEvents(buffer, firstKey, firstPack);
-
-      // Write: [Payload] (second pass)
-      this.EncodePayload(buffer);
-
-      // Write: [Events] (third pass)
-      this.PartialEncodeEvents(buffer, secondKey, secondPack);
     }
 
     internal void Decode(
-      BitBuffer buffer,
+      ByteBuffer buffer,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Write: [Header]
       this.DecodeHeader(buffer);
 
-      // Read: [Event Count] (for first pass)
-      int firstCount = buffer.Read(RailEncoders.EventCount);
-
-      // Read: [Event Count] (for third pass)
-      int secondCount = buffer.Read(RailEncoders.EventCount);
-
-      // Read: [Events] (first pass)
-      this.PartialDecodeEvents(buffer, firstCount, entityLookup);
-
-      // Write: [Payload] (second pass)
+      // Write: [Payload]
       this.DecodePayload(buffer, entityLookup);
-
-      // Read: [Events] (third pass)
-      this.PartialDecodeEvents(buffer, secondCount, entityLookup);
     }
 
     protected abstract void EncodePayload(
-      BitBuffer buffer);
+      ByteBuffer buffer);
 
     protected abstract void DecodePayload(
-      BitBuffer buffer,
+      ByteBuffer buffer,
       IRailLookup<EntityId, RailEntity> entityLookup);
 
     #region Header
-    private void EncodeHeader(BitBuffer buffer)
+    private void EncodeHeader(ByteBuffer buffer)
     {
-      // Write: [LocalTick]
-      buffer.Write(RailEncoders.Tick, this.senderTick);
+      // Write: [AckEventId]
+      buffer.WriteEventId(this.ackEventId);
 
       // Write: [AckTick]
-      buffer.Write(RailEncoders.Tick, this.ackTick);
+      buffer.WriteTick(this.ackTick);
 
-      // Write: [AckEventId]
-      buffer.Write(RailEncoders.EventId, this.ackEventId);
+      // Write: [LocalTick]
+      buffer.WriteTick(this.senderTick);
     }
 
-    private void DecodeHeader(BitBuffer buffer)
+    private void DecodeHeader(ByteBuffer buffer)
     {
       // Read: [LocalTick]
-      this.senderTick = buffer.Read(RailEncoders.Tick);
+      this.senderTick = buffer.ReadTick();
 
-      // Read: [AckedTick]
-      this.ackTick = buffer.Read(RailEncoders.Tick);
+      // Read: [AckTick]
+      this.ackTick = buffer.ReadTick();
 
       // Read: [AckEventId]
-      this.ackEventId = buffer.Read(RailEncoders.EventId);
+      this.ackEventId = buffer.ReadEventId();
     }
 
     #endregion
 
     #region Events
-    /// <summary>
-    /// Writes as many events as possible up to maxSize and returns the number
-    /// of events written in the batch. Also increments the total counter.
-    /// </summary>
-    private void PartialEncodeEvents(
-      BitBuffer buffer, 
-      int keyReserve, 
-      int maxSize)
-    {
-      // Count slot is already reserved prior to calling
+    ///// <summary>
+    ///// Writes as many events as possible up to maxSize and returns the number
+    ///// of events written in the batch. Also increments the total counter.
+    ///// </summary>
+    //private void PartialEncodeEvents(
+    //  BitBuffer buffer, 
+    //  int keyReserve, 
+    //  int maxSize)
+    //{
+    //  // Count slot is already reserved prior to calling
       
-      IEnumerable<RailEvent> packed =
-        buffer.PackToSize<RailEvent>(
-          keyReserve,
-          RailPacket.KEY_ROLLBACK,
-          RailEncoders.EventCount,
-          this.GetWritableEvents(),
-          maxSize,
-          this.WriteEvent);
+    //  IEnumerable<RailEvent> packed =
+    //    buffer.PackToSize<RailEvent>(
+    //      keyReserve,
+    //      RailPacket.KEY_ROLLBACK,
+    //      RailEncoders.EventCount,
+    //      this.GetWritableEvents(),
+    //      maxSize,
+    //      this.WriteEvent);
 
-      foreach (RailEvent evnt in packed)
-        this.eventsWritten++;
-    }
+    //  foreach (RailEvent evnt in packed)
+    //    this.eventsWritten++;
+    //}
 
-    private void PartialDecodeEvents(
-      BitBuffer buffer, 
-      int count,
-      IRailLookup<EntityId, RailEntity> entityLookup)
-    {
-      // Read: [Events]
-      for (int i = 0; i < count; i++)
-      {
-        RailEvent read = 
-          RailEvent.Decode(buffer, this.senderTick, entityLookup);
-        if (read != null)
-          this.events.Add(read);
-      }
-    }
+    //private void PartialDecodeEvents(
+    //  BitBuffer buffer, 
+    //  int count,
+    //  IRailLookup<EntityId, RailEntity> entityLookup)
+    //{
+    //  // Read: [Events]
+    //  for (int i = 0; i < count; i++)
+    //  {
+    //    RailEvent read = 
+    //      RailEvent.Decode(buffer, this.senderTick, entityLookup);
+    //    if (read != null)
+    //      this.events.Add(read);
+    //  }
+    //}
 
-    private IEnumerable<RailEvent> GetWritableEvents()
-    {
-      while (this.eventsWritten < this.pendingEvents.Count)
-        yield return this.pendingEvents[this.eventsWritten];
-    }
+    //private IEnumerable<RailEvent> GetWritableEvents()
+    //{
+    //  while (this.eventsWritten < this.pendingEvents.Count)
+    //    yield return this.pendingEvents[this.eventsWritten];
+    //}
 
-    private void WriteEvent(BitBuffer buffer, RailEvent evnt)
-    {
-      // Write: [Event]
-      evnt.Encode(buffer, this.senderTick);
-    }
+    //private void WriteEvent(BitBuffer buffer, RailEvent evnt)
+    //{
+    //  // Write: [Event]
+    //  evnt.Encode(buffer, this.senderTick);
+    //}
     #endregion
     #endregion
   }

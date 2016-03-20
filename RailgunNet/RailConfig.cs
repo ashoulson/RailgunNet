@@ -88,7 +88,7 @@ namespace Railgun
     /// <summary>
     /// Maximum tick available. Make this two less than a power of two.
     /// </summary>
-    internal const int MAX_TICK = 1048573; // 5.8hrs at 20Hz
+    internal const int MAX_TICK = 1048573; // 5.8hrs at 50Hz
     #endregion
   }
 }

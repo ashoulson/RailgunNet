@@ -59,7 +59,7 @@
     <Compile Include="DemoActionEvent.cs" />
     <Compile Include="DemoCommand.cs" />
     <Compile Include="DemoDummy.cs" />
-    <Compile Include="DemoEncoders.cs" />
+    <Compile Include="DemoCompressors.cs" />
     <Compile Include="DemoControlled.cs" />
     <Compile Include="DemoEvents.cs" />
     <Compile Include="DemoMath.cs" />

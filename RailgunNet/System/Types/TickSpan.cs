@@ -26,62 +26,89 @@ using CommonTools;
 
 namespace Railgun
 {
+  internal static class TickSpanExtensions
+  {
+    public static void WriteTickSpan(this ByteBuffer buffer, TickSpan eventId)
+    {
+      buffer.WriteByte(eventId.Pack());
+    }
+
+    public static TickSpan ReadTickSpan(this ByteBuffer buffer)
+    {
+      return TickSpan.Unpack(buffer.ReadByte());
+    }
+
+    public static TickSpan PeekTickSpan(this ByteBuffer buffer)
+    {
+      return TickSpan.Unpack(buffer.PeekByte());
+    }
+  }
+
   /// <summary>
   /// A type-safe and zero-safe wrapper for a tick offset. All internal values\
   /// are offset by +1 (zero is invalid, 1 is tick zero, etc.).
   /// </summary>
-  internal struct TickSpan : IEncodableType<TickSpan>
+  internal struct TickSpan
   {
+    private const int MAX_RANGE = RailConfig.DEJITTER_BUFFER_LENGTH;
+
+    #region Encoding/Decoding
+    internal byte Pack()
+    {
+      return this.spanValue;
+    }
+
+    internal static TickSpan Unpack(byte value)
+    {
+      return new TickSpan(value);
+    }
+    #endregion
+
     internal static TickSpan Create(Tick latest, Tick basis)
     {
       CommonDebug.Assert(latest >= basis);
 
       int delta = latest - basis;
-      if (delta > RailConfig.DEJITTER_BUFFER_LENGTH)
+      if (delta > TickSpan.MAX_RANGE)
         return TickSpan.OUT_OF_RANGE;
-      return new TickSpan(delta + 1);
+      return new TickSpan((byte)(delta + 2));
     }
 
-    internal static readonly TickSpan OUT_OF_RANGE = new TickSpan(-1);
+    internal static readonly TickSpan OUT_OF_RANGE = new TickSpan(1);
     internal static readonly TickSpan INVALID = new TickSpan(0);
-
-    internal static readonly IntEncoder Encoder =
-      new IntEncoder(
-        -1, 
-        RailConfig.DEJITTER_BUFFER_LENGTH + 1);
 
     #region Properties
     public bool IsValid
     {
-      get { return (this.spanValue > 0) || (this.spanValue == -1); }
+      get { return this.spanValue > 0; }
     }
 
     public bool IsInRange
     {
-      get { return this.spanValue > 0; }
+      get { return this.spanValue > 1; }
     }
 
     public bool IsOutOfRange
     {
-      get { return this.spanValue == -1; }
+      get { return this.spanValue == 1; }
     }
     #endregion
 
     /// <summary>
     /// Should be used very sparingly. Otherwise it defeats type safety.
     /// </summary>
-    internal int RawValue
+    internal byte RawValue
     {
       get
       {
         CommonDebug.Assert(this.IsInRange);
-        return this.spanValue - 1;
+        return (byte)(this.spanValue - 2);
       }
     }
 
-    private readonly int spanValue;
+    private readonly byte spanValue;
 
-    private TickSpan(int spanValue)
+    private TickSpan(byte spanValue)
     {
       this.spanValue = spanValue;
     }
@@ -98,30 +125,13 @@ namespace Railgun
       return false;
     }
 
-    #region IEncodableType Members
-    int IEncodableType<TickSpan>.RequiredBits
-    {
-      get { return TickSpan.Encoder.RequiredBits; }
-    }
-
-    uint IEncodableType<TickSpan>.Pack()
-    {
-      return TickSpan.Encoder.Pack(this.spanValue);
-    }
-
-    TickSpan IEncodableType<TickSpan>.Unpack(uint data)
-    {
-      return new TickSpan(TickSpan.Encoder.Unpack(data));
-    }
-    #endregion
-
     public override string ToString()
     {
       if (this.spanValue == 0)
         return "TickSpan:INVALID";
-      if (this.spanValue == -1)
+      if (this.spanValue == 1)
         return "TickSpan:OUTOFRANGE";
-      return "TickSpan:" + (this.spanValue - 1);
+      return "TickSpan:" + (this.spanValue - 2);
     }
   }
 }

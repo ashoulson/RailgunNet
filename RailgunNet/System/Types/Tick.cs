@@ -26,12 +26,30 @@ using CommonTools;
 
 namespace Railgun
 {
+  public static class TickExtensions
+  {
+    public static void WriteTick(this ByteBuffer buffer, Tick eventId)
+    {
+      buffer.WriteInt(eventId.Pack());
+    }
+
+    public static Tick ReadTick(this ByteBuffer buffer)
+    {
+      return Tick.Unpack(buffer.ReadInt());
+    }
+
+    public static Tick PeekTick(this ByteBuffer buffer)
+    {
+      return Tick.Unpack(buffer.PeekInt());
+    }
+  }
+
   /// <summary>
   /// A type-safe and zero-safe wrapper for a tick int. Supports basic
   /// operations and encoding. All internal values are offset by +1 (zero
   /// is invalid, 1 is tick zero, etc.).
   /// </summary>
-  public struct Tick : IEncodableType<Tick>
+  public struct Tick
   {
     internal class TickComparer : Comparer<Tick>
     {
@@ -48,6 +66,18 @@ namespace Railgun
 
     internal static readonly Comparer<Tick> Comparer = new TickComparer();
 
+    #region Encoding/Decoding
+    internal int Pack()
+    {
+      return this.tickValue;
+    }
+
+    internal static Tick Unpack(int value)
+    {
+      return new Tick(value);
+    }
+    #endregion
+
     internal static Tick Create(Tick latest, TickSpan offset)
     {
       return latest - offset.RawValue;
@@ -63,11 +93,6 @@ namespace Railgun
 
     internal static readonly Tick INVALID = new Tick(0);
     internal static readonly Tick START = new Tick(1);
-
-    internal static readonly IntEncoder Encoder = 
-      new IntEncoder(
-        0, 
-        RailConfig.MAX_TICK + 1); // Tick 0 is invalid
 
     #region Operators
     // Can't find references on these, so just delete and build to find uses
@@ -167,9 +192,9 @@ namespace Railgun
 
     private readonly int tickValue;
 
-    private Tick(int tick)
+    private Tick(int tickValue)
     {
-      this.tickValue = tick;
+      this.tickValue = tickValue;
     }
 
     public Tick GetNext()
@@ -189,23 +214,6 @@ namespace Railgun
         return (((Tick)obj).tickValue == this.tickValue);
       return false;
     }
-
-    #region IEncodableType Members
-    int IEncodableType<Tick>.RequiredBits
-    {
-      get { return Tick.Encoder.RequiredBits; }
-    }
-
-    uint IEncodableType<Tick>.Pack()
-    {
-      return Tick.Encoder.Pack(this.tickValue);
-    }
-
-    Tick IEncodableType<Tick>.Unpack(uint data)
-    {
-      return new Tick(Tick.Encoder.Unpack(data));
-    }
-    #endregion
 
     public override string ToString()
     {

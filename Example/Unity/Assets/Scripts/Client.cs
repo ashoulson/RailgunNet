@@ -97,6 +97,9 @@ public class Client : MonoBehaviour
   {
     byte[] buffer = new byte[2048];
     foreach (int length in source.ReadReceived(buffer))
+    {
       this.receivedThisFrame += length;
+      Debug.Log("Received: " + length);
+    }
   }
 }
