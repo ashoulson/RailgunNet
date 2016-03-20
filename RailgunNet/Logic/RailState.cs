@@ -31,13 +31,13 @@ namespace Railgun
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
   public abstract class RailState : 
-    IRailPoolable<RailState>, IRailRingValue, IRailCloneable<RailState>
+    IRailPoolable<RailState>, IRailTimedValue, IRailCloneable<RailState>
   {
     private const uint FLAGS_ALL = 0xFFFFFFFF;
 
     IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
     void IRailPoolable<RailState>.Reset() { this.Reset(); }
-    Tick IRailRingValue.Tick { get { return this.Tick; } }
+    Tick IRailTimedValue.Tick { get { return this.Tick; } }
 
     // Client/Server
     internal EntityId EntityId { get; private set; }  // Synchronized

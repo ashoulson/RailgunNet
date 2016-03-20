@@ -46,19 +46,15 @@ namespace Railgun
 
     private readonly Queue<RailCommand> pendingCommands;
     private readonly RailView localView;
-    private IDictionary<EntityId, RailEntity> entityReference;
 
     internal RailClientPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter,
-      IDictionary<EntityId, RailEntity> entityReference)
-      : base(netPeer, interpreter)
+      IRailLookup<EntityId, RailEntity> entityLookup)
+      : base(netPeer, interpreter, entityLookup)
     {
       this.pendingCommands = new Queue<RailCommand>();
       this.localView = new RailView();
-
-      // Stored by reference, so no need to manually update
-      this.entityReference = entityReference;
     }
 
     internal override int Update(Tick localTick)
@@ -85,11 +81,6 @@ namespace Railgun
       base.SendPacket(packet);
 
       RailPool.Free(packet);
-    }
-
-    protected override void PreparePacketForRead(RailPacket packet)
-    {
-      ((RailServerPacket)packet).Reference = this.entityReference;
     }
 
     protected override void ProcessPacket(RailPacket packet)

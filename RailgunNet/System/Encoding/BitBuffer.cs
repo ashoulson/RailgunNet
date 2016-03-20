@@ -326,7 +326,7 @@ namespace Railgun
 
         if (this.ByteSize > maxTotalSize)
         {
-          this.Rollback(keyReserve);
+          this.Rollback(keyRollback);
           break;
         }
         else

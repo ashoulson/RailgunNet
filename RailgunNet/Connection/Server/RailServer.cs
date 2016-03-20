@@ -71,7 +71,8 @@ namespace Railgun
     {
       if (this.clients.ContainsKey(peer) == false)
       {
-        RailServerPeer client = new RailServerPeer(peer, this.Interpreter);
+        RailServerPeer client = 
+          new RailServerPeer(peer, this.Interpreter, this.World);
         this.clients.Add(peer, client);
 
         if (this.ControllerJoined != null)

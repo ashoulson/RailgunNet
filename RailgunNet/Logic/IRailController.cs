@@ -34,8 +34,8 @@ namespace Railgun
 
     IEnumerable<RailEntity> ControlledEntities { get; }
 
-    T OpenEvent<T>() where T : RailEvent;
-    void QueueDirect(RailEvent evnt);
+    void QueueReliable(RailEvent evnt);
+    void QueueUnreliable(RailEvent evnt, int timeToLive = 1);
   }
 
   /// <summary>
