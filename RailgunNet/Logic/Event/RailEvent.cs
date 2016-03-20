@@ -54,6 +54,11 @@ namespace Railgun
     internal int NumRetries { get; set; }
 
     /// <summary>
+    /// The maximum age for this event. This value is not synchronized.
+    /// </summary>
+    internal int MaximumAge { get; set; }
+
+    /// <summary>
     /// The int index for the type of event.
     /// </summary>
     protected internal int EventType { get; set; }

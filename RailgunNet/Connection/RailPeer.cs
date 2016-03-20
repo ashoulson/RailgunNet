@@ -59,12 +59,12 @@ namespace Railgun
     /// <summary>
     /// Module responsible for maintaining outgoing events.
     /// </summary>
-    private readonly RailEventWriter eventWriter;
+    private readonly RailReliableEventWriter eventWriter;
 
     /// <summary>
     /// Module responsible for interpreting incoming events.
     /// </summary>
-    private readonly RailEventReaderReliable eventReader;
+    private readonly RailReliableEventReader eventReader;
 
     protected Tick LocalTick { get { return this.localTick; } }
 
@@ -101,8 +101,8 @@ namespace Railgun
       this.netPeer.MessagesReady += this.OnMessagesReady;
 
       this.controlledEntities = new HashSet<RailEntity>();
-      this.eventWriter = new RailEventWriter();
-      this.eventReader = new RailEventReaderReliable();
+      this.eventWriter = new RailReliableEventWriter();
+      this.eventReader = new RailReliableEventReader();
       this.remoteClock = new RailClock();
 
       this.interpreter = interpreter;
@@ -123,7 +123,7 @@ namespace Railgun
     public void QueueDirect(RailEvent evnt)
     {
       // All global events are sent reliably
-      this.eventWriter.QueueEvent(evnt, RailEvent.UNLIMITED);
+      this.eventWriter.QueueEvent(evnt);
       RailPool.Free(evnt);
     }
 
@@ -210,12 +210,7 @@ namespace Railgun
       this.eventWriter.CleanOutgoing(packet.AckEventId);
 
       foreach (RailEvent evnt in this.eventReader.Filter(packet.Events))
-        this.ProcessEvent(evnt);
-    }
-
-    private void ProcessEvent(RailEvent evnt)
-    {
-      evnt.Invoke();
+        evnt.Invoke();
     }
   }
 }

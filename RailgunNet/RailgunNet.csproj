@@ -37,8 +37,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
-    <Compile Include="Logic\Event\RailEventReaderReliable.cs" />
-    <Compile Include="Logic\Event\RailEventWriter.cs" />
+    <Compile Include="Logic\Event\Entity\RailEntityEventBuffer.cs" />
+    <Compile Include="Logic\Event\Entity\RailEntityEventWriter.cs" />
+    <Compile Include="Logic\Event\Reliable\RailReliableEventReader.cs" />
+    <Compile Include="Logic\Event\Reliable\RailReliableEventWriter.cs" />
     <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
@@ -50,13 +52,14 @@
     <Compile Include="System\Attributes\RegisterCommandAttribute.cs" />
     <Compile Include="System\Attributes\RegisterEntityAttribute.cs" />
     <Compile Include="System\Attributes\RegisterEventAttribute.cs" />
-    <Compile Include="System\Container\RailView.cs" />
+    <Compile Include="Logic\RailView.cs" />
     <Compile Include="System\Encoding\Encoder\TypedEncoder.cs" />
     <Compile Include="System\RailRegistry.cs" />
     <Compile Include="System\Types\IEncodableType.cs" />
+    <Compile Include="Util\Heap.cs" />
     <Compile Include="Util\IRailCloneable.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />
-    <Compile Include="System\Container\UserDefined\RailEvent.cs" />
+    <Compile Include="Logic\Event\RailEvent.cs" />
     <Compile Include="System\Types\EntityId.cs" />
     <Compile Include="System\Types\EventId.cs" />
     <Compile Include="System\Types\TickSpan.cs" />
@@ -79,12 +82,12 @@
     <Compile Include="Util\Pooling\RailPool.cs" />
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\RingBuffer\RailRingBuffer.cs" />
-    <Compile Include="System\Container\UserDefined\RailCommand.cs" />
+    <Compile Include="Logic\RailCommand.cs" />
     <Compile Include="Connection\Client\RailClientPacket.cs" />
     <Compile Include="Logic\RailEntity.cs" />
     <Compile Include="Connection\Traffic\RailInterpreter.cs" />
     <Compile Include="Logic\RailWorld.cs" />
-    <Compile Include="System\Container\UserDefined\RailState.cs" />
+    <Compile Include="Logic\RailState.cs" />
     <Compile Include="System\Encoding\BitBuffer.cs" />
     <Compile Include="System\Encoding\Encoder\Encoder.cs" />
     <Compile Include="System\Encoding\Encoder\Typed\FloatEncoder.cs" />

@@ -5,8 +5,21 @@ using System.Text;
 
 namespace Railgun
 {
-  internal class RailEventWriter
+  internal class RailEntityEventWriter
   {
+    private static bool IsValid(RailEvent evnt, Tick latest)
+    {
+      int numRetries = evnt.NumRetries;
+      if ((numRetries == RailEvent.UNLIMITED) || (numRetries > 0))
+        return true;
+
+      int maxAge = evnt.MaximumAge;
+      if ((maxAge == RailEvent.UNLIMITED) || (latest - evnt.Tick) <= maxAge)
+        return true;
+
+      return false;
+    }
+
     /// <summary>
     /// A rolling queue for outgoing events, in order.
     /// </summary>
@@ -17,7 +30,7 @@ namespace Railgun
     /// </summary>
     private EventId lastEventId;
 
-    public RailEventWriter()
+    public RailEntityEventWriter()
     {
       this.outgoingEvents = new Queue<RailEvent>();
 
@@ -28,62 +41,38 @@ namespace Railgun
     /// <summary>
     /// Queues an event for sending.
     /// </summary>
-    public void QueueEvent(
-      RailEvent evnt, 
-      int numRetries = RailEvent.UNLIMITED)
+    public void QueueEvent(RailEvent evnt, int numRetries, int maxAge)
     {
       RailEvent clone = evnt.Clone();
       clone.NumRetries = numRetries;
+      clone.MaximumAge = maxAge;
       clone.EventId = this.lastEventId;
       this.outgoingEvents.Enqueue(clone);
       this.lastEventId = this.lastEventId.Next;
     }
 
     /// <summary>
-    /// Registers that an event has been sent, lowering any retry counters.
-    /// </summary>
-    public void RegisterSent(EventId highestSentId)
-    {
-      foreach (RailEvent evnt in this.outgoingEvents)
-        if (evnt.EventId <= highestSentId)
-          evnt.NumRetries -= 1;
-    }
-
-    /// <summary>
     /// Cleans the outgoing queue for all events that have been acked.
     /// </summary>
-    public void CleanOutgoing(EventId highestAckedId)
+    public void CleanOutgoing(Tick latest)
     {
-      if (highestAckedId.IsValid == false)
-        return;
-
       while (this.outgoingEvents.Count > 0)
       {
         RailEvent top = this.outgoingEvents.Peek();
-        if (top.EventId > highestAckedId)
+        if (RailEntityEventWriter.IsValid(top, latest))
           break;
         RailPool.Free(this.outgoingEvents.Dequeue());
       }
     }
 
     /// <summary>
-    /// Gets all outgoing events with remaining retries that are newer than
-    /// the given oldest tick.
+    /// Gets all outgoing events.
     /// </summary>
-    public IEnumerable<RailEvent> GetOutgoing(Tick oldestTick)
+    public IEnumerable<RailEvent> GetOutgoing(Tick latest)
     {
       foreach (RailEvent evnt in this.outgoingEvents)
-        if ((evnt.NumRetries == RailEvent.UNLIMITED) || (evnt.NumRetries > 0))
-          if ((oldestTick.IsValid == false) || (evnt.Tick > oldestTick))
-            yield return evnt;
-    }
-
-    /// <summary>
-    /// Gets all outgoing events with remaining retries.
-    /// </summary>
-    public IEnumerable<RailEvent> GetOutgoing()
-    {
-      return GetOutgoing(Tick.INVALID);
+        if (RailEntityEventWriter.IsValid(evnt, latest))
+          yield return evnt;
     }
   }
 }

@@ -5,13 +5,13 @@ using System.Text;
 
 namespace Railgun
 {
-  internal class RailEventReaderReliable
+  internal class RailReliableEventReader
   {
     public EventId LastReadEventId { get { return this.lastReadEventId; } }
 
     private EventId lastReadEventId;
 
-    public RailEventReaderReliable()
+    public RailReliableEventReader()
     {
       this.lastReadEventId = EventId.START;
     }
