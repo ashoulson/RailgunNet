@@ -104,28 +104,34 @@ namespace Railgun
 
       int firstPack = RailConfig.MESSAGE_FIRST_PACK;
       int secondPack = RailConfig.MESSAGE_MAX_SIZE;
+
+      int firstKey = RailPacket.KEY_RESERVE_1;
+      int secondKey = RailPacket.KEY_RESERVE_2;
+
       this.eventsWritten = 0;
 
       // Write: [Header]
       this.EncodeHeader(buffer);
 
       // Reserve: [Event Count] (for first pass)
-      buffer.Reserve(RailPacket.KEY_RESERVE_1, RailEncoders.EventCount);
+      buffer.Reserve(firstKey, RailEncoders.EventCount);
 
       // Reserve: [Event Count] (for third pass)
-      buffer.Reserve(RailPacket.KEY_RESERVE_2, RailEncoders.EventCount);
+      buffer.Reserve(secondKey, RailEncoders.EventCount);
 
       // Write: [Events] (first pass)
-      this.PartialEncodeEvents(buffer, RailPacket.KEY_RESERVE_1, firstPack);
+      this.PartialEncodeEvents(buffer, firstKey, firstPack);
 
       // Write: [Payload] (second pass)
       this.EncodePayload(buffer);
 
       // Write: [Events] (third pass)
-      this.PartialEncodeEvents(buffer, RailPacket.KEY_RESERVE_2, secondPack);
+      this.PartialEncodeEvents(buffer, secondKey, secondPack);
     }
 
-    internal void Decode(BitBuffer buffer)
+    internal void Decode(
+      BitBuffer buffer,
+      IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Write: [Header]
       this.DecodeHeader(buffer);
@@ -137,17 +143,21 @@ namespace Railgun
       int secondCount = buffer.Read(RailEncoders.EventCount);
 
       // Read: [Events] (first pass)
-      this.PartialDecodeEvents(buffer, firstCount);
+      this.PartialDecodeEvents(buffer, firstCount, entityLookup);
 
       // Write: [Payload] (second pass)
-      this.DecodePayload(buffer);
+      this.DecodePayload(buffer, entityLookup);
 
       // Read: [Events] (third pass)
-      this.PartialDecodeEvents(buffer, secondCount);
+      this.PartialDecodeEvents(buffer, secondCount, entityLookup);
     }
 
-    protected abstract void EncodePayload(BitBuffer buffer);
-    protected abstract void DecodePayload(BitBuffer buffer);
+    protected abstract void EncodePayload(
+      BitBuffer buffer);
+
+    protected abstract void DecodePayload(
+      BitBuffer buffer,
+      IRailLookup<EntityId, RailEntity> entityLookup);
 
     #region Header
     private void EncodeHeader(BitBuffer buffer)
@@ -201,11 +211,19 @@ namespace Railgun
         this.eventsWritten++;
     }
 
-    private void PartialDecodeEvents(BitBuffer buffer, int count)
+    private void PartialDecodeEvents(
+      BitBuffer buffer, 
+      int count,
+      IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [Events]
       for (int i = 0; i < count; i++)
-        this.events.Add(RailEvent.Decode(buffer));
+      {
+        RailEvent read = 
+          RailEvent.Decode(buffer, this.senderTick, entityLookup);
+        if (read != null)
+          this.events.Add(read);
+      }
     }
 
     private IEnumerable<RailEvent> GetWritableEvents()
@@ -217,7 +235,7 @@ namespace Railgun
     private void WriteEvent(BitBuffer buffer, RailEvent evnt)
     {
       // Write: [Event]
-      evnt.Encode(buffer);
+      evnt.Encode(buffer, this.senderTick);
     }
     #endregion
     #endregion

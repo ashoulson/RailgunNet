@@ -7,14 +7,19 @@ namespace Railgun
 {
   public class RailScopeEvaluator
   {
-    protected internal const int NEVER = -1;
-
-    protected internal virtual bool IsInScope(RailEntity entity) 
+    protected internal virtual bool IsInScope(RailEntity entity)
     { 
       return true; 
     }
 
-    protected internal virtual float GetPriority(RailEntity entity, int ticksSinceSend)
+    protected internal virtual bool IsInScope(RailEvent evnt)
+    {
+      return true;
+    }
+
+    protected internal virtual float GetPriority(
+      RailEntity entity, 
+      int ticksSinceSend)
     { 
       return 1.0f; 
     }

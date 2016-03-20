@@ -61,7 +61,6 @@ namespace Railgun
     internal Tick CommandTick { get; set; }
     internal IRailController Destination { private get; set; }
     internal IEnumerable<EntityId> SentIds { get { return this.sentIds; } }
-    internal IDictionary<EntityId, RailEntity> Reference { private get; set; }
 
     // Input/output information for entity scoping
     private readonly List<KeyValuePair<RailEntity, Tick>> pendingEntities;
@@ -76,8 +75,6 @@ namespace Railgun
 
       this.pendingEntities = new List<KeyValuePair<RailEntity, Tick>>();
       this.sentIds = new List<EntityId>();
-
-      this.Reference = null;
     }
 
     protected override void Reset()
@@ -91,8 +88,6 @@ namespace Railgun
 
       this.pendingEntities.Clear();
       this.sentIds.Clear();
-
-      this.Reference = null;
     }
 
     internal void QueueEntity(RailEntity entity, Tick lastAcked)
@@ -113,13 +108,15 @@ namespace Railgun
       this.EncodeStates(buffer);
     }
 
-    protected override void DecodePayload(BitBuffer buffer)
+    protected override void DecodePayload(
+      BitBuffer buffer,
+      IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [CommandTick]
       this.CommandTick = buffer.Read(RailEncoders.Tick);
 
       // Read: [States]
-      this.DecodeStates(buffer);
+      this.DecodeStates(buffer, entityLookup);
     }
 
     #region States
@@ -152,7 +149,9 @@ namespace Railgun
         basisTick);
     }
 
-    private void DecodeStates(BitBuffer buffer)
+    private void DecodeStates(
+      BitBuffer buffer,
+      IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [Entity Count]
       int count = buffer.Read(RailEncoders.EntityCount);
@@ -163,11 +162,8 @@ namespace Railgun
       {
         try
         {
-          state =
-            RailEntity.DecodeState(
-              buffer,
-              this.Reference,  // Make sure this is set!
-              this.SenderTick);        // Make sure this is decoded first!
+          state = 
+            RailEntity.DecodeState(buffer, this.SenderTick, entityLookup);
           if (state != null)
             this.states.Add(state);
         }

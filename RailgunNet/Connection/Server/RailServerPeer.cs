@@ -59,8 +59,9 @@ namespace Railgun
 
     internal RailServerPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter)
-      : base(netPeer, interpreter)
+      RailInterpreter interpreter,
+      IRailLookup<EntityId, RailEntity> entityLookup)
+      : base(netPeer, interpreter, entityLookup)
     {
       // We use no divisor for storing commands because commands are sent in
       // batches that we can use to fill in the holes between send ticks

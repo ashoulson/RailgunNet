@@ -112,7 +112,8 @@ namespace Railgun
     }
 
     protected override void DecodePayload(
-      BitBuffer buffer)
+      BitBuffer buffer,
+      IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [Commands]
       this.DecodeCommands(buffer);

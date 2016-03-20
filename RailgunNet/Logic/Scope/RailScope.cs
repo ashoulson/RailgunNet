@@ -36,6 +36,11 @@ namespace Railgun
       this.lastSent = new RailView();
     }
 
+    internal bool Evaluate(RailEvent evnt)
+    {
+      return this.Evaluator.IsInScope(evnt);
+    }
+
     internal IEnumerable<RailEntity> Evaluate(
       IEnumerable<RailEntity> entities,
       Tick latestTick)
@@ -71,7 +76,7 @@ namespace Railgun
         return this.Evaluator.GetPriority(entity, difference);
       }
 
-      return this.Evaluator.GetPriority(entity, RailScopeEvaluator.NEVER);
+      return this.Evaluator.GetPriority(entity, int.MaxValue);
     }
   }
 }

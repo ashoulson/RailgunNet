@@ -28,8 +28,22 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class RailClient : RailConnection
+  public class RailClient : RailConnection, IRailLookup<EntityId, RailEntity>
   {
+    /// <summary>
+    /// A little bit of a hack to account for pending entities.
+    /// </summary>
+    bool IRailLookup<EntityId, RailEntity>.TryGet(
+      EntityId key,
+      out RailEntity value)
+    {
+      if (this.pendingEntities.TryGetValue(key, out value))
+        return true;
+      if (this.World.TryGet(key, out value))
+        return true;
+      return false;
+    }
+
     private RailClientPeer serverPeer;
 
     /// <summary>
@@ -71,7 +85,7 @@ namespace Railgun
         new RailClientPeer(
           netPeer, 
           this.Interpreter,
-          this.knownEntities);
+          this.World);
       this.serverPeer.PacketReceived += this.OnPacketReceived;
     }
 
@@ -162,8 +176,6 @@ namespace Railgun
       }
 
       entity.StoreState(state);
-      foreach (RailEvent evnt in state.Events)
-        entity.StoreEvent(evnt);
       entity.LastUpdatedServerTick = latestServerTick;
       this.UpdateControlStatus(entity, state);
     }

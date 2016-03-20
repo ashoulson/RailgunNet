@@ -50,9 +50,9 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 
     if (RailConnection.IsServer && command.Action)
     {
-      DemoActionEvent evnt = this.OpenEvent<DemoActionEvent>(3);
+      DemoActionEvent evnt = RailEvent.OpenEvent<DemoActionEvent>(this);
       evnt.Key = this.actionCount++;
-      this.QueueEvent(evnt);
+      this.Controller.QueueUnreliable(evnt, 4);
     }
   }
 

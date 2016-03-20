@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class RailWorld
+  public class RailWorld : IRailLookup<EntityId, RailEntity>
   {
     public Tick Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities 
@@ -42,7 +42,7 @@ namespace Railgun
     // Pre-allocated removal list
     private List<EntityId> toRemove;
 
-    public bool TryGetEntity(EntityId id, out RailEntity value)
+    public bool TryGet(EntityId id, out RailEntity value)
     {
       return this.entities.TryGetValue(id, out value);
     }

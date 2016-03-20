@@ -22,46 +22,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using Railgun;
-
-namespace Example
+namespace Railgun
 {
-  public class Arena
+  internal interface IRailKeyedValue<TKey>
   {
-    private RailServer server;
-
-    public Arena(RailServer server)
-    {
-      this.server = server;
-
-      server.ControllerJoined += this.OnControllerAdded;
-      server.ControllerLeft += this.OnControllerLeft;
-
-      for (int i = 0; i < 15; i++)
-      {
-        for (int j = 0; j < 15; j++)
-        {
-          DemoDummy dummy = this.server.AddNewEntity<DemoDummy>();
-          dummy.State.ArchetypeId = 1;
-          dummy.State.X = i * 5;
-          dummy.State.Y = j * 5;
-        }
-      }
-    }
-
-    private void OnControllerAdded(IRailControllerServer controller)
-    {
-      DemoControlled controlled = this.server.AddNewEntity<DemoControlled>();
-      controlled.State.ArchetypeId = 0;
-      controller.GrantControl(controlled);
-      controller.ScopeEvaluator = new DemoScopeEvaluator(controlled);
-      controller.UserData = controlled;
-    }
-
-    private void OnControllerLeft(IRailControllerServer controller)
-    {
-      DemoControlled controlled = (DemoControlled)controller.UserData;
-      this.server.DestroyEntity(controlled);
-    }
+    TKey Key { get; }
   }
 }

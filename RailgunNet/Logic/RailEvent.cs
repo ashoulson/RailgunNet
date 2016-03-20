@@ -30,12 +30,28 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailEvent : IRailPoolable<RailEvent>
+  public abstract class RailEvent : 
+    IRailPoolable<RailEvent>, IRailKeyedValue<EventId>, IRailTimedValue
   {
-    internal const int UNLIMITED = -1;
+    public static T OpenEvent<T>()
+      where T : RailEvent
+    {
+      return RailResource.Instance.AllocateEvent<T>();
+    }
+
+    public static T OpenEvent<T>(RailEntity entity)
+      where T : RailEvent
+    {
+      T evnt = RailResource.Instance.AllocateEvent<T>();
+      evnt.entity = entity;
+      return evnt;
+    }
 
     IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
     void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
+
+    EventId IRailKeyedValue<EventId>.Key { get { return this.EventId; } }
+    Tick IRailTimedValue.Tick { get { return this.Tick; } }
 
     /// <summary>
     /// An id assigned to this event, used for reliability.
@@ -48,6 +64,11 @@ namespace Railgun
     internal Tick Tick { get; set; }
 
     /// <summary>
+    /// Whether or not the event should be delivered reliably.
+    /// </summary>
+    internal bool IsReliable { get; set; }
+
+    /// <summary>
     /// The maximum age for this event. Used for entity events.
     /// This value is not synchronized.
     /// </summary>
@@ -57,6 +78,16 @@ namespace Railgun
     /// The int index for the type of event.
     /// </summary>
     protected internal int EventType { get; set; }
+
+    /// <summary>
+    /// The entity associated with this event, if any.
+    /// </summary>
+    internal RailEntity Entity
+    {
+      get { return this.entity; }
+    }
+
+    private RailEntity entity;
 
     internal abstract void SetDataFrom(RailEvent other);
 
@@ -78,6 +109,7 @@ namespace Railgun
       clone.EventId = this.EventId;
       clone.Tick = this.Tick;
       clone.Expiration = this.Expiration;
+      clone.entity = this.entity;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -87,78 +119,89 @@ namespace Railgun
       this.EventId = EventId.INVALID;
       this.Tick = Tick.INVALID;
       this.Expiration = Tick.INVALID;
+      this.entity = null;
       this.ResetData();
     }
 
     #region Encode/Decode/etc.
-    internal void Encode(BitBuffer buffer)
+    internal void Encode(BitBuffer buffer, Tick packetSenderTick)
     {
-      // Write: [Tick]
-      buffer.Write(RailEncoders.Tick, this.Tick);
+      EntityId entityId = EntityId.INVALID;
+      if (this.Entity != null)
+        entityId = this.Entity.Id;
 
-      // Write: [Contents]
-      this.EncodeContents(buffer);
-    }
-
-    internal void Encode(BitBuffer buffer, Tick latestTick)
-    {
-      TickSpan span = TickSpan.Create(latestTick, this.Tick);
-      CommonDebug.Assert(span.IsInRange);
-
-      // Write: [TickSpan]
-      buffer.Write(RailEncoders.TickSpan, span);
-
-      // Write: [Contents]
-      this.EncodeContents(buffer);
-    }
-
-    internal static RailEvent Decode(BitBuffer buffer)
-    {
-      // Read: [Tick]
-      Tick tick = buffer.Read(RailEncoders.Tick);
-
-      // Read: [Contents]
-      return RailEvent.DecodeContents(buffer, tick);
-    }
-
-    internal static RailEvent Decode(BitBuffer buffer, Tick latestTick)
-    {
-      // Read: [TickSpan]
-      TickSpan span = buffer.Read(RailEncoders.TickSpan);
-      CommonDebug.Assert(span.IsInRange);
-      Tick tick = Tick.Create(latestTick, span);
-
-      // Read: [Contents]
-      return RailEvent.DecodeContents(buffer, tick);
-    }
-
-    private void EncodeContents(
-      BitBuffer buffer)
-    {
       // Write: [EventType]
       buffer.Write(RailEncoders.EventType, this.EventType);
 
+      // Write: [IsReliable]
+      buffer.Write(RailEncoders.Bool, this.IsReliable);
+
+      if (this.IsReliable)
+      {
+        // Write: [Tick]
+        buffer.Write(RailEncoders.Tick, this.Tick);
+      }
+      else
+      {
+        // Write: [TickSpan]
+        TickSpan span = TickSpan.Create(packetSenderTick, this.Tick);
+        CommonDebug.Assert(span.IsInRange);
+        buffer.Write(RailEncoders.TickSpan, span);
+      }
+
       // Write: [EventId]
       buffer.Write(RailEncoders.EventId, this.EventId);
+      
+      // Write: [EntityId]
+      buffer.Write(RailEncoders.EntityId, entityId);
 
       // Write: [EventData]
       this.EncodeData(buffer);
     }
 
-    private static RailEvent DecodeContents(
-      BitBuffer buffer, Tick tick)
+    internal static RailEvent Decode(
+      BitBuffer buffer, 
+      Tick packetSenderTick,
+      IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [EventType]
       int eventType = buffer.Read(RailEncoders.EventType);
 
       RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
-      evnt.Tick = tick;
+
+      // Read: [IsReliable]
+      evnt.IsReliable = buffer.Read(RailEncoders.Bool);
+
+      if (evnt.IsReliable)
+      {
+        // Read: [Tick]
+        evnt.Tick = buffer.Read(RailEncoders.Tick);
+      }
+      else
+      {
+        // Read: [TickSpan]
+        TickSpan span = buffer.Read(RailEncoders.TickSpan);
+        CommonDebug.Assert(span.IsInRange);
+        evnt.Tick = Tick.Create(packetSenderTick, span);
+      }
 
       // Read: [EventId]
       evnt.EventId = buffer.Read(RailEncoders.EventId);
 
+      // Read: [EntityId]
+      EntityId entityId = buffer.Read(RailEncoders.EntityId);
+
       // Read: [EventData]
       evnt.DecodeData(buffer);
+
+      // Dereference the entity Id and make sure everything is valid
+      if (entityId.IsValid)
+      {
+        if (entityLookup.TryGet(entityId, out evnt.entity) == false)
+          return null;
+        if (evnt.Entity.CanReceiveEvents == false)
+          return null;
+      }
 
       return evnt;
     }

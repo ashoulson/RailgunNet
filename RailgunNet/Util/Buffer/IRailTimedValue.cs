@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal interface IRailRingValue
+  internal interface IRailTimedValue
   {
     Tick Tick { get; }
   }
