@@ -50,11 +50,11 @@ public class DemoCommand : RailCommand<DemoCommand>
 
   protected override void EncodeData(ByteBuffer buffer)
   {
-    buffer.WriteBool(this.Action);
-    buffer.WriteBool(this.Right);
-    buffer.WriteBool(this.Left);
-    buffer.WriteBool(this.Down);
     buffer.WriteBool(this.Up);
+    buffer.WriteBool(this.Down);
+    buffer.WriteBool(this.Left);
+    buffer.WriteBool(this.Right);
+    buffer.WriteBool(this.Action);
   }
 
   protected override void DecodeData(ByteBuffer buffer)

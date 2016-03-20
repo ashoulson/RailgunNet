@@ -200,7 +200,7 @@ namespace Railgun
 
         packet.Decode(buffer, this.entityLookup);
 
-        if (buffer.IsEmpty)
+        if (buffer.IsFinished)
           this.ProcessPacket(packet);
         else
           CommonDebug.LogError("Bad packet read, discarding...");

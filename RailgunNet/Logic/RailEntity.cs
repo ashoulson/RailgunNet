@@ -311,11 +311,11 @@ namespace Railgun
         isFirst = true;
       }
 
-      // Encode: [State]
-      this.State.Encode(buffer, basis, isController, isFirst, destroyed);
-
       // Write: [TickSpan]
       buffer.WriteTickSpan(span);
+
+      // Encode: [State]
+      this.State.Encode(buffer, basis, isController, isFirst, destroyed);
     }
 
     /// <summary>

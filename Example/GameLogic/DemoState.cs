@@ -85,8 +85,8 @@ public class DemoState : RailState<DemoState>
 
   protected override void EncodeImmutableData(ByteBuffer buffer)
   {
-    buffer.WriteInt(this.UserId);
     buffer.WriteInt(this.ArchetypeId);
+    buffer.WriteInt(this.UserId);
   }
 
   protected override void DecodeImmutableData(ByteBuffer buffer)
@@ -97,10 +97,10 @@ public class DemoState : RailState<DemoState>
 
   protected override void EncodeMutableData(ByteBuffer buffer, uint flags)
   {
+    if (this.Flag(flags, FLAG_X)) buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.X));
+    if (this.Flag(flags, FLAG_Y)) buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.Y));
+    if (this.Flag(flags, FLAG_ANGLE)) buffer.WriteUInt(DemoCompressors.Angle.Pack(this.Angle));
     if (this.Flag(flags, FLAG_STATUS)) buffer.WriteByte(this.Status);
-    if (this.Flag(flags, FLAG_ANGLE))  buffer.WriteUInt(DemoCompressors.Angle.Pack(this.Angle));
-    if (this.Flag(flags, FLAG_Y))      buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.Y));
-    if (this.Flag(flags, FLAG_X))      buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.X));
   }
 
   protected override void DecodeMutableData(ByteBuffer buffer, uint flags)

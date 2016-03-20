@@ -28,7 +28,7 @@ using CommonTools;
 namespace Railgun
 {
   /// <summary>
-  /// A last-in-first-out (LIFO) byte encoding buffer.
+  /// A first-in-first-out (FIFO) byte encoding buffer.
   /// </summary>
   public class ByteBuffer
   {
@@ -37,32 +37,39 @@ namespace Railgun
     private const int DEFAULT_CAPACITY = 8;
 
     private byte[] data;
-    private int position;
+    private int positionWrite;
+    private int positionRead;
 
-    public int Position { get { return this.position; } }
-    public int Size { get { return this.position; } }
-    public bool IsEmpty { get { return this.position == 0; } }
+    public int Position { get { return this.positionWrite; } }
+    public int Size { get { return this.positionWrite; } }
+
+    public bool IsFinished 
+    { 
+      get { return (this.positionRead == this.positionWrite); } 
+    }
+
+    public bool IsEmpty 
+    {
+      get { return (this.positionWrite == 0); } 
+    }
 
     public ByteBuffer()
     {
       this.data = new byte[DEFAULT_CAPACITY];
-      this.position = 0;
+      this.positionWrite = 0;
+      this.positionRead = 0;
     }
 
     public void Clear()
     {
-      this.position = 0;
-    }
-
-    public void Rollback(int position)
-    {
-      this.position = position;
+      this.positionWrite = 0;
+      this.positionRead = 0;
     }
 
     public int Store(byte[] buffer)
     {
-      Array.Copy(this.data, buffer, this.position);
-      return this.position;
+      Array.Copy(this.data, buffer, this.positionWrite);
+      return this.positionWrite;
     }
 
     public void Load(byte[] buffer, int length)
@@ -72,7 +79,102 @@ namespace Railgun
         this.data = new byte[length];
 
       Array.Copy(buffer, this.data, length);
-      this.position = length;
+      this.positionWrite = length;
+      this.positionRead = 0;
+    }
+
+    /// <summary>
+    /// Packs all elements of an enumerable.
+    /// Max 255 elements.
+    /// </summary>
+    public void PackAll<T>(
+      IEnumerable<T> elements, 
+      Action<T> encode)
+    {
+      byte count = 0;
+
+      // Reserve: [Count]
+      int countPosition = this.positionWrite;
+      this.WriteByte(0);
+
+      // Write: [Elements]
+      foreach (T val in elements)
+      {
+        if (count == 255)
+          break;
+
+        encode.Invoke(val);
+        count++;
+      }
+
+      // Deferred Write: [Count]
+      this.data[countPosition] = count;
+    }
+
+    /// <summary>
+    /// Packs all elements of an enumerable up to a given size.
+    /// Max 255 elements.
+    /// </summary>
+    public void PackToSize<T>(
+      int maxTotal,
+      int maxIndividual,
+      IEnumerable<T> elements,
+      Action<T> encode,
+      Action<T> packed = null)
+    {
+      byte count = 0;
+      maxTotal -= 1; // Make room for the count byte
+
+      // Reserve: [Count]
+      int countPosition = this.positionWrite;
+      this.WriteByte(0);
+
+      // Write: [Elements]
+      foreach (T val in elements)
+      {
+        if (count == 255)
+          break;
+        int rollback = this.positionWrite;
+
+        encode.Invoke(val);
+
+        int size = this.positionWrite - rollback;
+        if (size > maxIndividual)
+        {
+          this.positionWrite = rollback;
+          CommonDebug.LogWarning(
+            "Skipping " + val + " (" + size + "B)");
+        }
+        else if (this.Position > maxTotal)
+        {
+          this.positionWrite = rollback;
+          break;
+        }
+        else
+        {
+          if (packed != null)
+            packed.Invoke(val);
+          count++;
+        }
+      }
+
+      // Deferred Write: [Count]
+      this.data[countPosition] = count;
+    }
+
+    /// <summary>
+    /// Decodes all packed items. 
+    /// Max 255 elements.
+    /// </summary>
+    public IEnumerable<T> UnpackAll<T>(
+      Func<T> decode)
+    {
+      // Read: [Count]
+      byte count = this.ReadByte();
+
+      // Read: [Elements]
+      for (uint i = 0; i < count; i++)
+        yield return decode.Invoke();
     }
 
     #region Encode/Decode
@@ -80,20 +182,17 @@ namespace Railgun
     public void WriteByte(byte val)
     {
       this.ExpandIfNeeded();
-      this.data[this.position] = val;
-      this.position++;
+      this.data[this.positionWrite++] = val;
     }
 
     public byte ReadByte()
     {
-      byte val = this.data[this.position - 1];
-      this.position--;
-      return val;
+      return this.data[this.positionRead++];
     }
 
     public byte PeekByte()
     {
-      return this.data[this.position - 1];
+      return this.data[this.positionRead];
     }
     #endregion
 
@@ -112,7 +211,6 @@ namespace Railgun
     public void WriteUInt(uint val)
     {
       uint buffer = 0x0u;
-      bool first = true;
 
       do
       {
@@ -121,9 +219,8 @@ namespace Railgun
         val >>= 7;
 
         // If there is more data, set the 8th bit to true
-        if (first == false)
+        if (val > 0)
           buffer |= 0x80u;
-        first = false;
 
         // Store the next byte
         this.WriteByte((byte)buffer);
@@ -135,14 +232,15 @@ namespace Railgun
     {
       uint buffer = 0x0u;
       uint val = 0x0u;
+      int s = 0;
 
       do
       {
         buffer = this.ReadByte();
 
         // Add back in the shifted 7 bits
-        val <<= 7;
-        val |= (buffer & 0x7Fu);
+        val |= (buffer & 0x7Fu) << s;
+        s += 7;
 
         // Continue if we're flagged for more
       } while ((buffer & 0x80u) > 0);
@@ -152,9 +250,9 @@ namespace Railgun
 
     public uint PeekUInt()
     {
-      int tempPosition = this.position;
+      int tempPosition = this.positionRead;
       uint val = this.ReadUInt();
-      this.position = tempPosition;
+      this.positionRead = tempPosition;
       return val;
     }
     #endregion
@@ -197,7 +295,7 @@ namespace Railgun
 
     private void ExpandIfNeeded()
     {
-      if (this.position >= this.data.Length)
+      if (this.positionWrite >= this.data.Length)
       {
         int newCapacity =
           (this.data.Length * ByteBuffer.GROW_FACTOR) +

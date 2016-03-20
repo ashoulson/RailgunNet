@@ -101,11 +101,11 @@ namespace Railgun
     #region Encode/Decode
     protected override void EncodePayload(ByteBuffer buffer)
     {
-      // Write: [States]
-      this.EncodeStates(buffer);
-
       // Write: [CommandTick]
       buffer.WriteTick(this.CommandTick);
+
+      // Write: [States]
+      this.EncodeStates(buffer);
     }
 
     protected override void DecodePayload(
@@ -122,44 +122,34 @@ namespace Railgun
     #region States
     private void EncodeStates(ByteBuffer buffer)
     {
-      // Write: [States]
-      foreach (KeyValuePair<RailEntity, Tick> pair in this.pendingEntities)
-      {
-        Tick basisTick = pair.Value;
-        pair.Key.EncodeState(
-          buffer,
-          this.Destination,  // Make sure this is set ahead of time!
-          this.SenderTick,   // Make sure this is set ahead of time!
-          basisTick);
-      }
+      IRailController destination = this.Destination;
+      Tick tick = this.SenderTick;
 
-      // Write: [Count]
-      buffer.WriteInt(this.pendingEntities.Count);
+      buffer.PackToSize(
+        RailConfig.MESSAGE_MAX_SIZE,
+        RailConfig.ENTITY_MAX_SIZE,
+        this.pendingEntities,
+        (pair) => pair.Key.EncodeState(buffer, destination, tick, pair.Value),
+        (pair) => this.sentIds.Add(pair.Key.Id));
     }
 
     private void DecodeStates(
       ByteBuffer buffer,
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
-      // Read: [Entity Count]
-      int count = buffer.ReadInt();
+      IEnumerable<RailState> decoded =
+        buffer.UnpackAll(
+          () => RailEntity.DecodeState(buffer, this.SenderTick, entityLookup));
 
-      // Read: [Entity States]
-      RailState state = null;
-      for (int i = 0; i < count; i++)
+      try // The enumerator is lazy evaluated, so we exception check here
       {
-        try
-        {
-          state = 
-            RailEntity.DecodeState(buffer, this.SenderTick, entityLookup);
+        foreach (RailState state in decoded)
           if (state != null)
             this.states.Add(state);
-        }
-        catch (BasisNotFoundException bnfe)
-        {
-          CommonDebug.LogWarning(bnfe);
-          break;
-        }
+      }
+      catch (BasisNotFoundException bnfe)
+      {
+        CommonDebug.LogWarning(bnfe);
       }
     }
     #endregion

@@ -66,8 +66,9 @@ namespace Railgun
     #region Data Write
     public void AddCommands(IEnumerable<RailCommand> commands)
     {
-      // The commands are sent in backwards order, but that's fine because
-      // they're all just being put in the dejitter buffer anyway
+      // We reverse the list to take the latest commands until we reach
+      // capacity. This is also compatible with LIFO packing, so they will
+      // arrive in order when packed. (Plus they're just dejittered anyway.)
       foreach (RailCommand command in commands.Reverse())
       {
         if (this.commands.Count >= RailConfig.COMMAND_SEND_COUNT)
@@ -104,11 +105,11 @@ namespace Railgun
     protected override void EncodePayload(
       ByteBuffer buffer)
     {
-      // Write: [View]
-      this.EncodeView(buffer);
-
       // Write: [Commands]
       this.EncodeCommands(buffer);
+
+      // Write: [View]
+      this.EncodeView(buffer);
     }
 
     protected override void DecodePayload(
@@ -125,60 +126,47 @@ namespace Railgun
     #region Commands
     protected void EncodeCommands(ByteBuffer buffer)
     {
-      // Write: [Commands]
-      foreach (RailCommand command in this.commands)
-        command.Encode(buffer);
-
-      // Write: [CommandCount] TODO: BYTE
-      buffer.WriteInt(this.commands.Count);
+      buffer.PackAll(
+        this.commands,
+        (command) => command.Encode(buffer));
     }
 
     protected void DecodeCommands(ByteBuffer buffer)
     {
-      // Read: [CommandCount]
-      int commandCount = buffer.ReadInt();
-
-      // Read: [Commands]
-      for (int i = 0; i < commandCount; i++)
-        this.commands.Add(RailCommand.Decode(buffer));
+      IEnumerable<RailCommand> decoded =
+        buffer.UnpackAll(
+          () => RailCommand.Decode(buffer));
+      this.commands.AddRange(decoded);
     }
     #endregion
 
     #region View
     protected void EncodeView(ByteBuffer buffer)
     {
-      int count = 0;
-      foreach (KeyValuePair<EntityId, Tick> pair in this.view.GetOrdered())
-      {
-        // Write: [Tick]
-        buffer.WriteTick(pair.Value);
-
-        // Write: [EntityId]
-        buffer.WriteEntityId(pair.Key);
-
-        count++;
-      }
-
-      // Write: [Count]
-      buffer.WriteInt(count);
+      buffer.PackToSize(
+        RailConfig.MESSAGE_MAX_SIZE,
+        int.MaxValue,
+        this.view.GetOrdered(),
+        (pair) =>
+        {
+          buffer.WriteEntityId(pair.Key); // Write: [EntityId]
+          buffer.WriteTick(pair.Value);   // Write: [Tick]
+        });
     }
-
 
     public void DecodeView(ByteBuffer buffer)
     {
-      // Read: [Count]
-      int count = buffer.ReadInt();
+      IEnumerable<KeyValuePair<EntityId, Tick>> decoded =
+        buffer.UnpackAll(
+          () =>
+          {
+            return new KeyValuePair<EntityId, Tick>(
+              buffer.ReadEntityId(),  // Read: [EntityId] 
+              buffer.ReadTick());     // Read: [Tick]
+          });
 
-      for (int i = 0; i < count; i++)
-      {
-        // Read: [EntityId]
-        EntityId id = buffer.ReadEntityId();
-
-        // Read: [Tick]
-        Tick tick = buffer.ReadTick();
-
-        this.view.RecordUpdate(id, tick);
-      }
+      foreach (var pair in decoded)
+        this.view.RecordUpdate(pair.Key, pair.Value);
     }
     #endregion
     #endregion

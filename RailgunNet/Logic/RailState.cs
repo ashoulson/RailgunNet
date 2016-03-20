@@ -160,6 +160,23 @@ namespace Railgun
       bool isFirst,
       Tick destroyed)
     {
+      // Write: [Id]
+      buffer.WriteEntityId(this.EntityId);
+
+      // Write: [Type]
+      this.EncodeType(buffer, basis);
+
+      // TODO: Merge these bools into one byte
+
+      // Write: [IsDestroyed]
+      buffer.WriteBool(destroyed.IsValid);
+
+      // Write: [IsController]
+      buffer.WriteBool(isController);
+
+      // Write: [IsFirst]
+      buffer.WriteBool(isFirst);
+
       if (destroyed.IsValid)
       {
         // Write: [Destroyed Tick] (if applicable)
@@ -167,34 +184,17 @@ namespace Railgun
       }
       else
       {
-        // Write: [Controller Data] (if applicable)
-        if (isController)
-          this.EncodeControllerData(buffer);
+        // Write: [Mutable Data]
+        this.EncodeMutable(buffer, basis);
 
         // Write: [Immutable Data] (if applicable)
         if (isFirst)
           this.EncodeImmutableData(buffer);
 
-        // Write: [Mutable Data]
-        this.EncodeMutable(buffer, basis);
+        // Write: [Controller Data] (if applicable)
+        if (isController)
+          this.EncodeControllerData(buffer);
       }
-
-      // TODO: Merge these bools into one byte
-
-      // Write: [IsFirst]
-      buffer.WriteBool(isFirst);
-
-      // Write: [IsController]
-      buffer.WriteBool(isController);
-
-      // Write: [IsDestroyed]
-      buffer.WriteBool(destroyed.IsValid);
-
-      // Write: [Type]
-      this.EncodeType(buffer, basis);
-
-      // Write: [Id]
-      buffer.WriteEntityId(this.EntityId);
     }
 
     internal static RailState Decode(
@@ -209,7 +209,6 @@ namespace Railgun
       // Read: [Type]
       int type = RailState.DecodeType(buffer, basis, isDelta);
 
-      // Create the state
       RailState state = RailState.CreateState(basis, latestTick, id, type);
 
       // Read: [IsDestroyed]
@@ -288,11 +287,11 @@ namespace Railgun
       {
         uint flags = this.GetDirtyFlags(basis);
 
-        // Write: [Mutable Data] (delta)
-        this.EncodeMutableData(buffer, flags);
-
         // Write: [Dirty Flags]
         buffer.WriteUInt(flags);
+
+        // Write: [Mutable Data] (delta)
+        this.EncodeMutableData(buffer, flags);
       }
     }
 

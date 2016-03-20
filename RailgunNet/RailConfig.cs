@@ -76,7 +76,7 @@ namespace Railgun
     /// <summary>
     /// Maximum size for a single entity. Used when packing entity events.
     /// </summary>
-    internal const int MAX_ENTITY_SIZE = 100;
+    internal const int ENTITY_MAX_SIZE = 100;
 
     #region Encoding Parameters
     /// <summary>
