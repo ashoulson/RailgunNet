@@ -53,6 +53,8 @@ namespace Railgun
     EventId IRailKeyedValue<EventId>.Key { get { return this.EventId; } }
     Tick IRailTimedValue.Tick { get { return this.Tick; } }
 
+    protected virtual bool CanSendToFrozenEntities { get { return false; } }
+
     /// <summary>
     /// An id assigned to this event, used for reliability.
     /// </summary>
@@ -131,7 +133,9 @@ namespace Railgun
         entityId = this.Entity.Id;
 
       // Write: [EventType]
-      buffer.WriteInt(this.EventType);
+      buffer.WriteInt(
+        RailResource.Instance.EventTypeCompressor, 
+        this.EventType);
 
       // Write: [IsReliable]
       buffer.WriteBool(this.IsReliable);
@@ -165,7 +169,8 @@ namespace Railgun
       IRailLookup<EntityId, RailEntity> entityLookup)
     {
       // Read: [EventType]
-      int eventType = buffer.ReadInt();
+      int eventType = buffer.ReadInt(
+        RailResource.Instance.EventTypeCompressor);
 
       RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
 
@@ -199,7 +204,7 @@ namespace Railgun
       {
         if (entityLookup.TryGet(entityId, out evnt.entity) == false)
           return null;
-        if (evnt.Entity.CanReceiveEvents == false)
+        if ((evnt.CanSendToFrozenEntities == false) && evnt.entity.IsFrozen)
           return null;
       }
 

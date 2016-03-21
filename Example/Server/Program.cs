@@ -22,12 +22,51 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using Railgun;
+
 namespace Example
 {
   class Program
   {
+
     static void Main(string[] args)
     {
+      //ByteBuffer buffer = new ByteBuffer();
+      
+      //Random random = new Random();
+
+      //byte[] data = new byte[100];
+
+      //for (int i = 0; i < 100000000; i++)
+      //{
+      //  buffer.Clear();
+      //  uint val1 = (uint)random.Next(int.MinValue, int.MaxValue);
+      //  uint val2 = (uint)random.Next(int.MinValue, int.MaxValue);
+      //  uint val3 = (uint)random.Next(int.MinValue, int.MaxValue);
+      //  buffer.WriteUInt(val1);
+      //  buffer.WriteUInt(val2);
+      //  buffer.WriteUInt(val3);
+
+      //  int length = buffer.Store(data);
+      //  buffer.Load(data, length);
+
+      //  uint read1 = buffer.ReadUInt();
+      //  uint read2 = buffer.ReadUInt();
+      //  uint read3 = buffer.ReadUInt();
+      //  if (val1 != read1)
+      //    Console.WriteLine("BAD");
+      //  if (val2 != read2)
+      //    Console.WriteLine("BAD");
+      //  if (val3 != read3)
+      //    Console.WriteLine("BAD");
+      //  if (buffer.IsFinished == false)
+      //    Console.WriteLine("NOT DONE");
+      //}
+
+
+      //Console.WriteLine("Done");
+      //Console.ReadLine();
+
       Server room = new Server(44325, 0.02f);
       room.Start();
 

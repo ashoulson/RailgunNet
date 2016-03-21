@@ -28,19 +28,21 @@ namespace Railgun
 {
   internal static class TickSpanExtensions
   {
+    private const int BITS_USED = 6; // Assuming MAX_RANGE is 50
+
     public static void WriteTickSpan(this ByteBuffer buffer, TickSpan eventId)
     {
-      buffer.WriteByte(eventId.Pack());
+      buffer.Write(TickSpanExtensions.BITS_USED, eventId.Pack());
     }
 
     public static TickSpan ReadTickSpan(this ByteBuffer buffer)
     {
-      return TickSpan.Unpack(buffer.ReadByte());
+      return TickSpan.Unpack((byte)buffer.Read(TickSpanExtensions.BITS_USED));
     }
 
     public static TickSpan PeekTickSpan(this ByteBuffer buffer)
     {
-      return TickSpan.Unpack(buffer.PeekByte());
+      return TickSpan.Unpack((byte)buffer.Peek(TickSpanExtensions.BITS_USED));
     }
   }
 

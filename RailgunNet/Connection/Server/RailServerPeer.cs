@@ -108,7 +108,7 @@ namespace Railgun
       packet.Destination = this; // (Not sent, but used for controller flags)
       packet.CommandTick = this.latestCommandTick;
 
-      // Queue up all destroyed entities for the packet, these get priority
+      // Queue up all destroyed entities for the packet; these get priority
       foreach (RailEntity entity in destroyedEntities)
       {
         Tick latest = this.ackedView.GetLatest(entity.Id);

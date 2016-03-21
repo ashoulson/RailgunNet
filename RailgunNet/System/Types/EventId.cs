@@ -28,28 +28,30 @@ namespace Railgun
 {
   public static class EventIdExtensions
   {
+    private const int BITS_USED = EventId.LOG_MAX_EVENTS;
+
     public static void WriteEventId(this ByteBuffer buffer, EventId eventId)
     {
-      buffer.WriteInt(eventId.Pack());
+      buffer.Write(EventIdExtensions.BITS_USED, eventId.Pack());
     }
 
     public static EventId ReadEventId(this ByteBuffer buffer)
     {
-      return EventId.Unpack(buffer.ReadInt());
+      return EventId.Unpack((int)buffer.Read(EventIdExtensions.BITS_USED));
     }
 
     public static EventId PeekEventId(this ByteBuffer buffer)
     {
-      return EventId.Unpack(buffer.PeekInt());
+      return EventId.Unpack((int)buffer.Peek(EventIdExtensions.BITS_USED));
     }
   }
 
   public struct EventId
   {
     #region Encoding/Decoding
-    internal int Pack()
+    internal uint Pack()
     {
-      return this.idValue;
+      return (uint)this.idValue;
     }
 
     internal static EventId Unpack(int value)
@@ -72,7 +74,7 @@ namespace Railgun
     }
 
     // "Max" isn't exactly an accurate term since this rolls over
-    private const int LOG_MAX_EVENTS = 10; // 10 -> 1023 max events
+    internal const int LOG_MAX_EVENTS = 10; // 10 -> 1023 max events
     private const int MAX_EVENTS = (1 << EventId.LOG_MAX_EVENTS) - 1;
     private const int HALF_WAY_POINT = EventId.MAX_EVENTS / 2;
     private const int BIT_SHIFT = 32 - EventId.LOG_MAX_EVENTS;
