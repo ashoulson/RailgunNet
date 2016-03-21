@@ -24,7 +24,7 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailStateDelta
+  public class RailStateTracker
   {
     internal RailRingDelta<RailState> Delta { get; private set; }
 
@@ -32,7 +32,7 @@ namespace Railgun
     public RailState Current { get { return this.Delta.Current; } }
     public RailState Next { get { return this.Delta.Next; } }
 
-    public RailStateDelta()
+    public RailStateTracker()
     {
       this.Delta = new RailRingDelta<RailState>();
     }

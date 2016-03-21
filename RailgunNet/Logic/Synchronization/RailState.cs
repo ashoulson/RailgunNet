@@ -30,61 +30,41 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailState : 
-    IRailPoolable<RailState>, IRailTimedValue, IRailCloneable<RailState>
+  public abstract class RailState : IRailPoolable<RailState>, IRailTimedValue
   {
-    private const uint FLAGS_ALL = 0xFFFFFFFF;
-
+    #region Interface
     IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
     void IRailPoolable<RailState>.Reset() { this.Reset(); }
     Tick IRailTimedValue.Tick { get { return this.Tick; } }
+    #endregion
 
-    // Client/Server
     internal EntityId EntityId { get; private set; }  // Synchronized
     internal int EntityType { get; private set; }     // Synchronized
     internal Tick Tick { get; private set; }          // Synchronized
 
-    // Client-only -- always invalid on server
-    internal bool IsController { get; set; }          // Synchronized (indirectly)
-    internal bool IsPredicted { get; private set; }   // Not synchronized
+    // Client-only
+    internal bool IsController { get; set; }          // Synchronized to client
     internal Tick DestroyedTick { get; private set; } // Synchronized to client
-    internal IEnumerable<RailEvent> Events { get { return this.entityEvents; } }
-
     internal bool IsDestroyed { get { return this.DestroyedTick.IsValid; } }
 
     /// <summary>
-    /// Compares this state against a basis and returns a bitfield of which
-    /// properties are dirty.
+    /// The RailState maintains this container and will free it on reset.
     /// </summary>
-    protected abstract uint GetDirtyFlags(RailState basis);
-    protected internal abstract void SetDataFrom(RailState other);
-
-    protected abstract int FlagBitsUsed { get; }
-    protected abstract void ResetData();
-
-    protected abstract void EncodeImmutableData(ByteBuffer buffer);
-    protected abstract void DecodeImmutableData(ByteBuffer buffer);
-
-    protected abstract void EncodeMutableData(ByteBuffer buffer, uint flags);
-    protected abstract void DecodeMutableData(ByteBuffer buffer, uint flags);
-    protected abstract void ResetControllerData();
-
-    protected abstract void EncodeControllerData(ByteBuffer buffer);
-    protected abstract void DecodeControllerData(ByteBuffer buffer);
-
-    // Client-only.
-    private readonly List<RailEvent> entityEvents;
+    internal RailStateData DataContainer { get; set; }
 
     public RailState()
     {
-      this.entityEvents = new List<RailEvent>();
-      this.Reset();
+      this.Tick = Tick.INVALID;
+      this.EntityId = EntityId.INVALID;
+      this.EntityType = -1;
+
+      this.IsController = false;
+      this.DestroyedTick = Tick.INVALID;
+
+      this.DataContainer = null;
     }
 
-    protected bool Flag(uint flags, uint flag)
-    {
-      return ((flags & flag) == flag);
-    }
+
 
     protected internal void Reset() 
     {
@@ -92,13 +72,11 @@ namespace Railgun
       this.EntityId = EntityId.INVALID;
       this.EntityType = -1;
 
-      this.IsPredicted = false;
       this.IsController = false;
       this.DestroyedTick = Tick.INVALID;
 
-      this.entityEvents.Clear();
-
-      this.ResetData();
+      RailPool.Free(this.DataContainer);
+      this.DataContainer = null;
     }
 
     internal void Initialize(int type)
@@ -113,16 +91,9 @@ namespace Railgun
       clone.EntityId = this.EntityId;
       clone.EntityType = this.EntityType;
       clone.IsController = this.IsController;
-      clone.IsPredicted = this.IsPredicted;
       clone.DestroyedTick = this.DestroyedTick;
-      clone.SetDataFrom(this);
+      clone.DataContainer = this.DataContainer.Clone();
       return clone;
-    }
-
-    internal void SetOnPredict(Tick tick)
-    {
-      this.IsPredicted = true;
-      this.Tick = tick;
     }
 
     internal void SetOnEntityCreate(EntityId id)
@@ -141,12 +112,6 @@ namespace Railgun
       this.Tick = tick;
       this.EntityId = id;
     }
-
-    internal void AddEvent(RailEvent evnt)
-    {
-      this.entityEvents.Add(evnt);
-    }
-
     #region Encode/Decode
     internal static EntityId PeekId(ByteBuffer buffer)
     {
@@ -346,27 +311,5 @@ namespace Railgun
     #region DEBUG
     public virtual string DEBUG_FormatDebug() { return ""; }
     #endregion
-  }
-
-  /// <summary>
-  /// This is the class to override to attach user-defined data to an entity.
-  /// </summary>
-  public abstract class RailState<T> : RailState
-    where T : RailState<T>, new()
-  {
-    #region Casting Overrides
-    protected override uint GetDirtyFlags(RailState basis)
-    {
-      return this.GetDirtyFlags((T)basis);
-    }
-
-    protected internal override void SetDataFrom(RailState other)
-    {
-      this.SetDataFrom((T)other);
-    }
-    #endregion
-
-    protected abstract uint GetDirtyFlags(T basis);
-    protected abstract void SetDataFrom(T other);
   }
 }
