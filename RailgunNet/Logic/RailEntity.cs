@@ -120,13 +120,12 @@ namespace Railgun
     /// <summary>
     /// Whether or not this entity is eligible to receive events.
     /// </summary>
-    internal bool CanReceiveEvents
-    {
-      get
-      {
-        return ((this.hadFirstTick) && (this.isFrozen == false));
-      }
-    }
+    internal bool HasStarted{ get { return this.hadFirstTick; } }
+
+    /// <summary>
+    /// Whether or not this entity is frozen.
+    /// </summary>
+    public bool IsFrozen { get { return this.isFrozen; } }
 
     private bool hadFirstTick;
     private bool isFrozen;

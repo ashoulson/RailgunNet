@@ -40,6 +40,12 @@ namespace Railgun
 
     private static RailResource instance = null;
 
+    public IntCompressor EventTypeCompressor { get { return this.eventTypeCompressor; } }
+    public IntCompressor EntityTypeCompressor { get { return this.entityTypeCompressor; } }
+
+    private IntCompressor eventTypeCompressor = null;
+    private IntCompressor entityTypeCompressor = null;
+
     private IRailPool<RailServerPacket> serverPacketPool;
     private IRailPool<RailClientPacket> clientPacketPool;
 
@@ -97,6 +103,9 @@ namespace Railgun
         this.entityFactories.Add(typeKey, entityFactory);
         this.entityTypeToKey.Add(entityType, typeKey);
       }
+
+      this.entityTypeCompressor = 
+        new IntCompressor(0, this.entityFactories.Count);
     }
 
     private void RegisterEvents()
@@ -112,6 +121,9 @@ namespace Railgun
         this.eventPools.Add(typeKey, statePool);
         this.eventTypeToKey.Add(eventType, typeKey);
       }
+
+      this.eventTypeCompressor =
+        new IntCompressor(0, this.eventPools.Count);
     }
 
     private void RegisterCommand()

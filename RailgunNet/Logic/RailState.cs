@@ -166,8 +166,6 @@ namespace Railgun
       // Write: [Type]
       this.EncodeType(buffer, basis);
 
-      // TODO: Merge these bools into one byte
-
       // Write: [IsDestroyed]
       buffer.WriteBool(destroyed.IsValid);
 
@@ -249,7 +247,9 @@ namespace Railgun
       if (basis == null) // Full Encode
       {
         // Write: [Type]
-        buffer.WriteInt(this.EntityType);
+        buffer.WriteInt(
+          RailResource.Instance.EntityTypeCompressor, 
+          this.EntityType);
       }
       else
       {
@@ -265,7 +265,8 @@ namespace Railgun
       if (isDelta == false) // Full Decode
       {
         // Read: [Type]
-        return buffer.ReadInt();
+        return buffer.ReadInt(
+          RailResource.Instance.EntityTypeCompressor);
       }
       else // Delta Decode
       {
@@ -288,7 +289,7 @@ namespace Railgun
         uint flags = this.GetDirtyFlags(basis);
 
         // Write: [Dirty Flags]
-        buffer.WriteUInt(flags);
+        buffer.Write(this.FlagBitsUsed, flags);
 
         // Write: [Mutable Data] (delta)
         this.EncodeMutableData(buffer, flags);
@@ -307,7 +308,7 @@ namespace Railgun
       else
       {
         // Write: [Dirty Flags]
-        uint flags = buffer.ReadUInt();
+        uint flags = buffer.Read(this.FlagBitsUsed);
 
         // Write: [Mutable Data] (delta)
         this.DecodeMutableData(buffer, flags);

@@ -97,17 +97,17 @@ public class DemoState : RailState<DemoState>
 
   protected override void EncodeMutableData(ByteBuffer buffer, uint flags)
   {
-    if (this.Flag(flags, FLAG_X)) buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.X));
-    if (this.Flag(flags, FLAG_Y)) buffer.WriteUInt(DemoCompressors.Coordinate.Pack(this.Y));
-    if (this.Flag(flags, FLAG_ANGLE)) buffer.WriteUInt(DemoCompressors.Angle.Pack(this.Angle));
+    if (this.Flag(flags, FLAG_X))      buffer.WriteFloat(DemoCompressors.Coordinate, this.X);
+    if (this.Flag(flags, FLAG_Y))      buffer.WriteFloat(DemoCompressors.Coordinate, this.Y);
+    if (this.Flag(flags, FLAG_ANGLE))  buffer.WriteFloat(DemoCompressors.Angle, this.Angle);
     if (this.Flag(flags, FLAG_STATUS)) buffer.WriteByte(this.Status);
   }
 
   protected override void DecodeMutableData(ByteBuffer buffer, uint flags)
   {
-    if (this.Flag(flags, FLAG_X))      this.X = DemoCompressors.Coordinate.Unpack(buffer.ReadUInt());
-    if (this.Flag(flags, FLAG_Y))      this.Y = DemoCompressors.Coordinate.Unpack(buffer.ReadUInt());
-    if (this.Flag(flags, FLAG_ANGLE))  this.Angle = DemoCompressors.Angle.Unpack(buffer.ReadUInt());
+    if (this.Flag(flags, FLAG_X))      this.X = buffer.ReadFloat(DemoCompressors.Coordinate);
+    if (this.Flag(flags, FLAG_Y))      this.Y = buffer.ReadFloat(DemoCompressors.Coordinate);
+    if (this.Flag(flags, FLAG_ANGLE))  this.Angle = buffer.ReadFloat(DemoCompressors.Angle);
     if (this.Flag(flags, FLAG_STATUS)) this.Status = buffer.ReadByte();
   }
 

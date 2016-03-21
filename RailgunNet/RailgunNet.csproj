@@ -37,7 +37,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="System\Encoding\BitBuffer.cs" />
     <Compile Include="System\Encoding\ByteBuffer.cs" />
+    <Compile Include="System\Encoding\Compressors\IntCompressor.cs" />
     <Compile Include="System\IRailLookup.cs" />
     <Compile Include="Util\Buffer\IRailKeyedValue.cs" />
     <Compile Include="Util\Buffer\RailHeapBuffer.cs" />
@@ -86,7 +88,7 @@
     <Compile Include="Connection\Traffic\RailInterpreter.cs" />
     <Compile Include="Logic\RailWorld.cs" />
     <Compile Include="Logic\RailState.cs" />
-    <Compile Include="System\Encoding\FloatCompressor.cs" />
+    <Compile Include="System\Encoding\Compressors\FloatCompressor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Logic\Smoothing\Smoothers\RailSmootherFloat.cs" />
   </ItemGroup>

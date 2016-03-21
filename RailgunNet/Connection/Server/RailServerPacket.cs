@@ -106,6 +106,8 @@ namespace Railgun
 
       // Write: [States]
       this.EncodeStates(buffer);
+
+      Console.WriteLine(this.sentIds.Count);
     }
 
     protected override void DecodePayload(
