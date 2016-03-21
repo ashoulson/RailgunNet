@@ -37,6 +37,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="Logic\RailDataContainer.cs" />
+    <Compile Include="Logic\RailStateDelta.cs" />
     <Compile Include="System\Encoding\BitBuffer.cs" />
     <Compile Include="System\Encoding\ByteBuffer.cs" />
     <Compile Include="System\Encoding\Compressors\IntCompressor.cs" />
@@ -70,7 +72,7 @@
     <Compile Include="Util\Tuple.cs" />
     <Compile Include="Logic\Smoothing\RailSmoother.cs" />
     <Compile Include="Logic\Smoothing\RailStateBuffer.cs" />
-    <Compile Include="Logic\Smoothing\RailStateDelta.cs" />
+    <Compile Include="Logic\Smoothing\RailStateTracker.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\Client\RailClient.cs" />
     <Compile Include="Connection\Traffic\IRailNetPeer.cs" />

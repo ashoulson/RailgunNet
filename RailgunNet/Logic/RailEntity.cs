@@ -36,7 +36,7 @@ namespace Railgun
 
     public IRailController Controller { get { return this.controller; } }
     internal RailStateBuffer StateBuffer { get; private set; }
-    internal RailStateDelta StateDelta { get; private set; }
+    internal RailStateTracker StateDelta { get; private set; }
 
     private IRailControllerInternal controller;
 
@@ -160,7 +160,7 @@ namespace Railgun
       this.Id = EntityId.INVALID;
 
       this.StateBuffer = new RailStateBuffer();
-      this.StateDelta = new RailStateDelta();
+      this.StateDelta = new RailStateTracker();
 
       this.World = null;
       this.State = null;
