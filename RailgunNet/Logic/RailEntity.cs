@@ -127,6 +127,19 @@ namespace Railgun
     /// </summary>
     public bool IsFrozen { get { return this.isFrozen; } }
 
+    /// <summary>
+    /// If overridden to false in a subclass, we will not encode this entity 
+    /// if there are no changes. This may cause the entity to freeze while
+    /// still in scope if freezing is still enabled.
+    /// </summary>
+    protected virtual bool ForceEncode { get { return true; } }
+
+    /// <summary>
+    /// If overridden to false in a subclass, this entity will never freeze
+    /// even if we haven't received data for it in a long time.
+    /// </summary>
+    protected virtual bool CanFreeze { get { return true; } }
+
     private bool hadFirstTick;
     private bool isFrozen;
 
@@ -273,17 +286,25 @@ namespace Railgun
 
     internal void UpdateFreeze(Tick lastReceivedServerTick)
     {
-      int delta = lastReceivedServerTick - this.LastUpdatedServerTick;
-      bool shouldFreeze = (delta > RailConfig.TICKS_BEFORE_FREEZE);
-      if (shouldFreeze && (this.isFrozen == false))
-        this.OnFrozen();
-      else if ((shouldFreeze == false) && this.isFrozen)
+      if (this.CanFreeze)
+      {
+        int delta = lastReceivedServerTick - this.LastUpdatedServerTick;
+        bool shouldFreeze = (delta > RailConfig.TICKS_BEFORE_FREEZE);
+        if (shouldFreeze && (this.isFrozen == false))
+          this.OnFrozen();
+        else if ((shouldFreeze == false) && this.isFrozen)
+          this.OnUnfrozen();
+        this.isFrozen = shouldFreeze;
+      }
+      else if (this.isFrozen)
+      {
         this.OnUnfrozen();
-      this.isFrozen = shouldFreeze;
+        this.isFrozen = false;
+      }
     }
 
     #region Encoding/Decoding
-    internal void EncodeState(
+    internal bool EncodeState(
       ByteBuffer buffer, 
       IRailController destination,
       Tick latestTick, 
@@ -310,11 +331,19 @@ namespace Railgun
         isFirst = true;
       }
 
+      // See if it's worth encoding anything
+      bool shouldEncode = 
+        this.State.ShouldEncode(basis, isController, isFirst, destroyed);
+      if ((shouldEncode == false) && (this.ForceEncode == false))
+        return false;
+
       // Write: [TickSpan]
       buffer.WriteTickSpan(span);
 
       // Encode: [State]
       this.State.Encode(buffer, basis, isController, isFirst, destroyed);
+
+      return true;
     }
 
     /// <summary>

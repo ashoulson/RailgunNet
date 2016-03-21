@@ -153,6 +153,20 @@ namespace Railgun
       return buffer.PeekEntityId();
     }
 
+    internal bool ShouldEncode(
+      RailState basis, 
+      bool isController, 
+      bool isFirst,
+      Tick destroyed)
+    {
+      if (basis == null)
+        return true;
+      if (isController || isFirst || destroyed.IsValid)
+        return true;
+      uint flags = this.GetDirtyFlags(basis);
+      return flags > 0;
+    }
+
     internal void Encode(
       ByteBuffer buffer, 
       RailState basis,

@@ -151,6 +151,7 @@ namespace Railgun
         {
           buffer.WriteEntityId(pair.Key); // Write: [EntityId]
           buffer.WriteTick(pair.Value);   // Write: [Tick]
+          return true;
         });
     }
 
