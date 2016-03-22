@@ -24,14 +24,14 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal class RailRingDelta<T>
+  internal class RailDejitterReader<T>
     where T : class
   {
     public T Prior { get; private set; }
     public T Current { get; private set; }
     public T Next { get; private set; }
 
-    public RailRingDelta()
+    public RailDejitterReader()
     {
       this.Prior = null;
       this.Current = null;

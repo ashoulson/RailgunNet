@@ -26,7 +26,7 @@ namespace Railgun
 {
   public class RailSmoother<T>
   {
-    public delegate T Accessor(RailState state);
+    public delegate T Accessor(RailStateRecord state);
     public delegate T LerpUnclamped(T from, T to, float t);
     public delegate bool ShouldSnap(T from, T to);
 
@@ -49,7 +49,7 @@ namespace Railgun
     }
 
     internal T Access(
-      RailState state)
+      RailStateRecord state)
     {
       return this.accessor.Invoke(state);
     }
@@ -57,8 +57,8 @@ namespace Railgun
     internal T Smooth(
       float frameDelta,
       Tick tick,
-      RailState first,
-      RailState second)
+      RailStateRecord first,
+      RailStateRecord second)
     {
       T priorVal = this.accessor(first);
       T latestVal = this.accessor(second);

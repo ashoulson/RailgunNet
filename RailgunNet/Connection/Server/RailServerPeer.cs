@@ -50,29 +50,28 @@ namespace Railgun
       set { this.scope.Evaluator = value; }
     }
 
-    private readonly RailRingBuffer<RailCommand> commandBuffer;
+    private readonly RailDejitterBuffer<RailCommand> commandBuffer;
     private readonly RailScope scope;
 
     private readonly RailView ackedView;
     private RailCommand latestCommand;
-    private Tick latestCommandTick;
+    private Tick commandAck;
 
     internal RailServerPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter,
-      IRailLookup<EntityId, RailEntity> entityLookup)
-      : base(netPeer, interpreter, entityLookup)
+      RailInterpreter interpreter)
+      : base(netPeer, interpreter)
     {
       // We use no divisor for storing commands because commands are sent in
       // batches that we can use to fill in the holes between send ticks
       this.commandBuffer =
-        new RailRingBuffer<RailCommand>(
+        new RailDejitterBuffer<RailCommand>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
       this.scope = new RailScope();
 
       this.ackedView = new RailView();
       this.latestCommand = null;
-      this.latestCommandTick = Tick.INVALID;
+      this.commandAck = Tick.INVALID;
     }
 
     internal override int Update(Tick localTick)
@@ -84,7 +83,7 @@ namespace Railgun
           this.RemoteClock.EstimatedRemote);
 
       if (this.latestCommand != null)
-        this.latestCommandTick = this.latestCommand.Tick;
+        this.commandAck = this.latestCommand.Tick;
 
       return ticks;
     }
@@ -92,42 +91,35 @@ namespace Railgun
     internal void Shutdown()
     {
       foreach (RailEntity entity in this.controlledEntities)
-        entity.SetController(null);
+        entity.AssignController(null);
       this.controlledEntities.Clear();
     }
 
     internal void SendPacket(
-      Tick localTick,
       IEnumerable<RailEntity> activeEntities,
       IEnumerable<RailEntity> destroyedEntities)
     {
       RailServerPacket packet =
-        base.AllocatePacketSend<RailServerPacket>(localTick);
+        base.AllocatePacketSend<RailServerPacket>(this.LocalTick);
 
-      // Set data
-      packet.Destination = this; // (Not sent, but used for controller flags)
-      packet.CommandTick = this.latestCommandTick;
-
-      // Queue up all destroyed entities for the packet; these get priority
-      foreach (RailEntity entity in destroyedEntities)
-      {
-        Tick latest = this.ackedView.GetLatest(entity.Id);
-        if (latest.IsValid && (latest < entity.DestroyedTick))
-          packet.QueueEntity(entity, Tick.INVALID);
-      }
-
-      // Queue up all active entities in scope for the packet to try to fit
-      foreach (RailEntity entity in this.scope.Evaluate(activeEntities, localTick))
-        packet.QueueEntity(entity, this.ackedView.GetLatest(entity.Id));
-
-      // Send the packet
+      packet.Populate(this.commandAck, this.ProduceDeltas(activeEntities));
       base.SendPacket(packet);
 
-      // Record which entities we packed in
-      foreach (EntityId id in packet.SentIds)
-        this.scope.RegisterSent(id, localTick);
+      foreach (RailStateDelta delta in packet.Sent)
+        this.scope.RegisterSent(delta.EntityId, this.LocalTick);
 
+      foreach (RailStateDelta delta in packet.Pending)
+        RailPool.Free(delta);
       RailPool.Free(packet);
+    }
+
+    private IEnumerable<RailStateDelta> ProduceDeltas(
+      IEnumerable<RailEntity> activeEntities)
+    {
+      IEnumerable<RailEntity> scopedEntities =
+        this.scope.Evaluate(activeEntities, this.LocalTick);
+      foreach (RailEntity entity in scopedEntities)
+        yield return entity.ProduceDelta(this.LocalTick, this);
     }
 
     protected override void ProcessPacket(RailPacket packet)

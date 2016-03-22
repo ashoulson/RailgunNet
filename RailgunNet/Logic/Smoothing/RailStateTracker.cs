@@ -1,93 +1,93 @@
-﻿/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
- *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
- *
- *  This software is provided 'as-is', without any express or implied
- *  warranty. In no event will the authors be held liable for any damages
- *  arising from the use of this software.
- *  Permission is granted to anyone to use this software for any purpose,
- *  including commercial applications, and to alter it and redistribute it
- *  freely, subject to the following restrictions:
- *  
- *  1. The origin of this software must not be misrepresented; you must not
- *     claim that you wrote the original software. If you use this software
- *     in a product, an acknowledgment in the product documentation would be
- *     appreciated but is not required.
- *  2. Altered source versions must be plainly marked as such, and must not be
- *     misrepresented as being the original software.
- *  3. This notice may not be removed or altered from any source distribution.
-*/
+﻿///*
+// *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+// *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
+// *
+// *  This software is provided 'as-is', without any express or implied
+// *  warranty. In no event will the authors be held liable for any damages
+// *  arising from the use of this software.
+// *  Permission is granted to anyone to use this software for any purpose,
+// *  including commercial applications, and to alter it and redistribute it
+// *  freely, subject to the following restrictions:
+// *  
+// *  1. The origin of this software must not be misrepresented; you must not
+// *     claim that you wrote the original software. If you use this software
+// *     in a product, an acknowledgment in the product documentation would be
+// *     appreciated but is not required.
+// *  2. Altered source versions must be plainly marked as such, and must not be
+// *     misrepresented as being the original software.
+// *  3. This notice may not be removed or altered from any source distribution.
+//*/
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
+//using System;
+//using System.Collections;
+//using System.Collections.Generic;
 
-namespace Railgun
-{
-  public class RailStateTracker
-  {
-    internal RailRingDelta<RailState> Delta { get; private set; }
+//namespace Railgun
+//{
+//  public class RailStateTracker
+//  {
+//    internal RailDejitterReader<RailStateRecord> Delta { get; private set; }
 
-    public RailState Prior { get { return this.Delta.Prior; } }
-    public RailState Current { get { return this.Delta.Current; } }
-    public RailState Next { get { return this.Delta.Next; } }
+//    public RailStateRecord Prior { get { return this.Delta.Prior; } }
+//    public RailStateRecord Current { get { return this.Delta.Current; } }
+//    public RailStateRecord Next { get { return this.Delta.Next; } }
 
-    public RailStateTracker()
-    {
-      this.Delta = new RailRingDelta<RailState>();
-    }
+//    public RailStateTracker()
+//    {
+//      this.Delta = new RailDejitterReader<RailStateRecord>();
+//    }
 
-    public void Set(RailState prior, RailState current, RailState next)
-    {
-      this.Delta.Set(prior, current, next);
-    }
+//    public void Set(RailStateRecord prior, RailStateRecord current, RailStateRecord next)
+//    {
+//      this.Delta.Set(prior, current, next);
+//    }
 
-    public void Update(RailStateBuffer buffer, Tick currentTick)
-    {
-      buffer.PopulateDelta(this.Delta, currentTick);
-    }
+//    public void Update(RailStateBuffer buffer, Tick currentTick)
+//    {
+//      buffer.PopulateDelta(this.Delta, currentTick);
+//    }
 
-    internal void Clear()
-    {
-      this.Delta.Set(null, null, null);
-    }
+//    internal void Clear()
+//    {
+//      this.Delta.Set(null, null, null);
+//    }
 
-    internal RailState Push(RailState state)
-    {
-      RailState next = null;
-      RailState current = null;
-      RailState prior = null;
-      RailState popped = null;
+//    internal RailStateRecord Push(RailStateRecord state)
+//    {
+//      RailStateRecord next = null;
+//      RailStateRecord current = null;
+//      RailStateRecord prior = null;
+//      RailStateRecord popped = null;
 
-      if (this.Next != null)
-      {
-        if (this.Current != null)
-        {
-          if (this.Prior != null)
-          {
-            popped = this.Prior;
-          }
+//      if (this.Next != null)
+//      {
+//        if (this.Current != null)
+//        {
+//          if (this.Prior != null)
+//          {
+//            popped = this.Prior;
+//          }
 
-          prior = this.Current;
-        }
+//          prior = this.Current;
+//        }
 
-        current = this.Next;
-      }
+//        current = this.Next;
+//      }
 
-      next = state;
+//      next = state;
 
-      this.Delta.Set(prior, current, next);
-      return popped;
-    }
+//      this.Delta.Set(prior, current, next);
+//      return popped;
+//    }
 
-    public bool CanInterpolate()
-    {
-      return (this.Current != null) && (this.Next != null);
-    }
+//    public bool CanInterpolate()
+//    {
+//      return (this.Current != null) && (this.Next != null);
+//    }
 
-    public bool CanExtrapolate()
-    {
-      return (this.Current != null) && (this.Prior != null);
-    }
-  }
-}
+//    public bool CanExtrapolate()
+//    {
+//      return (this.Current != null) && (this.Prior != null);
+//    }
+//  }
+//}

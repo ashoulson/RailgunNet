@@ -30,7 +30,7 @@ namespace Railgun
   /// Commands contain input data from the client to be applied to entities.
   /// </summary>
   public abstract class RailCommand : 
-    IRailPoolable<RailCommand>, IRailTimedValue, IRailCloneable<RailCommand>
+    IRailPoolable<RailCommand>, IRailTimedValue
   {
     IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
     void IRailPoolable<RailCommand>.Reset() { this.Reset(); }

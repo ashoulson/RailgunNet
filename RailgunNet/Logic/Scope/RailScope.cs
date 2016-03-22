@@ -38,7 +38,7 @@ namespace Railgun
 
     internal bool Evaluate(RailEvent evnt)
     {
-      return this.Evaluator.IsInScope(evnt);
+      return this.Evaluator.Evaluate(evnt);
     }
 
     internal IEnumerable<RailEntity> Evaluate(
@@ -46,37 +46,31 @@ namespace Railgun
       Tick latestTick)
     {
       this.entries.Clear();
+      float priority; 
 
       foreach (RailEntity entity in entities)
-      {
-        if (this.Evaluator.IsInScope(entity))
-        {
-          float priority = this.GetPriority(entity, latestTick);
-          this.entries.Add(
-            new KeyValuePair<float, RailEntity>(priority, entity));
-        }
-      }
+        if (this.GetPriority(entity, latestTick, out priority))
+          this.entries.Add(new KeyValuePair<float, RailEntity>(priority, entity));
 
       this.entries.Sort(RailScope.Comparer);
       foreach (KeyValuePair<float, RailEntity> entry in this.entries)
         yield return entry.Value;
     }
 
-    internal void RegisterSent(EntityId entityId, Tick latestTick)
+    internal void RegisterSent(EntityId entityId, Tick sent)
     {
-      this.lastSent.RecordUpdate(entityId, latestTick);
+      this.lastSent.RecordUpdate(entityId, sent);
     }
 
-    private float GetPriority(RailEntity entity, Tick latestTick)
+    private bool GetPriority(
+      RailEntity entity, 
+      Tick current,
+      out float priority)
     {
-      Tick lastSentTick = this.lastSent.GetLatest(entity.Id);
-      if (lastSentTick.IsValid)
-      {
-        int difference = latestTick - lastSentTick;
-        return this.Evaluator.GetPriority(entity, difference);
-      }
-
-      return this.Evaluator.GetPriority(entity, int.MaxValue);
+      Tick lastSent = this.lastSent.GetLatest(entity.Id);
+      if (lastSent.IsValid)
+        return this.Evaluator.Evaluate(entity, current - lastSent, out priority);
+      return this.Evaluator.Evaluate(entity, int.MaxValue, out priority);
     }
   }
 }

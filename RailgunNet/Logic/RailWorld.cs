@@ -26,7 +26,7 @@ using CommonTools;
 
 namespace Railgun
 {
-  public class RailWorld : IRailLookup<EntityId, RailEntity>
+  public class RailWorld
   {
     public Tick Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities 
@@ -103,7 +103,8 @@ namespace Railgun
       {
         this.entities.Remove(entityId);
         entity.World = null;
-        entity.Shutdown();
+        // TODO: REENABLE FOR DESTRUCTION
+        //entity.Shutdown();
       }
     }
     
@@ -119,10 +120,10 @@ namespace Railgun
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
       {
-        Tick destroyedTick = entity.DestroyedTick;
-        if (destroyedTick.IsValid && (destroyedTick <= serverTick))
-          this.toRemove.Add(entity.Id);
-        else
+        //Tick destroyedTick = entity.DestroyedTick;
+        //if (destroyedTick.IsValid && (destroyedTick <= serverTick))
+        //  this.toRemove.Add(entity.Id);
+        //else
           entity.UpdateClient(serverTick);
       }
 
@@ -134,7 +135,7 @@ namespace Railgun
     internal void StoreStates()
     {
       foreach (RailEntity entity in this.entities.Values)
-        entity.StoreState(this.Tick);
+        entity.StoreRecord(this.Tick);
     }
   }
 }

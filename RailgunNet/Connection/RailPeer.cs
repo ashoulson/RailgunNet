@@ -57,12 +57,6 @@ namespace Railgun
     protected readonly HashSet<RailEntity> controlledEntities;
 
     /// <summary>
-    /// A reference to all known entities available. Used in decoding.
-    /// Provided by the connection.
-    /// </summary>
-    private IRailLookup<EntityId, RailEntity> entityLookup;
-
-    /// <summary>
     /// An estimator for the remote peer's current tick.
     /// </summary>
     private readonly RailClock remoteClock;
@@ -111,7 +105,7 @@ namespace Railgun
     /// <summary>
     /// A history buffer of received unreliable events.
     /// </summary>
-    private readonly RailHeapBuffer<EventId, RailEvent> unreliableHistory;
+    private readonly RailExpiringDictionary<EventId, RailEvent> unreliableHistory;
     #endregion
 
     // Server-only
@@ -131,17 +125,15 @@ namespace Railgun
 
     internal RailPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+      RailInterpreter interpreter)
     {
       this.netPeer = netPeer;
       this.interpreter = interpreter;
-      this.entityLookup = entityLookup;
 
       this.outgoingReliable = new Queue<RailEvent>();
       this.outgoingUnreliable = new Queue<RailEvent>();
       this.unreliableHistory = 
-        new RailHeapBuffer<EventId, RailEvent>(EventId.Comparer);
+        new RailExpiringDictionary<EventId, RailEvent>(EventId.Comparer);
 
       this.controlledEntities = new HashSet<RailEntity>();
       this.remoteClock = new RailClock();
@@ -166,7 +158,7 @@ namespace Railgun
       CommonDebug.Assert(entity.Controller == null);
       this.controlledEntities.Add(entity);
 
-      entity.SetController(this);
+      entity.AssignController(this);
     }
 
     /// <summary>
@@ -177,7 +169,7 @@ namespace Railgun
       CommonDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
 
-      entity.SetController(null);
+      entity.AssignController(null);
     }
 
     internal virtual int Update(Tick localTick)
@@ -198,7 +190,7 @@ namespace Railgun
       {
         RailPacket packet = this.AllocateIncoming();
 
-        packet.Decode(buffer, this.entityLookup);
+        packet.Decode(buffer);
 
         if (buffer.IsFinished)
           this.ProcessPacket(packet);
@@ -336,7 +328,7 @@ namespace Railgun
     /// </summary>
     private bool FilterUnreliable(RailEvent evnt)
     {
-      return this.unreliableHistory.Record(evnt);
+      return this.unreliableHistory.Store(evnt);
     }
 
     /// <summary>
@@ -371,7 +363,7 @@ namespace Railgun
 
       // Also clear out the history for some past tick number
       int delay = RailPeer.EVENT_HISTORY_DELAY;
-      this.unreliableHistory.Advance(Tick.ClampSubtract(localTick, delay));
+      this.unreliableHistory.Expire(Tick.ClampSubtract(localTick, delay));
     }
     #endregion
   }

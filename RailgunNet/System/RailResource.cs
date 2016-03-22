@@ -50,7 +50,7 @@ namespace Railgun
     private IRailPool<RailClientPacket> clientPacketPool;
 
     private IRailPool<RailCommand> commandPool;
-    private Dictionary<int, IRailPool<RailState>> statePools;
+    private Dictionary<int, IRailPool<RailStateRecord>> statePools;
     private Dictionary<int, IRailPool<RailEvent>> eventPools;
     private Dictionary<int, IRailFactory<RailEntity>> entityFactories;
 
@@ -66,7 +66,7 @@ namespace Railgun
       this.clientPacketPool = new RailPool<RailClientPacket>();
 
       this.commandPool = null;
-      this.statePools = new Dictionary<int, IRailPool<RailState>>();
+      this.statePools = new Dictionary<int, IRailPool<RailStateRecord>>();
       this.eventPools = new Dictionary<int, IRailPool<RailEvent>>();
       this.entityFactories = new Dictionary<int, IRailFactory<RailEntity>>();
 
@@ -93,8 +93,8 @@ namespace Railgun
         Type entityType = pair.Key;
         Type stateType = pair.Value.StateType;
 
-        IRailPool<RailState> statePool =
-          RailRegistry.CreatePool<RailState>(stateType);
+        IRailPool<RailStateRecord> statePool =
+          RailRegistry.CreatePool<RailStateRecord>(stateType);
         IRailFactory<RailEntity> entityFactory = 
           RailRegistry.CreateFactory<RailEntity>(entityType);
 
