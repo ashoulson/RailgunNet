@@ -5,8 +5,13 @@ using System.Text;
 
 namespace Railgun
 {
-  internal class RailHeapBuffer<TKey, TValue>
-    where TValue : IRailTimedValue, IRailKeyedValue<TKey>, IRailPoolable<TValue>
+  /// <summary>
+  /// A dictionary that keeps values up to a given age. Can be cleaned
+  /// to remove all entries older than a given tick. Does not accept
+  /// entries older than its current age.
+  /// </summary>
+  internal class RailExpiringDictionary<TKey, TValue>
+    where TValue : IRailTimedValue, IRailKeyedValue<TKey>
   {
     private class TimedComparer : Comparer<TValue>
     {
@@ -23,14 +28,17 @@ namespace Railgun
 
     private Tick minTick;
 
-    public RailHeapBuffer(IEqualityComparer<TKey> comparer)
+    public RailExpiringDictionary(IEqualityComparer<TKey> comparer)
     {
-      this.values = new MinHeap<TValue>(RailHeapBuffer<TKey, TValue>.Comparer);
+      this.values = new MinHeap<TValue>(RailExpiringDictionary<TKey, TValue>.Comparer);
       this.contents = new Dictionary<TKey, TValue>(comparer);
       this.minTick = Tick.INVALID;
     }
 
-    public IEnumerable<TValue> Advance(Tick latest)
+    /// <summary>
+    /// Removes all entries older than the given tick.
+    /// </summary>
+    public IEnumerable<TValue> Expire(Tick latest)
     {
       if (this.minTick.IsValid && (this.minTick > latest))
         yield break;
@@ -45,13 +53,16 @@ namespace Railgun
         this.values.PopFirst();
 
         yield return first;
-        RailPool.Free(first);
       }
 
       this.minTick = latest;
     }
 
-    public bool Record(TValue value)
+    /// <summary>
+    /// Adds an entry to the dictionary, unless that entry is too old or
+    /// is already contained in the dictionary.
+    /// </summary>
+    public bool Store(TValue value)
     {
       if (this.minTick.IsValid && (this.minTick > value.Tick))
         return false;

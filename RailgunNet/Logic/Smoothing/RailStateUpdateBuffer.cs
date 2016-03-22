@@ -24,46 +24,38 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailStateBuffer
+  public class RailStateUpdateBuffer
   {
-    internal RailState Latest { get { return this.buffer.Latest; } }
+    internal RailStateRecord Latest { get { return this.buffer.Latest; } }
 
-    internal IEnumerable<RailState> Values 
+    internal IEnumerable<RailStateRecord> Values 
     { 
       get { return this.buffer.Values; } 
     }
 
-    private RailRingBuffer<RailState> buffer;
+    private RailDejitterBuffer<RailStateRecord> buffer;
 
-    public RailStateBuffer()
+    public RailStateUpdateBuffer()
     {
-      this.buffer =
-        new RailRingBuffer<RailState>(
-          RailConfig.DEJITTER_BUFFER_LENGTH,
-          RailConfig.NETWORK_SEND_RATE);
+
     }
 
-    public void Store(RailState state)
+    public void Store(RailStateRecord state)
     {
       this.buffer.Store(state);
     }
 
-    internal void PopulateDelta(RailRingDelta<RailState> delta, Tick currentTick)
-    {
-      this.buffer.PopulateDelta(delta, currentTick);
-    }
-
-    internal bool TryGet(Tick tick, out RailState state)
+    internal bool TryGet(Tick tick, out RailStateRecord state)
     {
       return this.buffer.TryGet(tick, out state);
     }
 
-    internal RailState Get(Tick tick)
+    internal RailStateRecord Get(Tick tick)
     {
       return this.buffer.Get(tick);
     }
 
-    internal RailState GetLatestAt(Tick tick)
+    internal RailStateRecord GetLatestAt(Tick tick)
     {
       return this.buffer.GetLatestAt(tick);
     }

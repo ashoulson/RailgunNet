@@ -165,8 +165,7 @@ namespace Railgun
 
     internal static RailEvent Decode(
       ByteBuffer buffer, 
-      Tick packetSenderTick,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+      Tick packetSenderTick)
     {
       // Read: [EventType]
       int eventType = buffer.ReadInt(
@@ -202,10 +201,12 @@ namespace Railgun
       // Dereference the entity Id and make sure everything is valid
       if (entityId.IsValid)
       {
-        if (entityLookup.TryGet(entityId, out evnt.entity) == false)
-          return null;
-        if ((evnt.CanSendToFrozenEntities == false) && evnt.entity.IsFrozen)
-          return null;
+        // TODO: REENABLE FOR ENTITY DEREFERENCE
+        //if (entityLookup.TryGet(entityId, out evnt.entity) == false)
+        //  return null;
+        // TODO: REENABLE FOR FREEZING
+        //if ((evnt.CanSendToFrozenEntities == false) && evnt.entity.IsFrozen)
+        //  return null;
       }
 
       return evnt;

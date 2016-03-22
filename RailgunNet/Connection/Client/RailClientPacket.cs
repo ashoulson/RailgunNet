@@ -38,12 +38,10 @@ namespace Railgun
   internal class RailClientPacket :
     RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
-    // String hashes (md5):
-    private const int KEY_RESERVE = 0x509B1C56;
-    private const int KEY_ROLLBACK = 0x42A09755;
-
+    #region Interpreter
     IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
     void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
+    #endregion
 
     #region Data Read
     /// <summary>
@@ -102,8 +100,7 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    protected override void EncodePayload(
-      ByteBuffer buffer)
+    protected override void EncodePayload(ByteBuffer buffer)
     {
       // Write: [Commands]
       this.EncodeCommands(buffer);
@@ -112,9 +109,7 @@ namespace Railgun
       this.EncodeView(buffer);
     }
 
-    protected override void DecodePayload(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+    protected override void DecodePayload(ByteBuffer buffer)
     {
       // Read: [Commands]
       this.DecodeCommands(buffer);
@@ -151,7 +146,6 @@ namespace Railgun
         {
           buffer.WriteEntityId(pair.Key); // Write: [EntityId]
           buffer.WriteTick(pair.Value);   // Write: [Tick]
-          return true;
         });
     }
 

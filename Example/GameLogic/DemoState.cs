@@ -49,10 +49,10 @@ public class DemoState : RailState<DemoState>
   protected override uint GetDirtyFlags(DemoState basis)
   {
     return
-      (DemoMath.CoordinatesEqual(this.X, basis.X) ? 0 : FLAG_X) |
-      (DemoMath.CoordinatesEqual(this.Y, basis.Y) ? 0 : FLAG_Y) |
-      (DemoMath.AnglesEqual(this.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
-      (this.Status == basis.Status ? 0 : FLAG_STATUS);
+      this.Flag(DemoMath.CoordinatesEqual(this.X, basis.X), FLAG_X) |
+      this.Flag(DemoMath.CoordinatesEqual(this.Y, basis.Y), FLAG_Y) |
+      this.Flag(DemoMath.AnglesEqual(this.Angle, basis.Angle), FLAG_ANGLE) |
+      this.Flag(this.Status == basis.Status, FLAG_STATUS);
   }
 
   // These should be properties, but we can't pass properties by ref

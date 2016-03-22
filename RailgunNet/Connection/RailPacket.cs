@@ -106,23 +106,17 @@ namespace Railgun
       this.EncodePayload(buffer);
     }
 
-    internal void Decode(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+    internal void Decode(ByteBuffer buffer)
     {
       // Write: [Header]
       this.DecodeHeader(buffer);
 
       // Write: [Payload]
-      this.DecodePayload(buffer, entityLookup);
+      this.DecodePayload(buffer);
     }
 
-    protected abstract void EncodePayload(
-      ByteBuffer buffer);
-
-    protected abstract void DecodePayload(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup);
+    protected abstract void EncodePayload(ByteBuffer buffer);
+    protected abstract void DecodePayload(ByteBuffer buffer);
 
     #region Header
     private void EncodeHeader(ByteBuffer buffer)

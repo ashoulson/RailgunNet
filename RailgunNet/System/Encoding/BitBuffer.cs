@@ -275,7 +275,7 @@ namespace Railgun
       int maxTotalBytes,
       int maxIndividualBytes,
       IEnumerable<T> elements,
-      Func<T, bool> encode,
+      Action<T> encode,
       Action<T> packed = null)
     {
       maxTotalBytes -= 1; // Sentinel bit can blow this up
@@ -293,9 +293,7 @@ namespace Railgun
         int rollback = this.writePos;
         int startByteSize = this.ByteSize;
 
-        bool result = encode.Invoke(val);
-        if (result == false)
-          continue;
+        encode.Invoke(val);
 
         int endByteSize = this.ByteSize;
         int writeByteSize = (endByteSize - startByteSize);
