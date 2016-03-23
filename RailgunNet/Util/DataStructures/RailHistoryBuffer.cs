@@ -12,12 +12,15 @@ namespace Railgun
   internal class RailHistoryBuffer<T>
     where T : class, IRailTimedValue
   {
+    internal T Latest { get; private set; }
+
     // TODO: Replace me with something that supports binary search!
     private readonly Queue<T> data;
     private readonly int capacity;
 
     public RailHistoryBuffer(int capacity)
     {
+      this.Latest = null;
       this.capacity = capacity;
       this.data = new Queue<T>();
     }
@@ -28,10 +31,11 @@ namespace Railgun
       if (this.data.Count >= this.capacity)
         retVal = this.data.Dequeue();
       this.data.Enqueue(val);
+      this.Latest = val;
       return retVal;
     }
 
-    public T Latest(Tick tick)
+    public T LatestAt(Tick tick)
     {
       // TODO: Binary Search
       T retVal = null;

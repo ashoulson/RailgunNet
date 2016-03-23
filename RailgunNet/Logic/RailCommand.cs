@@ -32,9 +32,31 @@ namespace Railgun
   public abstract class RailCommand : 
     IRailPoolable<RailCommand>, IRailTimedValue
   {
+    #region Allocation
+    [ThreadStatic]
+    private static IRailPool<RailCommand> pool;
+
+    private static IRailPool<RailCommand> Pool
+    {
+      get
+      {
+        if (RailCommand.pool == null)
+          RailCommand.pool = RailResource.Instance.CloneCommandPool();
+        return RailCommand.pool;
+      }
+    }
+
+    internal static RailCommand Create()
+    {
+      return RailCommand.Pool.Allocate();
+    }
+    #endregion
+
+    #region Interface
     IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
     void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
     Tick IRailTimedValue.Tick { get { return this.Tick; } }
+    #endregion
 
     internal abstract void SetDataFrom(RailCommand other);
 
@@ -54,7 +76,7 @@ namespace Railgun
 
     public RailCommand Clone()
     {
-      RailCommand clone = RailResource.Instance.AllocateCommand();
+      RailCommand clone = RailCommand.Create();
       clone.Tick = this.Tick;
       clone.SetDataFrom(this);
       return clone;
@@ -74,7 +96,7 @@ namespace Railgun
     internal static RailCommand Decode(
       ByteBuffer buffer)
     {
-      RailCommand command = RailResource.Instance.AllocateCommand();
+      RailCommand command = RailCommand.Create();
 
       // Read: [Tick]
       command.Tick = buffer.ReadTick();

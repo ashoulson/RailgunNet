@@ -38,7 +38,27 @@ namespace Railgun
   internal class RailClientPacket :
     RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
-    #region Interpreter
+    #region Allocation
+    [ThreadStatic]
+    private static IRailPool<RailClientPacket> pool;
+
+    private static IRailPool<RailClientPacket> Pool
+    {
+      get
+      {
+        if (RailClientPacket.pool == null)
+          RailClientPacket.pool = new RailPool<RailClientPacket>();
+        return RailClientPacket.pool;
+      }
+    }
+
+    internal static RailClientPacket Create()
+    {
+      return RailClientPacket.Pool.Allocate();
+    }
+    #endregion
+
+    #region Interface
     IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
     void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
     #endregion
@@ -65,8 +85,8 @@ namespace Railgun
     public void AddCommands(IEnumerable<RailCommand> commands)
     {
       // We reverse the list to take the latest commands until we reach
-      // capacity. This is also compatible with LIFO packing, so they will
-      // arrive in order when packed. (Plus they're just dejittered anyway.)
+      // capacity. Order doesn't matter on arrival since they go into a
+      // dejitter buffer on the server's end.
       foreach (RailCommand command in commands.Reverse())
       {
         if (this.commands.Count >= RailConfig.COMMAND_SEND_COUNT)

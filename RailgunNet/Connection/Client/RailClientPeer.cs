@@ -88,7 +88,7 @@ namespace Railgun
       RailServerPacket serverPacket = (RailServerPacket)packet;
 
       this.UpdateCommands(serverPacket.CommandAck);
-      foreach (RailStateDelta delta in serverPacket.Deltas)
+      foreach (IRailStateDelta delta in serverPacket.Deltas)
         this.localView.RecordUpdate(delta.EntityId, packet.SenderTick);
 
       if (this.PacketReceived != null)
@@ -97,12 +97,12 @@ namespace Railgun
 
     protected override RailPacket AllocateIncoming()
     {
-      return RailResource.Instance.AllocateServerPacket();
+      return RailServerPacket.Create();
     }
 
     protected override RailPacket AllocateOutgoing()
     {
-      return RailResource.Instance.AllocateClientPacket();
+      return RailClientPacket.Create();
     }
 
     private void UpdateCommands(Tick lastReceivedTick)

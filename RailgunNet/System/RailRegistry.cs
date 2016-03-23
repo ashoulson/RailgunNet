@@ -6,6 +6,26 @@ using System.Reflection;
 
 namespace Railgun
 {
+  public class RegisterCommandAttribute : Attribute
+  {
+  }
+
+  public class RegisterEntityAttribute : Attribute
+  {
+    public Type StateType { get { return this.stateType; } }
+
+    private readonly Type stateType;
+
+    public RegisterEntityAttribute(Type stateType)
+    {
+      this.stateType = stateType;
+    }
+  }
+
+  public class RegisterEventAttribute : Attribute
+  {
+  }
+
   internal static class RailRegistry
   {
     public static IRailPool<T> CreatePool<T>(

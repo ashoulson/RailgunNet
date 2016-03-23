@@ -66,25 +66,21 @@ namespace Railgun
       this.Tick = Tick.INVALID;
     }
 
+    // Server-only
     internal T CreateEntity<T>()
       where T : RailEntity
     {
-      // TODO: Get some #defines in for this kind of thing
-      CommonDebug.Assert(RailConnection.IsServer);
-
-      T entity = RailResource.Instance.CreateEntity<T>();
+      T entity = RailEntity.Create<T>();
       entity.AssignId(this.nextEntityId);
       this.nextEntityId = this.nextEntityId.GetNext();
 
       return entity;
     }
 
+    // Client-only
     internal RailEntity CreateEntity(int type, EntityId id)
     {
-      // TODO: Get some #defines in for this kind of thing
-      CommonDebug.Assert(RailConnection.IsServer == false);
-
-      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      RailEntity entity = RailEntity.Create(type);
       entity.AssignId(id);
 
       return entity;
@@ -120,6 +116,7 @@ namespace Railgun
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
       {
+        // TODO: REENABLE FOR DESTRUCTION
         //Tick destroyedTick = entity.DestroyedTick;
         //if (destroyedTick.IsValid && (destroyedTick <= serverTick))
         //  this.toRemove.Add(entity.Id);

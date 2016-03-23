@@ -53,9 +53,11 @@ namespace Railgun
     private readonly RailDejitterBuffer<RailCommand> commandBuffer;
     private readonly RailScope scope;
 
+    // The latest entity tick acks from the client
     private readonly RailView ackedView;
+
+    // The latest command received from the client
     private RailCommand latestCommand;
-    private Tick commandAck;
 
     internal RailServerPeer(
       IRailNetPeer netPeer,
@@ -71,7 +73,6 @@ namespace Railgun
 
       this.ackedView = new RailView();
       this.latestCommand = null;
-      this.commandAck = Tick.INVALID;
     }
 
     internal override int Update(Tick localTick)
@@ -81,10 +82,6 @@ namespace Railgun
       this.latestCommand =
         this.commandBuffer.GetLatestAt(
           this.RemoteClock.EstimatedRemote);
-
-      if (this.latestCommand != null)
-        this.commandAck = this.latestCommand.Tick;
-
       return ticks;
     }
 
@@ -102,24 +99,31 @@ namespace Railgun
       RailServerPacket packet =
         base.AllocatePacketSend<RailServerPacket>(this.LocalTick);
 
-      packet.Populate(this.commandAck, this.ProduceDeltas(activeEntities));
+      Tick commandAck = Tick.INVALID;
+      if (this.latestCommand != null)
+        commandAck = this.latestCommand.Tick;
+      packet.Populate(commandAck, this.ProduceDeltas(activeEntities));
+
       base.SendPacket(packet);
 
-      foreach (RailStateDelta delta in packet.Sent)
+      foreach (IRailStateDelta delta in packet.Sent)
         this.scope.RegisterSent(delta.EntityId, this.LocalTick);
 
-      foreach (RailStateDelta delta in packet.Pending)
+      foreach (IRailStateDelta delta in packet.Pending)
         RailPool.Free(delta);
       RailPool.Free(packet);
     }
 
-    private IEnumerable<RailStateDelta> ProduceDeltas(
+    private IEnumerable<IRailStateDelta> ProduceDeltas(
       IEnumerable<RailEntity> activeEntities)
     {
       IEnumerable<RailEntity> scopedEntities =
         this.scope.Evaluate(activeEntities, this.LocalTick);
       foreach (RailEntity entity in scopedEntities)
-        yield return entity.ProduceDelta(this.LocalTick, this);
+        yield return entity.ProduceDelta(
+          this.LocalTick, 
+          this.ackedView.GetLatest(entity.Id), 
+          this);
     }
 
     protected override void ProcessPacket(RailPacket packet)
@@ -138,12 +142,12 @@ namespace Railgun
 
     protected override RailPacket AllocateIncoming()
     {
-      return RailResource.Instance.AllocateClientPacket();
+      return RailClientPacket.Create();
     }
 
     protected override RailPacket AllocateOutgoing()
     {
-      return RailResource.Instance.AllocateServerPacket();
+      return RailServerPacket.Create();
     }
   }
 }
