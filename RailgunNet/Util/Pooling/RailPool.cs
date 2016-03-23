@@ -36,6 +36,7 @@ namespace Railgun
   {
     T Allocate();
     void Deallocate(T obj);
+    IRailPool<T> Clone();
   }
 
   internal static class RailPool
@@ -75,6 +76,11 @@ namespace Railgun
       obj.Reset();
       this.freeList.Push(obj);
     }
+
+    public IRailPool<T> Clone()
+    {
+      return new RailPool<T>();
+    }
   }
 
   internal class RailPool<TBase, TDerived> : IRailPool<TBase>
@@ -105,6 +111,11 @@ namespace Railgun
       
       obj.Reset();
       this.freeList.Push(obj);
+    }
+
+    public IRailPool<TBase> Clone()
+    {
+      return new RailPool<TBase, TDerived>();
     }
   }
 }

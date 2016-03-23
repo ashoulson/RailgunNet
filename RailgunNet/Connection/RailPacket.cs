@@ -14,11 +14,6 @@ namespace Railgun
 
   internal abstract class RailPacket : IRailPacket
   {
-    // String hashes (md5):
-    private const int KEY_RESERVE_1 = 0x137CE785;
-    private const int KEY_RESERVE_2 = 0x4E9C95DA;
-    private const int KEY_ROLLBACK = 0x652FC8E6;
-
     /// <summary>
     /// Minimum number of reliable events to send.
     /// </summary>

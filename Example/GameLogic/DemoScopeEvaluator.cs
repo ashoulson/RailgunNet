@@ -17,35 +17,14 @@ public class DemoScopeEvaluator : RailScopeEvaluator
     this.controlled = controlled;
   }
 
-  protected override bool IsInScope(RailEntity entity)
+  protected override bool Evaluate(
+    RailEntity entity, 
+    int ticksSinceSend,
+    out float priority)
   {
+    priority = 0.0f;
     if (entity == this.controlled)
       return true;
-
-    if (entity.State is DemoState)
-    {
-      DemoState controlledState = this.controlled.State;
-      DemoState state = (DemoState)entity.State;
-
-      Vector2 origin = 
-        new Vector2(
-          controlledState.X,
-          controlledState.Y);
-
-      Vector2 point = 
-        new Vector2(
-          state.X, 
-          state.Y);
-
-      return (origin - point).sqrMagnitude < maxDistSqr;
-    }
-    return true;
-  }
-
-  protected override float GetPriority(RailEntity entity, int ticksSinceSend)
-  {
-    if (entity == this.controlled)
-      return 0.0f;
 
     if (entity.State is DemoState)
     {
@@ -62,9 +41,14 @@ public class DemoScopeEvaluator : RailScopeEvaluator
           state.X,
           state.Y);
 
-      return (origin - point).sqrMagnitude / (float)ticksSinceSend;
+      float distance = (origin - point).sqrMagnitude;
+      if (distance > maxDistSqr)
+        return false;
+
+      priority = distance / (float)ticksSinceSend;
+      return true;
     }
 
-    return 0.0f;
+    return true;
   }
 }

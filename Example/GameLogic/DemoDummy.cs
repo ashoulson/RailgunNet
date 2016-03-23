@@ -37,7 +37,7 @@ public class DemoDummy : RailEntity<DemoState>
   private float direction = 1.0f;
   private float speed = 0.1f;
 
-  protected override void OnStart()
+  protected override void Start()
   {
     DemoEvents.OnDummyAdded(this);
 
@@ -57,15 +57,15 @@ public class DemoDummy : RailEntity<DemoState>
     this.State.Y += this.speed * this.direction;
   }
 
-  protected override void OnFrozen()
-  {
-    if (this.Frozen != null)
-      this.Frozen.Invoke();
-  }
+  //protected override void OnFrozen()
+  //{
+  //  if (this.Frozen != null)
+  //    this.Frozen.Invoke();
+  //}
 
-  protected override void OnUnfrozen()
-  {
-    if (this.Unfrozen != null)
-      this.Unfrozen.Invoke();
-  }
+  //protected override void OnUnfrozen()
+  //{
+  //  if (this.Unfrozen != null)
+  //    this.Unfrozen.Invoke();
+  //}
 }

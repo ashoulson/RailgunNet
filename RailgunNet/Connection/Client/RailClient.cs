@@ -94,7 +94,7 @@ namespace Railgun
     {
       if (this.serverPeer != null)
       {
-        RailCommand command = RailResource.Instance.AllocateCommand();
+        RailCommand command = RailCommand.Create();
         command.Populate();
         command.Tick = this.localTick;
 
@@ -141,14 +141,14 @@ namespace Railgun
     #region Packet Receive
     private void OnPacketReceived(IRailServerPacket packet)
     {
-      foreach (RailStateDelta delta in packet.Deltas)
-        this.ProcessState(delta);
+      foreach (IRailStateDelta delta in packet.Deltas)
+        this.ProcessDelta(delta);
       // TODO: REENABLE FOR FREEZING
       //foreach (RailEntity entity in this.knownEntities.Values)
       //  entity.UpdateFreeze(packet.ServerTick);
     }
 
-    private void ProcessState(RailStateDelta delta)
+    private void ProcessDelta(IRailStateDelta delta)
     {
       RailEntity entity;
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
@@ -159,14 +159,12 @@ namespace Railgun
       }
 
       entity.ReceiveDelta(delta);
-      // TODO: REENABLE FOR FREEZING
-      //entity.LastUpdatedServerTick = latestServerTick;
       this.UpdateControlStatus(entity, delta);
     }
 
-    private void UpdateControlStatus(RailEntity entity, RailStateDelta delta)
+    private void UpdateControlStatus(RailEntity entity, IRailStateDelta delta)
     {
-      if (delta.IsController)
+      if (delta.HasControllerData)
       {
         if (entity.Controller == null)
           this.serverPeer.GrantControl(entity);

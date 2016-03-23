@@ -26,12 +26,14 @@ namespace Railgun
 {
   internal interface IRailFactory<T>
   {
-    T Instantiate();
+    T Allocate();
+    IRailFactory<T> Clone();
   }
 
   internal class RailFactory<TBase, TDerived> : IRailFactory<TBase>
     where TDerived : TBase, new()
   {
-    public TBase Instantiate() { return new TDerived(); }
+    public TBase Allocate() { return new TDerived(); }
+    public IRailFactory<TBase> Clone() { return new RailFactory<TBase, TDerived>(); }
   }
 }

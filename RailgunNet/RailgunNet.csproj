@@ -37,12 +37,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
-    <Compile Include="Logic\Synchronization\RailState.cs" />
-    <Compile Include="Logic\Synchronization\RailStateDelta.cs" />
+    <Compile Include="Logic\RailState.cs" />
     <Compile Include="System\Encoding\BitBuffer.cs" />
     <Compile Include="System\Encoding\ByteBuffer.cs" />
     <Compile Include="System\Encoding\Compressors\IntCompressor.cs" />
     <Compile Include="Util\DataStructures\Interfaces\IRailKeyedValue.cs" />
+    <Compile Include="Util\DataStructures\IRailReadOnlyDictionary.cs" />
     <Compile Include="Util\DataStructures\RailExpiringDictionary.cs" />
     <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
@@ -52,9 +52,6 @@
     <Compile Include="Connection\Server\RailServerPeer.cs" />
     <Compile Include="Connection\RailPacket.cs" />
     <Compile Include="Connection\Server\RailServerPacket.cs" />
-    <Compile Include="System\Attributes\RegisterCommandAttribute.cs" />
-    <Compile Include="System\Attributes\RegisterEntityAttribute.cs" />
-    <Compile Include="System\Attributes\RegisterEventAttribute.cs" />
     <Compile Include="Logic\RailView.cs" />
     <Compile Include="System\RailRegistry.cs" />
     <Compile Include="Util\DataStructures\Generic\Heap.cs" />
@@ -69,7 +66,6 @@
     <Compile Include="Util\DataStructures\Interfaces\IRailTimedValue.cs" />
     <Compile Include="Util\DataStructures\Generic\Tuple.cs" />
     <Compile Include="Logic\Smoothing\RailSmoother.cs" />
-    <Compile Include="Logic\Smoothing\RailStateUpdateBuffer.cs" />
     <Compile Include="Logic\Smoothing\RailStateTracker.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\Client\RailClient.cs" />
@@ -87,7 +83,6 @@
     <Compile Include="Logic\RailEntity.cs" />
     <Compile Include="Connection\Traffic\RailInterpreter.cs" />
     <Compile Include="Logic\RailWorld.cs" />
-    <Compile Include="Logic\Synchronization\RailStateRecord.cs" />
     <Compile Include="System\Encoding\Compressors\FloatCompressor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Logic\Smoothing\Smoothers\RailSmootherFloat.cs" />
