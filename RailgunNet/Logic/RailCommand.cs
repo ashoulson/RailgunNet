@@ -32,25 +32,10 @@ namespace Railgun
   public abstract class RailCommand : 
     IRailPoolable<RailCommand>, IRailTimedValue
   {
-    #region Allocation
-    [ThreadStatic]
-    private static IRailPool<RailCommand> pool;
-
-    private static IRailPool<RailCommand> Pool
-    {
-      get
-      {
-        if (RailCommand.pool == null)
-          RailCommand.pool = RailResource.Instance.CloneCommandPool();
-        return RailCommand.pool;
-      }
-    }
-
     internal static RailCommand Create()
     {
-      return RailCommand.Pool.Allocate();
+      return RailResource.Instance.CreateCommand();
     }
-    #endregion
 
     #region Interface
     IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }

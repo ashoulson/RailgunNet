@@ -38,25 +38,10 @@ namespace Railgun
   internal class RailClientPacket :
     RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
-    #region Allocation
-    [ThreadStatic]
-    private static IRailPool<RailClientPacket> pool;
-
-    private static IRailPool<RailClientPacket> Pool
-    {
-      get
-      {
-        if (RailClientPacket.pool == null)
-          RailClientPacket.pool = new RailPool<RailClientPacket>();
-        return RailClientPacket.pool;
-      }
-    }
-
     internal static RailClientPacket Create()
     {
-      return RailClientPacket.Pool.Allocate();
+      return RailResource.Instance.CreateClientPacket();
     }
-    #endregion
 
     #region Interface
     IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
