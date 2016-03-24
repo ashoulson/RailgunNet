@@ -28,27 +28,12 @@ namespace Railgun
     internal const uint FLAGS_ALL = 0xFFFFFFFF; // All values different
     internal const uint FLAGS_NONE = 0x00000000; // No values different
 
-    #region Allocation
-    [ThreadStatic]
-    private static Dictionary<int, IRailPool<RailState>> pools;
-
-    private static Dictionary<int, IRailPool<RailState>> Pools
-    {
-      get
-      {
-        if (RailState.pools == null)
-          RailState.pools = RailResource.Instance.CloneStatePools();
-        return RailState.pools;
-      }
-    }
-
     internal static RailState Create(int factoryType)
     {
-      RailState state = RailState.Pools[factoryType].Allocate();
+      RailState state = RailResource.Instance.CreateState(factoryType);
       state.factoryType = factoryType;
       return state;
     }
-    #endregion
 
     #region Interface
     #region Pooling

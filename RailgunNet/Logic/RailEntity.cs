@@ -28,35 +28,20 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
-    #region Allocation
-    [ThreadStatic]
-    private static Dictionary<int, IRailFactory<RailEntity>> factories;
-
-    private static Dictionary<int, IRailFactory<RailEntity>> Factories
-    {
-      get
-      {
-        if (RailEntity.factories == null)
-          RailEntity.factories = RailResource.Instance.CloneEntityFactories();
-        return RailEntity.factories;
-      }
-    }
-
     internal static RailEntity Create(int factoryType)
     {
-      RailEntity entity = RailEntity.Factories[factoryType].Allocate();
+      RailEntity entity = RailResource.Instance.CreateEntity(factoryType);
       entity.factoryType = factoryType;
       entity.State = RailState.Create(factoryType);
       return entity;
     }
 
-    public static T Create<T>()
+    internal static T Create<T>()
       where T : RailEntity
     {
-      return (T)RailEntity.Create(RailResource.Instance.EntityTypeToKey<T>());
+      int factoryType = RailResource.Instance.GetEntityFactoryType<T>();
+      return (T)RailEntity.Create(factoryType);
     }
-
-    #endregion
 
     // Settings
     protected virtual bool ForceUpdates { get { return true; } }

@@ -33,33 +33,6 @@ namespace Railgun
   public abstract class RailEvent : 
     IRailPoolable<RailEvent>, IRailKeyedValue<EventId>, IRailTimedValue
   {
-    #region Allocation
-    [ThreadStatic]
-    private static Dictionary<int, IRailPool<RailEvent>> pools;
-
-    private static Dictionary<int, IRailPool<RailEvent>> Pools
-    {
-      get
-      {
-        if (RailEvent.pools == null)
-          RailEvent.pools = RailResource.Instance.CloneEventPools();
-        return RailEvent.pools;
-      }
-    }
-
-    internal static RailEvent Create(int factoryType)
-    {
-      RailEvent evnt = RailEvent.Pools[factoryType].Allocate();
-      evnt.factoryType = factoryType;
-      return evnt;
-    }
-
-    public static T Create<T>()
-      where T : RailEvent
-    {
-      return (T)RailEvent.Create(RailResource.Instance.EventTypeToKey<T>());
-    }
-
     public static T Create<T>(RailEntity entity)
       where T : RailEvent
     {
@@ -71,7 +44,20 @@ namespace Railgun
       evnt.EntityId = entity.Id;
       return evnt;
     }
-    #endregion
+
+    public static T Create<T>()
+      where T : RailEvent
+    {
+      int factoryType = RailResource.Instance.GetEventFactoryType<T>();
+      return (T)RailEvent.Create(factoryType);
+    }
+
+    internal static RailEvent Create(int factoryType)
+    {
+      RailEvent evnt = RailResource.Instance.CreateEvent(factoryType);
+      evnt.factoryType = factoryType;
+      return evnt;
+    }
 
     #region Interface
     IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
