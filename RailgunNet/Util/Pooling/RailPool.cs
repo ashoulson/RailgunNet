@@ -46,6 +46,17 @@ namespace Railgun
     {
       obj.Pool.Deallocate(obj);
     }
+
+    // Special Cases
+    internal static void Free(IRailStateDelta delta)
+    {
+      RailPool.Free((RailState)delta);
+    }
+
+    internal static void Free(IRailStateRecord delta)
+    {
+      RailPool.Free((RailState)delta);
+    }
   }
 
   internal class RailPool<T> : IRailPool<T>

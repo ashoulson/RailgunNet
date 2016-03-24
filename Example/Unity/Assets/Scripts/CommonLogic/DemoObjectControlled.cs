@@ -11,7 +11,7 @@ public class DemoObjectControlled : MonoBehaviour
   public bool DoSmoothing = false;
   public Color color = Color.white;
 
-  private RailSmootherVector2 smoother;
+  //private RailSmootherVector2 smoother;
 
   private static Vector2 GetCoordinates(RailState state)
   {
@@ -19,13 +19,13 @@ public class DemoObjectControlled : MonoBehaviour
     return new Vector2(demoState.X, demoState.Y);
   }
 
-  void Awake()
-  {
-    this.smoother = new RailSmootherVector2(
-      DemoObjectControlled.GetCoordinates,
-      float.MaxValue,
-      2.0f);
-  }
+  //void Awake()
+  //{
+  //  this.smoother = new RailSmootherVector2(
+  //    DemoObjectControlled.GetCoordinates,
+  //    float.MaxValue,
+  //    2.0f);
+  //}
 
   void Start()
   {
@@ -47,36 +47,36 @@ public class DemoObjectControlled : MonoBehaviour
     gameObject.GetComponent<Renderer>().material.color = this.color;
   }
 
-  void FixedUpdate()
-  {
-    if (Input.GetKey(KeyCode.Y))
-      Debug.Log(this.Entity.DEBUG_FormatDebug());
-  }
+  //void FixedUpdate()
+  //{
+  //  if (Input.GetKey(KeyCode.Y))
+  //    Debug.Log(this.Entity.DEBUG_FormatDebug());
+  //}
 
   private void UpdatePosition()
   {
-    if (this.DoSmoothing)
-    {
-      this.transform.position =
-        this.Entity.GetSmoothedValue(
-          Time.time - Time.fixedTime,
-          this.smoother);
+    //if (this.DoSmoothing)
+    //{
+    //  this.transform.position =
+    //    this.Entity.GetSmoothedValue(
+    //      Time.time - Time.fixedTime,
+    //      this.smoother);
 
-      if (Entity.IsPredicted)
-        this.color = Color.cyan;
-      else
-        this.color = Color.green;
-    }
-    else
-    {
+    //  if (Entity.IsPredicted)
+    //    this.color = Color.cyan;
+    //  else
+    //    this.color = Color.green;
+    //}
+    //else
+    //{
       this.transform.position =
         new Vector2(this.Entity.State.X, this.Entity.State.Y);
 
-      if (Entity.IsPredicted)
-        this.color = Color.magenta;
-      else
-        this.color = Color.red;
-    }
+    //  if (Entity.IsPredicted)
+    //    this.color = Color.magenta;
+    //  else
+    //    this.color = Color.red;
+    //}
   }
 
   private void OnShutdown()

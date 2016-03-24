@@ -5,8 +5,7 @@ using System.Text;
 
 namespace Railgun
 {
-  internal interface IRailStateDelta :
-    IRailPoolable<IRailStateDelta>, IRailTimedValue
+  internal interface IRailStateDelta : IRailTimedValue
   {
     EntityId EntityId { get; }
     int FactoryType { get; }
@@ -17,8 +16,7 @@ namespace Railgun
     bool HasImmutableData { get; }
   }
 
-  internal interface IRailStateRecord :
-    IRailPoolable<IRailStateRecord>, IRailTimedValue
+  internal interface IRailStateRecord : IRailTimedValue
   {
   }
 
@@ -36,32 +34,8 @@ namespace Railgun
     }
 
     #region Interface
-    #region Pooling
-    IRailPool<RailState> IRailPoolable<RailState>.Pool
-    {
-      get { return this.pool; }
-      set { this.pool = value; }
-    }
-
-    IRailPool<IRailStateDelta> IRailPoolable<IRailStateDelta>.Pool
-    {
-      get { return (IRailPool<IRailStateDelta>)this.pool; }
-      set { this.pool = (IRailPool<RailState>)value; }
-    }
-
-    IRailPool<IRailStateRecord> IRailPoolable<IRailStateRecord>.Pool
-    {
-      get { return (IRailPool<IRailStateRecord>)this.pool; }
-      set { this.pool = (IRailPool<RailState>)value; }
-    }
-
+    IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
     void IRailPoolable<RailState>.Reset() { this.Reset(); }
-    void IRailPoolable<IRailStateDelta>.Reset() { this.Reset(); }
-    void IRailPoolable<IRailStateRecord>.Reset() { this.Reset(); }
-
-    private IRailPool<RailState> pool = null;
-    #endregion
-
     Tick IRailTimedValue.Tick { get { return this.tick; } }
 
     EntityId IRailStateDelta.EntityId { get { return this.entityId; } }
@@ -262,6 +236,7 @@ namespace Railgun
       int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
 
       RailState delta = RailState.Create(factoryType);
+      delta.tick = packetTick;
 
       // Write: [EntityId]
       delta.entityId = buffer.ReadEntityId();
