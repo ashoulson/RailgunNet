@@ -9,7 +9,7 @@ namespace Railgun
   /// A rolling queue that maintains entries in order. Supports fast access
   /// to the entry (or most recent entry) at a given tick.
   /// </summary>
-  internal class RailHistoryBuffer<T>
+  internal class RailQueueBuffer<T>
     where T : class, IRailTimedValue
   {
     internal T Latest { get; private set; }
@@ -18,7 +18,7 @@ namespace Railgun
     private readonly Queue<T> data;
     private readonly int capacity;
 
-    public RailHistoryBuffer(int capacity)
+    public RailQueueBuffer(int capacity)
     {
       this.Latest = null;
       this.capacity = capacity;

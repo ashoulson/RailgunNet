@@ -164,7 +164,11 @@ namespace Railgun
 
     public float Time
     {
-      get { return ((this.tickValue - 1) * RailConfig.FIXED_DELTA_TIME); }
+      get
+      {
+        CommonDebug.Assert(this.IsValid);
+        return (float)(this.tickValue - 1) * RailConfig.FIXED_DELTA_TIME;
+      }
     }
     #endregion
 

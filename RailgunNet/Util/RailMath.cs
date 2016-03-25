@@ -57,14 +57,19 @@ namespace Railgun
       {
         value = min;
       }
-      else
+      else if (value > max)
       {
-        if (value > max)
-        {
-          value = max;
-        }
+        value = max;
       }
       return value;
+    }
+
+    public static float ComputeInterp(
+      float first, 
+      float second, 
+      float current)
+    {
+      return ((current - first) / (second - first));
     }
   }
 }

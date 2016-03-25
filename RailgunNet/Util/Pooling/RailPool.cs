@@ -50,12 +50,12 @@ namespace Railgun
     // Special Cases
     internal static void Free(IRailStateDelta delta)
     {
-      RailPool.Free((RailState)delta);
+      RailPool.Free(delta.State);
     }
 
-    internal static void Free(IRailStateRecord delta)
+    internal static void Free(IRailStateRecord record)
     {
-      RailPool.Free((RailState)delta);
+      RailPool.Free(record.State);
     }
   }
 

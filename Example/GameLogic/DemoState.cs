@@ -74,6 +74,8 @@ public class DemoState : RailState<DemoState>
 
   protected override void EncodeMutableData(ByteBuffer buffer, uint flags)
   {
+    Console.WriteLine(this.X + " " + this.Y);
+
     if (this.GetFlag(flags, FLAG_X)) buffer.WriteFloat(DemoCompressors.Coordinate, this.X);
     if (this.GetFlag(flags, FLAG_Y)) buffer.WriteFloat(DemoCompressors.Coordinate, this.Y);
     if (this.GetFlag(flags, FLAG_ANGLE)) buffer.WriteFloat(DemoCompressors.Angle, this.Angle);
@@ -130,5 +132,11 @@ public class DemoState : RailState<DemoState>
   protected override bool IsControllerDataEqual(DemoState basis)
   {
     return true;
+  }
+
+  protected override void ApplySmoothed(DemoState first, DemoState second, float t)
+  {
+    this.X = DemoMath.LerpUnclampedFloat(first.X, second.X, t);
+    this.Y = DemoMath.LerpUnclampedFloat(first.Y, second.Y, t);
   }
 }

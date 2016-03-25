@@ -5,7 +5,13 @@ using System.Text;
 
 namespace Railgun
 {
-  internal interface IRailStateDelta : IRailTimedValue
+  internal interface IRailStateWrapper
+  {
+    // Do not use outside of RailState class
+    RailState State { get; }
+  }
+
+  internal interface IRailStateDelta : IRailStateWrapper, IRailTimedValue
   {
     EntityId EntityId { get; }
     int FactoryType { get; }
@@ -16,8 +22,10 @@ namespace Railgun
     bool HasImmutableData { get; }
   }
 
-  internal interface IRailStateRecord : IRailTimedValue
+  // Server-only
+  internal interface IRailStateRecord : IRailStateWrapper, IRailTimedValue
   {
+    RailState CloneState();
   }
 
   public abstract class RailState : 
@@ -38,11 +46,15 @@ namespace Railgun
     void IRailPoolable<RailState>.Reset() { this.Reset(); }
     Tick IRailTimedValue.Tick { get { return this.tick; } }
 
+    RailState IRailStateWrapper.State { get { return this; } }
+
     EntityId IRailStateDelta.EntityId { get { return this.entityId; } }
     int IRailStateDelta.FactoryType { get { return this.FactoryType; } }
     void IRailStateDelta.Encode(ByteBuffer buffer) { this.Encode(buffer); }
     bool IRailStateDelta.HasControllerData { get { return this.HasControllerData; } }
     bool IRailStateDelta.HasImmutableData { get { return this.HasImmutableData; } }
+
+    RailState IRailStateRecord.CloneState() { return this.Clone(); }
     #endregion
 
     /// <summary>
@@ -91,19 +103,17 @@ namespace Railgun
 
     /// <summary>
     /// Creates a record of the current state, taking the latest record (if
-    /// any) into account. If forced is set to false, this function will
+    /// any) into account. If a latest state is given, this function will
     /// return null if there is no change between the current and latest.
     /// </summary>
     internal static IRailStateRecord CreateRecord(
       Tick tick,
       RailState current,
-      IRailStateRecord latestRecord,
-      bool forced = false)
+      IRailStateRecord latestRecord = null)
     {
-      RailState latest = (RailState)latestRecord;
-
-      if (forced || (latest != null))
+      if (latestRecord != null)
       {
+        RailState latest = (RailState)latestRecord;
         bool shouldReturn = 
           (current.CompareMutableData(latest) > 0) ||
           (current.IsControllerDataEqual(latest) == false);
@@ -151,6 +161,8 @@ namespace Railgun
     internal abstract uint CompareMutableData(RailState basis);
     internal abstract bool IsControllerDataEqual(RailState basis);
 
+    internal abstract void ApplySmoothed(RailState first, RailState second, float t);
+
     private int factoryType;
     private Tick tick;
     private EntityId entityId;
@@ -177,18 +189,39 @@ namespace Railgun
         this.ApplyImmutableFrom(deltaState);
     }
 
+    internal void ApplySmoothed(
+      IRailStateRecord first, 
+      IRailStateRecord second, 
+      float realTime)
+    {
+      float t = 
+        RailMath.ComputeInterp(
+          first.Tick.Time, 
+          second.Tick.Time, 
+          realTime);
+      this.ApplySmoothed(first.State, second.State, t);
+    }
+
     internal RailState Clone()
     {
       RailState clone = RailState.Create(this.factoryType);
-
-      clone.Flags = this.Flags;
-      clone.ApplyMutableFrom(this, RailState.FLAGS_ALL);
-      clone.ApplyControllerFrom(this);
-      clone.ApplyImmutableFrom(this);
-      clone.HasControllerData = this.HasControllerData;
-      clone.HasImmutableData = this.HasImmutableData;
-
+      clone.OverwriteFrom(this);
       return clone;
+    }
+
+    internal void OverwriteFrom(IRailStateRecord source)
+    {
+      this.OverwriteFrom(source.State);
+    }
+
+    internal void OverwriteFrom(RailState source)
+    {
+      this.Flags = source.Flags;
+      this.ApplyMutableFrom(source, RailState.FLAGS_ALL);
+      this.ApplyControllerFrom(source);
+      this.ApplyImmutableFrom(source);
+      this.HasControllerData = source.HasControllerData;
+      this.HasImmutableData = source.HasImmutableData;
     }
 
     private void Reset()
@@ -250,7 +283,7 @@ namespace Railgun
       // Read: [Flags]
       delta.Flags = buffer.Read(delta.FlagBits);
 
-      // Read: [IsFirst]
+      // Read: [Mutable Data]
       delta.DecodeMutableData(buffer, delta.Flags);
 
       // Read: [Controller Data] (if applicable)
@@ -293,6 +326,11 @@ namespace Railgun
     {
       return IsControllerDataEqual((T)basis);
     }
+
+    internal override void ApplySmoothed(RailState first, RailState second, float t)
+    {
+      this.ApplySmoothed((T)first, (T)second, t);
+    }
     #endregion
 
     protected abstract void ApplyMutableFrom(T source, uint flags);
@@ -301,5 +339,10 @@ namespace Railgun
 
     protected abstract uint CompareMutableData(T basis);
     protected abstract bool IsControllerDataEqual(T basis);
+
+    protected virtual void ApplySmoothed(T first, T second, float t)
+    {
+      // Do nothing -- will just use whatever the current state is
+    }
   }
 }

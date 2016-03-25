@@ -261,7 +261,9 @@ namespace Railgun
 
       clone.EventId = this.lastQueuedUnreliableEventId;
       clone.Tick = this.localTick;
-      clone.Expiration = this.localTick + timeToLive;
+      clone.Expiration = 
+        this.localTick + 
+        (timeToLive * RailConfig.NETWORK_SEND_RATE);
       clone.IsReliable = false;
 
       this.outgoingUnreliable.Enqueue(clone);
@@ -276,7 +278,7 @@ namespace Railgun
     private IEnumerable<RailEvent> GetOutgoingEvents(Tick localTick)
     {
       return 
-        Iteration.Interleave(
+        RailUtil.Interleave(
           this.outgoingReliable,
           this.GetNonExpired(localTick));
     }

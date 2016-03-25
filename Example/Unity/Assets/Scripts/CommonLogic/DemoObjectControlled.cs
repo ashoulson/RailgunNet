@@ -47,36 +47,13 @@ public class DemoObjectControlled : MonoBehaviour
     gameObject.GetComponent<Renderer>().material.color = this.color;
   }
 
-  //void FixedUpdate()
-  //{
-  //  if (Input.GetKey(KeyCode.Y))
-  //    Debug.Log(this.Entity.DEBUG_FormatDebug());
-  //}
-
   private void UpdatePosition()
   {
-    //if (this.DoSmoothing)
-    //{
-    //  this.transform.position =
-    //    this.Entity.GetSmoothedValue(
-    //      Time.time - Time.fixedTime,
-    //      this.smoother);
-
-    //  if (Entity.IsPredicted)
-    //    this.color = Color.cyan;
-    //  else
-    //    this.color = Color.green;
-    //}
-    //else
-    //{
-      this.transform.position =
-        new Vector2(this.Entity.State.X, this.Entity.State.Y);
-
-    //  if (Entity.IsPredicted)
-    //    this.color = Color.magenta;
-    //  else
-    //    this.color = Color.red;
-    //}
+    DemoState state = this.Entity.State;
+    if (Client.DoSmoothing)
+      state = this.Entity.GetSmoothedState(Time.time - Time.fixedTime);
+    this.transform.position =
+      new Vector2(state.X, state.Y);
   }
 
   private void OnShutdown()
