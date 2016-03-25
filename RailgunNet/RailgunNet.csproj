@@ -39,10 +39,8 @@
     <Compile Include="Connection\Client\RailClientPeer.cs" />
     <Compile Include="Logic\RailState.cs" />
     <Compile Include="System\Encoding\BitBuffer.cs" />
-    <Compile Include="System\Encoding\ByteBuffer.cs" />
     <Compile Include="System\Encoding\Compressors\IntCompressor.cs" />
     <Compile Include="Util\DataStructures\Interfaces\IRailKeyedValue.cs" />
-    <Compile Include="Util\DataStructures\IRailReadOnlyDictionary.cs" />
     <Compile Include="Util\DataStructures\RailExpiringDictionary.cs" />
     <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
@@ -55,8 +53,7 @@
     <Compile Include="Logic\RailView.cs" />
     <Compile Include="System\RailRegistry.cs" />
     <Compile Include="Util\DataStructures\Generic\Heap.cs" />
-    <Compile Include="Util\DataStructures\RailHistoryBuffer.cs" />
-    <Compile Include="Util\DataStructures\Generic\Iteration.cs" />
+    <Compile Include="Util\DataStructures\RailQueueBuffer.cs" />
     <Compile Include="Util\Pooling\RailFactory.cs" />
     <Compile Include="Logic\RailEvent.cs" />
     <Compile Include="System\Types\EntityId.cs" />
@@ -64,7 +61,6 @@
     <Compile Include="System\Types\TickSpan.cs" />
     <Compile Include="System\Types\Tick.cs" />
     <Compile Include="Util\DataStructures\Interfaces\IRailTimedValue.cs" />
-    <Compile Include="Util\DataStructures\Generic\Tuple.cs" />
     <Compile Include="Logic\Smoothing\RailSmoother.cs" />
     <Compile Include="Logic\Smoothing\RailStateTracker.cs" />
     <Compile Include="RailClock.cs" />
@@ -72,10 +68,10 @@
     <Compile Include="Connection\Traffic\IRailNetPeer.cs" />
     <Compile Include="Connection\Server\RailServer.cs" />
     <Compile Include="RailConfig.cs" />
-    <Compile Include="Util\DataStructures\RailDejitterReader.cs" />
     <Compile Include="System\RailResource.cs" />
     <Compile Include="Util\Common\CommonDebug.cs" />
     <Compile Include="Util\Pooling\RailPool.cs" />
+    <Compile Include="Util\RailUtil.cs" />
     <Compile Include="Util\RailMath.cs" />
     <Compile Include="Util\DataStructures\RailDejitterBuffer.cs" />
     <Compile Include="Logic\RailCommand.cs" />

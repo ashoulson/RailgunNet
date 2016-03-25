@@ -52,7 +52,7 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
     {
       DemoActionEvent evnt = RailEvent.Create<DemoActionEvent>(this);
       evnt.Key = this.actionCount++;
-      this.Controller.QueueUnreliable(evnt, 4);
+      this.Controller.QueueUnreliable(evnt, 2);
     }
   }
 

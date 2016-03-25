@@ -28,6 +28,58 @@ namespace Railgun
 {
   public abstract class RailEntity
   {
+    private class Smoother
+    {
+      private IRailStateDelta prior;
+      private IRailStateDelta current;
+      private IRailStateDelta next;
+
+      private IRailStateRecord priorState;
+
+      internal Smoother()
+      {
+        this.priorState = null;
+        this.prior = null;
+        this.current = null;
+        this.next = null;
+      }
+
+      internal IRailStateDelta Update(
+        Tick currentTick,
+        RailState currentState,
+        RailDejitterBuffer<IRailStateDelta> buffer)
+      {
+        buffer.GetRange(
+          currentTick,
+          out this.prior,
+          out this.current,
+          out this.next);
+
+        if (this.priorState != null)
+          RailPool.Free(this.priorState);
+
+        this.priorState = RailState.CreateRecord(currentTick, currentState);
+
+        return this.current;
+      }
+
+      internal RailState GetSmoothedState(
+        Tick realTick,
+        RailState currentState,
+        float frameDelta)
+      {
+        RailState clone = currentState.Clone();
+        float realTime = realTick.Time + frameDelta;
+        //if (this.next != null)
+        //  clone.ApplySmoothed(this.current, this.next, realTime);
+        //else if (prior != null)
+        if (this.priorState != null)
+          clone.ApplySmoothed(this.priorState, currentState, realTime);
+        
+        return clone;
+      }
+    }
+
     internal static RailEntity Create(int factoryType)
     {
       RailEntity entity = RailResource.Instance.CreateEntity(factoryType);
@@ -44,18 +96,18 @@ namespace Railgun
     }
 
     // Settings
-    protected virtual bool ForceUpdates { get { return true; } }
+    protected virtual bool ForceUpdates { get { return true; } } // Server-only
 
     // Simulation info
     protected internal RailWorld World { get; internal set; }
     public IRailController Controller { get { return this.controller; } }
+    public RailState State { get; private set; }
 
     // Synchronization info
     public EntityId Id { get; private set; }
-    public RailState State { get; private set; }
 
-    private RailDejitterBuffer<IRailStateDelta> dejitterBuffer; // Client-only
-    private RailHistoryBuffer<IRailStateRecord> recordBuffer;   // Server-only
+    private RailDejitterBuffer<IRailStateDelta> incoming;  // Client-only
+    private RailQueueBuffer<IRailStateRecord> outgoing;    // Server-only
     private IRailControllerInternal controller;
 
     internal virtual void SimulateCommand(RailCommand command) { }
@@ -64,6 +116,10 @@ namespace Railgun
 
     private int factoryType;
     private bool hasStarted;
+
+    // Client-only
+    private readonly Smoother smoother;
+    private RailState smoothedState;
 
     internal RailEntity()
     {
@@ -76,14 +132,16 @@ namespace Railgun
       this.hasStarted = false;
 
       // TODO: Don't need this on the server!
-      this.dejitterBuffer =
+      this.incoming =
         new RailDejitterBuffer<IRailStateDelta>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
+      this.smoother = new Smoother();
+      this.smoothedState = null;
 
       // TODO: Don't need this on the client!
-      this.recordBuffer =
-        new RailHistoryBuffer<IRailStateRecord>(
+      this.outgoing =
+        new RailQueueBuffer<IRailStateRecord>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
@@ -105,7 +163,7 @@ namespace Railgun
     }
 
     #region Server
-    internal void UpdateServer(Tick serverTick)
+    internal void UpdateServer()
     {
       this.DoStart();
       if (this.controller != null)
@@ -114,29 +172,27 @@ namespace Railgun
       this.Simulate();
     }
 
-    internal void StoreRecord(
-      Tick currentTick)
+    internal void StoreRecord()
     {
       IRailStateRecord record =
         RailState.CreateRecord(
-          currentTick, 
+          this.World.Tick,
           this.State, 
-          this.recordBuffer.Latest);
+          this.outgoing.Latest);
       if (record != null)
-        this.recordBuffer.Store(record);
+        this.outgoing.Store(record);
     }
 
     internal IRailStateDelta ProduceDelta(
-      Tick currentTick,
       Tick basisTick, 
       IRailController destination)
     {
       IRailStateRecord basis = null;
       if (basisTick.IsValid)
-        basis = this.recordBuffer.LatestAt(basisTick);
+        basis = this.outgoing.LatestAt(basisTick);
 
       return RailState.CreateDelta(
-        currentTick,
+        this.World.Tick,
         this.Id,
         this.State,
         basis,
@@ -147,22 +203,49 @@ namespace Railgun
     #endregion
 
     #region Client
-    internal void UpdateClient(Tick serverTick)
+    internal void UpdateClient()
     {
-      IRailStateDelta delta = this.dejitterBuffer.GetLatestAt(serverTick);
-      if (delta != null)
-        this.State.ApplyDelta(delta);
-      this.DoStart();
+      IRailStateDelta current =
+        this.smoother.Update(this.World.Tick, this.State, this.incoming);
+      if (current != null)
+      {
+        this.State.ApplyDelta(current);
+        this.DoStart();
+      }
     }
 
     internal void ReceiveDelta(IRailStateDelta delta)
     {
-      this.dejitterBuffer.Store(delta);
+      this.incoming.Store(delta);
     }
 
-    internal bool HasLatest(Tick tick)
+    internal bool HasReadyState(Tick tick)
     {
-      return (this.dejitterBuffer.GetLatestAt(tick) != null);
+      return (this.incoming.GetLatestAt(tick) != null);
+    }
+
+    internal RailState GetSmoothedState(float frameDelta)
+    {
+      if (this.smoothedState == null)
+        this.smoothedState = this.State.Clone();
+
+      RailState result = 
+        this.smoother.GetSmoothedState(
+          this.World.Tick,
+          this.State,
+          frameDelta);
+
+      if (result != null)
+      {
+        this.smoothedState.OverwriteFrom(result);
+        RailPool.Free(result);
+      }
+      else
+      {
+        this.smoothedState.OverwriteFrom(this.State);
+      }
+
+      return this.smoothedState;
     }
     #endregion
   }
@@ -174,6 +257,11 @@ namespace Railgun
     where TState : RailState, new()
   {
     public new TState State { get { return (TState)base.State; } }
+
+    public new TState GetSmoothedState(float frameDelta) 
+    { 
+      return (TState)base.GetSmoothedState(frameDelta); 
+    }
   }
 
   /// <summary>

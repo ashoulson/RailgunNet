@@ -125,7 +125,7 @@ namespace Railgun
     {
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
-        if (entity.HasLatest(serverTick))
+        if (entity.HasReadyState(serverTick))
         {
           this.World.AddEntity(entity);
           this.toRemove.Add(entity);

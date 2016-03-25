@@ -108,7 +108,7 @@ namespace Railgun
     {
       this.Tick = this.Tick.GetNext();
       foreach (RailEntity entity in this.entities.Values)
-        entity.UpdateServer(this.Tick);
+        entity.UpdateServer();
     }
 
     internal void UpdateClient(Tick serverTick)
@@ -121,7 +121,7 @@ namespace Railgun
         //if (destroyedTick.IsValid && (destroyedTick <= serverTick))
         //  this.toRemove.Add(entity.Id);
         //else
-          entity.UpdateClient(serverTick);
+          entity.UpdateClient();
       }
 
       foreach (EntityId id in this.toRemove)
@@ -132,7 +132,7 @@ namespace Railgun
     internal void StoreStates()
     {
       foreach (RailEntity entity in this.entities.Values)
-        entity.StoreRecord(this.Tick);
+        entity.StoreRecord();
     }
   }
 }

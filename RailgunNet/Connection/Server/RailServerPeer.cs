@@ -121,7 +121,6 @@ namespace Railgun
         this.scope.Evaluate(activeEntities, this.LocalTick);
       foreach (RailEntity entity in scopedEntities)
         yield return entity.ProduceDelta(
-          this.LocalTick, 
           this.ackedView.GetLatest(entity.Id), 
           this);
     }

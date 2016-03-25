@@ -66,8 +66,9 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Stores a value. If this displaces a previous value in the process,
-    /// this function will return it.
+    /// Stores a value. If this displaces an existing value in the process,
+    /// this function will return it. Note that this function does not enforce
+    /// time constraints. It is possible to replace a value with an older one.
     /// </summary>
     public T Store(T value)
     {
@@ -111,17 +112,26 @@ namespace Railgun
       return null;
     }
 
-    public void PopulateDelta(RailDejitterReader<T> delta, Tick currentTick)
+    /// <summary>
+    /// Given a tick, returns the the following values:
+    /// - The value at or immediately before the tick (current)
+    /// - The value immediately before that (prior)
+    /// - The value immediately after that (next)
+    /// 
+    /// Runs in O(n).
+    /// </summary>
+    public void GetRange(
+      Tick currentTick,
+      out T prior,
+      out T current,
+      out T next)
     {
-      if (currentTick == Tick.INVALID)
-      {
-        delta.Set(null, null, null);
-        return;
-      }
+      prior = null;
+      current = null;
+      next = null;
 
-      T prior = null;
-      T current = null;
-      T next = null;
+      if (currentTick == Tick.INVALID)
+        return;
 
       for (int i = 0; i < this.data.Length; i++)
       {
@@ -147,8 +157,6 @@ namespace Railgun
           }
         }
       }
-
-      delta.Set(prior, current, next);
     }
 
     /// <summary>
