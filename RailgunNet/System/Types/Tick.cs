@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   public static class TickExtensions
@@ -58,8 +56,8 @@ namespace Railgun
 
       public override int Compare(Tick x, Tick y)
       {
-        CommonDebug.Assert(x.IsValid);
-        CommonDebug.Assert(y.IsValid);
+        RailDebug.Assert(x.IsValid);
+        RailDebug.Assert(y.IsValid);
         return TickComparer.Comparer.Compare(x.tickValue, y.tickValue);
       }
     }
@@ -109,37 +107,37 @@ namespace Railgun
 
     public static bool operator <(Tick a, Tick b)
     {
-      CommonDebug.Assert(a.IsValid && b.IsValid);
+      RailDebug.Assert(a.IsValid && b.IsValid);
       return (a.tickValue < b.tickValue);
     }
 
     public static bool operator <=(Tick a, Tick b)
     {
-      CommonDebug.Assert(a.IsValid && b.IsValid);
+      RailDebug.Assert(a.IsValid && b.IsValid);
       return (a.tickValue <= b.tickValue);
     }
 
     public static bool operator >(Tick a, Tick b)
     {
-      CommonDebug.Assert(a.IsValid && b.IsValid);
+      RailDebug.Assert(a.IsValid && b.IsValid);
       return (a.tickValue > b.tickValue);
     }
 
     public static bool operator >=(Tick a, Tick b)
     {
-      CommonDebug.Assert(a.IsValid && b.IsValid);
+      RailDebug.Assert(a.IsValid && b.IsValid);
       return (a.tickValue >= b.tickValue);
     }
 
     public static int operator -(Tick a, Tick b)
     {
-      CommonDebug.Assert(a.IsValid && b.IsValid);
+      RailDebug.Assert(a.IsValid && b.IsValid);
       return (a.tickValue - b.tickValue);
     }
 
     public static Tick operator +(Tick a, int b)
     {
-      CommonDebug.Assert(a.IsValid);
+      RailDebug.Assert(a.IsValid);
       return new Tick(a.tickValue + b);
     }
 
@@ -148,7 +146,7 @@ namespace Railgun
       int result = a.tickValue - b;
       if (result < 1)
       {
-        CommonDebug.LogWarning("Clamping tick subtraction");
+        RailDebug.LogWarning("Clamping tick subtraction");
         result = 1;
       }
 
@@ -166,7 +164,7 @@ namespace Railgun
     {
       get
       {
-        CommonDebug.Assert(this.IsValid);
+        RailDebug.Assert(this.IsValid);
         return (float)(this.tickValue - 1) * RailConfig.FIXED_DELTA_TIME;
       }
     }
@@ -179,7 +177,7 @@ namespace Railgun
     {
       get 
       {
-        CommonDebug.Assert(this.IsValid);
+        RailDebug.Assert(this.IsValid);
         return this.tickValue - 1; 
       }
     }
@@ -203,7 +201,7 @@ namespace Railgun
 
     public Tick GetNext()
     {
-      CommonDebug.Assert(this.IsValid);
+      RailDebug.Assert(this.IsValid);
       return new Tick(this.tickValue + 1);
     }
 

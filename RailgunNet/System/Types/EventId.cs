@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   public static class EventIdExtensions
@@ -86,8 +84,8 @@ namespace Railgun
     #region Operators
     public static bool operator >(EventId a, EventId b)
     {
-      CommonDebug.Assert(a.IsValid);
-      CommonDebug.Assert(b.IsValid);
+      RailDebug.Assert(a.IsValid);
+      RailDebug.Assert(b.IsValid);
 
       int difference =
         (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
@@ -97,8 +95,8 @@ namespace Railgun
 
     public static bool operator <(EventId a, EventId b)
     {
-      CommonDebug.Assert(a.IsValid);
-      CommonDebug.Assert(b.IsValid);
+      RailDebug.Assert(a.IsValid);
+      RailDebug.Assert(b.IsValid);
 
       int difference =
         (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
@@ -108,8 +106,8 @@ namespace Railgun
 
     public static bool operator >=(EventId a, EventId b)
     {
-      CommonDebug.Assert(a.IsValid);
-      CommonDebug.Assert(b.IsValid);
+      RailDebug.Assert(a.IsValid);
+      RailDebug.Assert(b.IsValid);
 
       int difference =
         (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
@@ -119,8 +117,8 @@ namespace Railgun
 
     public static bool operator <=(EventId a, EventId b)
     {
-      CommonDebug.Assert(a.IsValid);
-      CommonDebug.Assert(b.IsValid);
+      RailDebug.Assert(a.IsValid);
+      RailDebug.Assert(b.IsValid);
 
       int difference =
         (int)(((uint)a.idValue << EventId.BIT_SHIFT) -
@@ -130,16 +128,16 @@ namespace Railgun
 
     public static bool operator ==(EventId a, EventId b)
     {
-      CommonDebug.Assert(a.IsValid);
-      CommonDebug.Assert(b.IsValid);
+      RailDebug.Assert(a.IsValid);
+      RailDebug.Assert(b.IsValid);
 
       return a.idValue == b.idValue;
     }
 
     public static bool operator !=(EventId a, EventId b)
     {
-      CommonDebug.Assert(a.IsValid);
-      CommonDebug.Assert(b.IsValid);
+      RailDebug.Assert(a.IsValid);
+      RailDebug.Assert(b.IsValid);
 
       return a.idValue != b.idValue;
     }
@@ -149,7 +147,7 @@ namespace Railgun
     {
       get
       {
-        CommonDebug.Assert(this.IsValid);
+        RailDebug.Assert(this.IsValid);
 
         int nextId = this.idValue + 1;
         if (nextId > EventId.MAX_EVENTS)

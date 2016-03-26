@@ -115,18 +115,15 @@ namespace Railgun
     /// <summary>
     /// Given a tick, returns the the following values:
     /// - The value at or immediately before the tick (current)
-    /// - The value immediately before that (prior)
     /// - The value immediately after that (next)
     /// 
     /// Runs in O(n).
     /// </summary>
-    public void GetRange(
+    public void GetRangeAt(
       Tick currentTick,
-      out T prior,
       out T current,
       out T next)
     {
-      prior = null;
       current = null;
       next = null;
 
@@ -143,17 +140,9 @@ namespace Railgun
             if ((next == null) || (value.Tick < next.Tick))
               next = value;
           }
-          else if ((prior == null) || (value.Tick > prior.Tick))
+          else if ((current == null) || (value.Tick > current.Tick))
           {
-            if ((current == null) || (value.Tick > current.Tick))
-            {
-              prior = current;
-              current = value;
-            }
-            else
-            {
-              prior = value;
-            }
+            current = value;
           }
         }
       }

@@ -22,61 +22,143 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   public abstract class RailEntity
   {
-    private class Smoother
+    private class SmoothBuffer
     {
-      private IRailStateDelta prior;
-      private IRailStateDelta current;
-      private IRailStateDelta next;
-
-      private IRailStateRecord priorState;
-
-      internal Smoother()
+      private static void ComputeSmoothed(
+        Tick realTick,
+        float frameDelta,
+        RailState scratch,
+        RailState.Record first,
+        RailState.Record second)
       {
-        this.priorState = null;
-        this.prior = null;
-        this.current = null;
-        this.next = null;
+        scratch.ApplySmoothed(
+          first.State, 
+          second.State,
+          RailMath.ComputeInterp(
+            first.Tick.Time,
+            second.Tick.Time,
+            realTick.Time + frameDelta));
       }
 
-      internal IRailStateDelta Update(
-        Tick currentTick,
-        RailState currentState,
-        RailDejitterBuffer<IRailStateDelta> buffer)
+      private RailState.Record prevRecord;
+      private RailState.Record curRecord;
+      private RailState.Record nextRecord;
+
+      private readonly RailDejitterBuffer<RailState.Delta> buffer;
+      private RailState cachedOutput;
+
+      internal SmoothBuffer(RailDejitterBuffer<RailState.Delta> buffer)
       {
-        buffer.GetRange(
+        this.buffer = buffer;
+        this.curRecord = null;
+        this.cachedOutput = null;
+      }
+
+      /// <summary>
+      /// Repopulates the state buffer with new values based on the delta
+      /// dejitter buffer provided by the entity.
+      /// </summary>
+      internal RailState Update(Tick currentTick)
+      {
+        RailState.Delta curDelta;
+        RailState.Delta nextDelta;
+
+        buffer.GetRangeAt(
           currentTick,
-          out this.prior,
-          out this.current,
-          out this.next);
+          out curDelta,
+          out nextDelta);
 
-        if (this.priorState != null)
-          RailPool.Free(this.priorState);
+        // Clear out the prior next record since it may now be invalid
+        if (this.nextRecord != null)
+          RailPool.Free(this.nextRecord);
+        this.nextRecord = null;
 
-        this.priorState = RailState.CreateRecord(currentTick, currentState);
+        if (curDelta != null)
+        {
+          if (this.curRecord == null)
+            this.Initialize(curDelta);
 
-        return this.current;
+          // Apply the delta to the current auth record and push it
+          // into the current-past double buffer
+          if (this.curRecord.Tick < curDelta.Tick)
+          {
+            if (this.prevRecord != null)
+              RailPool.Free(this.prevRecord);
+            this.prevRecord = this.curRecord;
+            this.curRecord = this.CreateRecord(curDelta);
+          }
+
+          // Try to create a record for the next state as well, but make sure
+          // the next record is actually in the future (no time jumps)
+          if ((nextDelta != null) && (nextDelta.Tick > this.curRecord.Tick))
+          {
+            this.nextRecord = this.CreateRecord(nextDelta);
+          }
+        }
+
+        return this.curRecord.State;
       }
 
+      /// <summary>
+      /// Interpolates or extrapolates to get a smooth state.
+      /// </summary>
       internal RailState GetSmoothedState(
         Tick realTick,
-        RailState currentState,
         float frameDelta)
       {
-        RailState clone = currentState.Clone();
-        float realTime = realTick.Time + frameDelta;
-        //if (this.next != null)
-        //  clone.ApplySmoothed(this.current, this.next, realTime);
-        //else if (prior != null)
-        if (this.priorState != null)
-          clone.ApplySmoothed(this.priorState, currentState, realTime);
-        
-        return clone;
+        this.cachedOutput.OverwriteFrom(this.curRecord.State);
+
+        if (this.nextRecord != null)
+        {
+          SmoothBuffer.ComputeSmoothed(
+            realTick,
+            frameDelta,
+            this.cachedOutput,
+            this.curRecord,
+            this.nextRecord);
+        }
+        else if (this.prevRecord != null)
+        {
+          SmoothBuffer.ComputeSmoothed(
+            realTick,
+            frameDelta,
+            this.cachedOutput,
+            this.prevRecord,
+            this.curRecord);
+        }
+
+        return this.cachedOutput;
+      }
+
+      /// <summary>
+      /// Initialzes the double buffer with the first delta we
+      /// receive from the server.
+      /// </summary>
+      private void Initialize(RailState.Delta firstDelta)
+      {
+        RailDebug.Assert(firstDelta.HasImmutableData);
+        this.cachedOutput = firstDelta.State.Clone();
+        this.curRecord = 
+          RailState.CreateRecord(
+            firstDelta.Tick, 
+            firstDelta.State.Clone());
+      }
+
+      /// <summary>
+      /// Copies the current record and applies the delta to it.
+      /// </summary>
+      private RailState.Record CreateRecord(RailState.Delta delta)
+      {
+        RailState.Record result =
+          RailState.CreateRecord(
+            delta.Tick,
+            this.curRecord.State);
+        result.State.ApplyDelta(delta);
+        return result;
       }
     }
 
@@ -106,8 +188,8 @@ namespace Railgun
     // Synchronization info
     public EntityId Id { get; private set; }
 
-    private RailDejitterBuffer<IRailStateDelta> incoming;  // Client-only
-    private RailQueueBuffer<IRailStateRecord> outgoing;    // Server-only
+    private RailDejitterBuffer<RailState.Delta> incoming;  // Client-only
+    private RailQueueBuffer<RailState.Record> outgoing;    // Server-only
     private IRailControllerInternal controller;
 
     internal virtual void SimulateCommand(RailCommand command) { }
@@ -118,8 +200,7 @@ namespace Railgun
     private bool hasStarted;
 
     // Client-only
-    private readonly Smoother smoother;
-    private RailState smoothedState;
+    private readonly SmoothBuffer smoothBuffer;
 
     internal RailEntity()
     {
@@ -133,15 +214,14 @@ namespace Railgun
 
       // TODO: Don't need this on the server!
       this.incoming =
-        new RailDejitterBuffer<IRailStateDelta>(
+        new RailDejitterBuffer<RailState.Delta>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
-      this.smoother = new Smoother();
-      this.smoothedState = null;
+      this.smoothBuffer = new SmoothBuffer(this.incoming);
 
       // TODO: Don't need this on the client!
       this.outgoing =
-        new RailQueueBuffer<IRailStateRecord>(
+        new RailQueueBuffer<RailState.Record>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
     }
 
@@ -174,7 +254,7 @@ namespace Railgun
 
     internal void StoreRecord()
     {
-      IRailStateRecord record =
+      RailState.Record record =
         RailState.CreateRecord(
           this.World.Tick,
           this.State, 
@@ -183,11 +263,11 @@ namespace Railgun
         this.outgoing.Store(record);
     }
 
-    internal IRailStateDelta ProduceDelta(
+    internal RailState.Delta ProduceDelta(
       Tick basisTick, 
       IRailController destination)
     {
-      IRailStateRecord basis = null;
+      RailState.Record basis = null;
       if (basisTick.IsValid)
         basis = this.outgoing.LatestAt(basisTick);
 
@@ -205,16 +285,13 @@ namespace Railgun
     #region Client
     internal void UpdateClient()
     {
-      IRailStateDelta current =
-        this.smoother.Update(this.World.Tick, this.State, this.incoming);
-      if (current != null)
-      {
-        this.State.ApplyDelta(current);
-        this.DoStart();
-      }
+      RailState currentState = 
+        this.smoothBuffer.Update(this.World.Tick);
+      this.State.OverwriteFrom(currentState);
+      this.DoStart();
     }
 
-    internal void ReceiveDelta(IRailStateDelta delta)
+    internal void ReceiveDelta(RailState.Delta delta)
     {
       this.incoming.Store(delta);
     }
@@ -226,26 +303,9 @@ namespace Railgun
 
     internal RailState GetSmoothedState(float frameDelta)
     {
-      if (this.smoothedState == null)
-        this.smoothedState = this.State.Clone();
-
-      RailState result = 
-        this.smoother.GetSmoothedState(
-          this.World.Tick,
-          this.State,
-          frameDelta);
-
-      if (result != null)
-      {
-        this.smoothedState.OverwriteFrom(result);
-        RailPool.Free(result);
-      }
-      else
-      {
-        this.smoothedState.OverwriteFrom(this.State);
-      }
-
-      return this.smoothedState;
+      return this.smoothBuffer.GetSmoothedState(
+        this.World.Tick,
+        frameDelta);
     }
     #endregion
   }

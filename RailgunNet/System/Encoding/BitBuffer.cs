@@ -23,8 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -158,7 +156,7 @@ namespace Railgun
       this.Write(1, 1);
 
       int numChunks = (this.writePos >> 5) + 1;
-      CommonDebug.Assert(data.Length >= numChunks * 4, "Buffer too small");
+      RailDebug.Assert(data.Length >= numChunks * 4, "Buffer too small");
 
       for (int i = 0; i < numChunks; i++)
       {
@@ -179,7 +177,7 @@ namespace Railgun
     public void Load(byte[] data, int length)
     {
       int numChunks = (length >> 2) + 1;
-      CommonDebug.Assert(data.Length >= numChunks * 4, "Buffer too small");
+      RailDebug.Assert(data.Length >= numChunks * 4, "Buffer too small");
 
       if (this.chunks.Length < numChunks)
         this.chunks = new uint[numChunks];
@@ -300,7 +298,7 @@ namespace Railgun
         if (writeByteSize > maxIndividualBytes)
         {
           this.writePos = rollback;
-          CommonDebug.LogWarning(
+          RailDebug.LogWarning(
             "Skipping " + val + " (" + writeByteSize + "B)");
         }
         else if (endByteSize > maxTotalBytes)

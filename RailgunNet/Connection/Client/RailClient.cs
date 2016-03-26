@@ -24,8 +24,6 @@ using System.Collections.Generic;
 
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
   public class RailClient : RailConnection
@@ -66,7 +64,7 @@ namespace Railgun
 
     public void SetPeer(IRailNetPeer netPeer)
     {
-      CommonDebug.Assert(this.serverPeer == null, "Overwriting peer");
+      RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
       this.serverPeer = new RailClientPeer(netPeer, this.Interpreter);
       this.serverPeer.PacketReceived += this.OnPacketReceived;
     }
@@ -141,14 +139,14 @@ namespace Railgun
     #region Packet Receive
     private void OnPacketReceived(IRailServerPacket packet)
     {
-      foreach (IRailStateDelta delta in packet.Deltas)
+      foreach (RailState.Delta delta in packet.Deltas)
         this.ProcessDelta(delta);
       // TODO: REENABLE FOR FREEZING
       //foreach (RailEntity entity in this.knownEntities.Values)
       //  entity.UpdateFreeze(packet.ServerTick);
     }
 
-    private void ProcessDelta(IRailStateDelta delta)
+    private void ProcessDelta(RailState.Delta delta)
     {
       RailEntity entity;
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
@@ -162,7 +160,7 @@ namespace Railgun
       this.UpdateControlStatus(entity, delta);
     }
 
-    private void UpdateControlStatus(RailEntity entity, IRailStateDelta delta)
+    private void UpdateControlStatus(RailEntity entity, RailState.Delta delta)
     {
       if (delta.HasControllerData)
       {
