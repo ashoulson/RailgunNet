@@ -24,17 +24,23 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
+#if CLIENT
   interface IRailServerPacket : IRailPacket
   {
     Tick ServerTick { get; }
     IEnumerable<RailState.Delta> Deltas { get; }
   }
+#endif
 
   /// <summary>
   /// Packet sent from server to client.
   /// </summary>
-  internal class RailServerPacket : 
-    RailPacket, IRailServerPacket, IRailPoolable<RailServerPacket>
+  internal class RailServerPacket
+    : RailPacket 
+    , IRailPoolable<RailServerPacket>
+#if CLIENT
+    , IRailServerPacket
+#endif
   {
     internal static RailServerPacket Create()
     {
@@ -44,42 +50,58 @@ namespace Railgun
     #region Interface
     IRailPool<RailServerPacket> IRailPoolable<RailServerPacket>.Pool { get; set; }
     void IRailPoolable<RailServerPacket>.Reset() { this.Reset(); }
+
+#if CLIENT
     Tick IRailServerPacket.ServerTick { get { return this.SenderTick; } }
     IEnumerable<RailState.Delta> IRailServerPacket.Deltas { get { return this.deltas; } }
+#endif
     #endregion
 
     internal Tick CommandAck { get; private set; }
-    internal IEnumerable<RailState.Delta> Deltas { get { return this.deltas; } }
 
-    // Server-only
+#if CLIENT
+    internal IEnumerable<RailState.Delta> Deltas { get { return this.deltas; } }
+    private readonly List<RailState.Delta> deltas;
+#endif
+
+#if SERVER
     internal IEnumerable<RailState.Delta> Sent { get { return this.sent; } }
     internal IEnumerable<RailState.Delta> Pending { get { return this.pending; } }
-
-    // Values received on client
-    private readonly List<RailState.Delta> deltas;
 
     // Input/output information for entity scoping
     private readonly List<RailState.Delta> pending;
     private readonly List<RailState.Delta> sent;
+#endif
 
     public RailServerPacket() : base()
     {
-      this.deltas = new List<RailState.Delta>();
       this.CommandAck = Tick.INVALID;
+
+#if CLIENT
+      this.deltas = new List<RailState.Delta>();
+#endif
+#if SERVER
       this.pending = new List<RailState.Delta>();
       this.sent = new List<RailState.Delta>();
+#endif
     }
 
     protected override void Reset()
     {
       base.Reset();
 
-      this.deltas.Clear();
       this.CommandAck = Tick.INVALID;
+
+#if CLIENT
+      this.deltas.Clear();
+#endif
+#if SERVER
       this.pending.Clear();
       this.sent.Clear();
+#endif
     }
 
+#if SERVER
     internal void Populate(
       Tick commandAck,
       IEnumerable<RailState.Delta> destroyedDeltas,
@@ -89,24 +111,17 @@ namespace Railgun
       this.pending.AddRange(destroyedDeltas);
       this.pending.AddRange(activeDeltas);
     }
+#endif
 
     #region Encode/Decode
     protected override void EncodePayload(BitBuffer buffer)
     {
+#if SERVER
       // Write: [CommandAck]
       buffer.WriteTick(this.CommandAck);
 
       // Write: [States]
       this.EncodeDeltas(buffer);
-    }
-
-    protected override void DecodePayload(BitBuffer buffer)
-    {
-      // Read: [CommandAck]
-      this.CommandAck = buffer.ReadTick();
-
-      // Read: [States]
-      this.DecodeDeltas(buffer);
     }
 
     private void EncodeDeltas(BitBuffer buffer)
@@ -117,7 +132,18 @@ namespace Railgun
         this.pending,
         (delta) => RailState.EncodeDelta(buffer, delta),
         (delta) => this.sent.Add(delta));
+#endif
     }
+
+    protected override void DecodePayload(BitBuffer buffer)
+    {
+#if CLIENT
+      // Read: [CommandAck]
+      this.CommandAck = buffer.ReadTick();
+
+      // Read: [States]
+      this.DecodeDeltas(buffer);
+     }
 
     private void DecodeDeltas(BitBuffer buffer)
     {
@@ -126,6 +152,7 @@ namespace Railgun
           () => RailState.DecodeDelta(buffer, this.SenderTick));
       foreach (RailState.Delta delta in decoded)
         this.deltas.Add(delta);
+#endif
     }
     #endregion
   }

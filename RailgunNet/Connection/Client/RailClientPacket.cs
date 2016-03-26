@@ -26,15 +26,21 @@ using System.Linq;
 
 namespace Railgun
 {
+#if SERVER
   interface IRailClientPacket
   {
   }
+#endif
 
   /// <summary>
   /// Packet sent from client to server.
   /// </summary>
-  internal class RailClientPacket :
-    RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
+  internal class RailClientPacket 
+    : RailPacket
+    , IRailPoolable<RailClientPacket>
+#if SERVER
+    , IRailClientPacket
+#endif
   {
     internal static RailClientPacket Create()
     {
@@ -46,7 +52,7 @@ namespace Railgun
     void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
     #endregion
 
-    #region Data Read
+#if SERVER
     /// <summary>
     /// A brief history of commands from the client. May not be sent in order.
     /// </summary>
@@ -62,9 +68,9 @@ namespace Railgun
     {
       get { return this.view; }
     }
-    #endregion
+#endif
 
-    #region Data Write
+#if CLIENT
     public void AddCommands(IEnumerable<RailCommand> commands)
     {
       // We reverse the list to take the latest commands until we reach
@@ -82,7 +88,7 @@ namespace Railgun
     {
       this.view.Integrate(view);
     }
-    #endregion
+#endif
 
     private readonly List<RailCommand> commands;
     private readonly RailView view;
@@ -105,6 +111,7 @@ namespace Railgun
     #region Encode/Decode
     protected override void EncodePayload(BitBuffer buffer)
     {
+#if CLIENT
       // Write: [Commands]
       this.EncodeCommands(buffer);
 
@@ -112,16 +119,6 @@ namespace Railgun
       this.EncodeView(buffer);
     }
 
-    protected override void DecodePayload(BitBuffer buffer)
-    {
-      // Read: [Commands]
-      this.DecodeCommands(buffer);
-
-      // Read: [View]
-      this.DecodeView(buffer);
-    }
-
-    #region Commands
     protected void EncodeCommands(BitBuffer buffer)
     {
       buffer.PackAll(
@@ -129,16 +126,6 @@ namespace Railgun
         (command) => command.Encode(buffer));
     }
 
-    protected void DecodeCommands(BitBuffer buffer)
-    {
-      IEnumerable<RailCommand> decoded =
-        buffer.UnpackAll(
-          () => RailCommand.Decode(buffer));
-      this.commands.AddRange(decoded);
-    }
-    #endregion
-
-    #region View
     protected void EncodeView(BitBuffer buffer)
     {
       buffer.PackToSize(
@@ -150,6 +137,25 @@ namespace Railgun
           buffer.WriteEntityId(pair.Key); // Write: [EntityId]
           buffer.WriteTick(pair.Value);   // Write: [Tick]
         });
+#endif
+    }
+
+    protected override void DecodePayload(BitBuffer buffer)
+    {
+#if SERVER
+      // Read: [Commands]
+      this.DecodeCommands(buffer);
+
+      // Read: [View]
+      this.DecodeView(buffer);
+    }
+
+    protected void DecodeCommands(BitBuffer buffer)
+    {
+      IEnumerable<RailCommand> decoded =
+        buffer.UnpackAll(
+          () => RailCommand.Decode(buffer));
+      this.commands.AddRange(decoded);
     }
 
     public void DecodeView(BitBuffer buffer)
@@ -165,8 +171,8 @@ namespace Railgun
 
       foreach (var pair in decoded)
         this.view.RecordUpdate(pair.Key, pair.Value);
+#endif
     }
-    #endregion
     #endregion
   }
 }
