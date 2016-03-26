@@ -24,8 +24,6 @@ using System.Collections.Generic;
 
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
   interface IRailClientPacket
@@ -38,12 +36,15 @@ namespace Railgun
   internal class RailClientPacket :
     RailPacket, IRailClientPacket, IRailPoolable<RailClientPacket>
   {
-    // String hashes (md5):
-    private const int KEY_RESERVE = 0x509B1C56;
-    private const int KEY_ROLLBACK = 0x42A09755;
+    internal static RailClientPacket Create()
+    {
+      return RailResource.Instance.CreateClientPacket();
+    }
 
+    #region Interface
     IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
     void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
+    #endregion
 
     #region Data Read
     /// <summary>
@@ -67,8 +68,8 @@ namespace Railgun
     public void AddCommands(IEnumerable<RailCommand> commands)
     {
       // We reverse the list to take the latest commands until we reach
-      // capacity. This is also compatible with LIFO packing, so they will
-      // arrive in order when packed. (Plus they're just dejittered anyway.)
+      // capacity. Order doesn't matter on arrival since they go into a
+      // dejitter buffer on the server's end.
       foreach (RailCommand command in commands.Reverse())
       {
         if (this.commands.Count >= RailConfig.COMMAND_SEND_COUNT)
@@ -102,8 +103,7 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    protected override void EncodePayload(
-      ByteBuffer buffer)
+    protected override void EncodePayload(ByteBuffer buffer)
     {
       // Write: [Commands]
       this.EncodeCommands(buffer);
@@ -112,9 +112,7 @@ namespace Railgun
       this.EncodeView(buffer);
     }
 
-    protected override void DecodePayload(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+    protected override void DecodePayload(ByteBuffer buffer)
     {
       // Read: [Commands]
       this.DecodeCommands(buffer);
@@ -151,7 +149,6 @@ namespace Railgun
         {
           buffer.WriteEntityId(pair.Key); // Write: [EntityId]
           buffer.WriteTick(pair.Value);   // Write: [Tick]
-          return true;
         });
     }
 

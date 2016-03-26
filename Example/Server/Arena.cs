@@ -37,16 +37,16 @@ namespace Example
       server.ControllerJoined += this.OnControllerAdded;
       server.ControllerLeft += this.OnControllerLeft;
 
-      for (int i = 0; i < 15; i++)
-      {
-        for (int j = 0; j < 15; j++)
-        {
-          DemoDummy dummy = this.server.AddNewEntity<DemoDummy>();
-          dummy.State.ArchetypeId = 1;
-          dummy.State.X = i * 5;
-          dummy.State.Y = j * 5;
-        }
-      }
+      //for (int i = 0; i < 15; i++)
+      //{
+      //  for (int j = 0; j < 15; j++)
+      //  {
+      //    DemoDummy dummy = this.server.AddNewEntity<DemoDummy>();
+      //    dummy.State.ArchetypeId = 1;
+      //    dummy.State.X = i * 5;
+      //    dummy.State.Y = j * 5;
+      //  }
+      //}
     }
 
     private void OnControllerAdded(IRailControllerServer controller)
@@ -61,7 +61,7 @@ namespace Example
     private void OnControllerLeft(IRailControllerServer controller)
     {
       DemoControlled controlled = (DemoControlled)controller.UserData;
-      this.server.DestroyEntity(controlled);
+      //this.server.DestroyEntity(controlled);
     }
   }
 }

@@ -1,372 +1,347 @@
-﻿/*
- *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
- *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
- *
- *  This software is provided 'as-is', without any express or implied
- *  warranty. In no event will the authors be held liable for any damages
- *  arising from the use of this software.
- *  Permission is granted to anyone to use this software for any purpose,
- *  including commercial applications, and to alter it and redistribute it
- *  freely, subject to the following restrictions:
- *  
- *  1. The origin of this software must not be misrepresented; you must not
- *     claim that you wrote the original software. If you use this software
- *     in a product, an acknowledgment in the product documentation would be
- *     appreciated but is not required.
- *  2. Altered source versions must be plainly marked as such, and must not be
- *     misrepresented as being the original software.
- *  3. This notice may not be removed or altered from any source distribution.
-*/
-
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
-
-using CommonTools;
+using System.Linq;
+using System.Text;
 
 namespace Railgun
 {
-  /// <summary>
-  /// States are attached to entities and contain user-defined data. They are
-  /// responsible for encoding and decoding that data, and delta-compression.
-  /// </summary>
-  public abstract class RailState : 
-    IRailPoolable<RailState>, IRailTimedValue, IRailCloneable<RailState>
+  public abstract class RailState : IRailPoolable<RailState>
   {
-    private const uint FLAGS_ALL = 0xFFFFFFFF;
-
-    IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
-    void IRailPoolable<RailState>.Reset() { this.Reset(); }
-    Tick IRailTimedValue.Tick { get { return this.Tick; } }
-
-    // Client/Server
-    internal EntityId EntityId { get; private set; }  // Synchronized
-    internal int EntityType { get; private set; }     // Synchronized
-    internal Tick Tick { get; private set; }          // Synchronized
-
-    // Client-only -- always invalid on server
-    internal bool IsController { get; set; }          // Synchronized (indirectly)
-    internal bool IsPredicted { get; private set; }   // Not synchronized
-    internal Tick DestroyedTick { get; private set; } // Synchronized to client
-    internal IEnumerable<RailEvent> Events { get { return this.entityEvents; } }
-
-    internal bool IsDestroyed { get { return this.DestroyedTick.IsValid; } }
+    internal const uint FLAGS_ALL  = 0xFFFFFFFF; // All values different
+    internal const uint FLAGS_NONE = 0x00000000; // No values different
 
     /// <summary>
-    /// Compares this state against a basis and returns a bitfield of which
-    /// properties are dirty.
+    /// Used to differentiate/typesafe state deltas. Not strictly necessary.
     /// </summary>
-    protected abstract uint GetDirtyFlags(RailState basis);
-    protected internal abstract void SetDataFrom(RailState other);
-
-    protected abstract int FlagBitsUsed { get; }
-    protected abstract void ResetData();
-
-    protected abstract void EncodeImmutableData(ByteBuffer buffer);
-    protected abstract void DecodeImmutableData(ByteBuffer buffer);
-
-    protected abstract void EncodeMutableData(ByteBuffer buffer, uint flags);
-    protected abstract void DecodeMutableData(ByteBuffer buffer, uint flags);
-    protected abstract void ResetControllerData();
-
-    protected abstract void EncodeControllerData(ByteBuffer buffer);
-    protected abstract void DecodeControllerData(ByteBuffer buffer);
-
-    // Client-only.
-    private readonly List<RailEvent> entityEvents;
-
-    public RailState()
+    internal class Delta : IRailTimedValue
     {
-      this.entityEvents = new List<RailEvent>();
-      this.Reset();
+      #region Interface
+      Tick IRailTimedValue.Tick { get { return this.state.tick; } }
+      #endregion
+
+      internal RailState State { get { return this.state; } }
+      internal EntityId EntityId { get { return this.state.entityId; } }
+      internal Tick Tick { get { return this.state.tick; } }
+
+      internal int FactoryType { get { return this.state.factoryType; } }
+      internal bool HasControllerData { get { return this.state.HasControllerData; } }
+      internal bool HasImmutableData { get { return this.state.HasImmutableData; } }
+
+      private readonly RailState state;
+
+      public Delta(
+        Tick tick,
+        EntityId entityId,
+        RailState state)
+      {
+        this.state = state;
+        this.state.tick = tick;
+        this.state.entityId = entityId;
+      }
     }
 
-    protected bool Flag(uint flags, uint flag)
+    /// <summary>
+    /// Used to differentiate/typesafe state records. Not strictly necessary.
+    /// </summary>
+    internal class Record : IRailTimedValue
+    {
+      #region Interface
+      Tick IRailTimedValue.Tick { get { return this.state.tick; } }
+      #endregion
+
+      internal RailState State { get { return this.state; } }
+      internal Tick Tick { get { return this.state.tick; } }
+
+      private readonly RailState state;
+
+      public Record(
+        Tick tick,
+        RailState state)
+      {
+        this.state = state;
+        this.state.tick = tick;
+      }
+    }
+
+    internal static RailState Create(int factoryType)
+    {
+      RailState state = RailResource.Instance.CreateState(factoryType);
+      state.factoryType = factoryType;
+      return state;
+    }
+
+    #region Interface
+    IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
+    void IRailPoolable<RailState>.Reset() { this.Reset(); }
+    #endregion
+
+    /// <summary>
+    /// Creates a delta between a state and a record. If forced is set to
+    /// false, this function will return null if there is no change between
+    /// the current and basis.
+    /// </summary>
+    internal static RailState.Delta CreateDelta(
+      Tick tick,
+      EntityId entityId,
+      RailState current,
+      RailState.Record basisRecord,
+      bool includeControllerData,
+      bool includeImmutableData,
+      bool forced = false)
+    {
+      bool shouldReturn =
+        forced ||
+        includeControllerData ||
+        includeImmutableData;
+
+      uint flags = RailState.FLAGS_ALL;
+      if ((basisRecord != null) && (basisRecord.State != null))
+        flags = current.CompareMutableData(basisRecord.State);
+      if ((flags == 0) && (shouldReturn == false))
+        return null;
+
+      RailState deltaState = RailState.Create(current.factoryType);
+      deltaState.Flags = flags;
+      deltaState.ApplyMutableFrom(current, deltaState.Flags);
+
+      deltaState.HasControllerData = includeControllerData;
+      if (includeControllerData)
+        deltaState.ApplyControllerFrom(current);
+
+      deltaState.HasImmutableData = includeImmutableData;
+      if (includeImmutableData)
+        deltaState.ApplyImmutableFrom(current);
+
+      return new RailState.Delta(tick, entityId, deltaState);
+    }
+
+    /// <summary>
+    /// Creates a record of the current state, taking the latest record (if
+    /// any) into account. If a latest state is given, this function will
+    /// return null if there is no change between the current and latest.
+    /// </summary>
+    internal static RailState.Record CreateRecord(
+      Tick tick,
+      RailState current,
+      RailState.Record latestRecord = null)
+    {
+      if (latestRecord != null)
+      {
+        RailState latest = latestRecord.State;
+        bool shouldReturn = 
+          (current.CompareMutableData(latest) > 0) ||
+          (current.IsControllerDataEqual(latest) == false);
+        if (shouldReturn == false)
+          return null;
+      }
+
+      RailState recordState = current.Clone();
+      return new RailState.Record(tick, recordState);
+    }
+
+    private static IntCompressor FactoryTypeCompressor
+    {
+      get { return RailResource.Instance.EntityTypeCompressor; }
+    }
+
+    protected internal abstract int FlagBits { get; }
+
+    private uint Flags { get; set; }             // Synchronized
+    private bool HasControllerData { get; set; } // Synchronized
+    private bool HasImmutableData { get; set; }  // Synchronized
+
+    #region Client
+    protected abstract void DecodeMutableData(ByteBuffer buffer, uint flags);
+    protected abstract void DecodeControllerData(ByteBuffer buffer);
+    protected abstract void DecodeImmutableData(ByteBuffer buffer);
+    #endregion
+
+    #region Server
+    protected abstract void EncodeMutableData(ByteBuffer buffer, uint flags);
+    protected abstract void EncodeControllerData(ByteBuffer buffer);
+    protected abstract void EncodeImmutableData(ByteBuffer buffer);
+    #endregion
+
+    protected abstract void ResetAllData();
+
+    internal abstract void ApplyMutableFrom(RailState source, uint flags);
+    internal abstract void ApplyControllerFrom(RailState source);
+    internal abstract void ApplyImmutableFrom(RailState source);
+
+    internal abstract uint CompareMutableData(RailState basis);
+    internal abstract bool IsControllerDataEqual(RailState basis);
+
+    internal abstract void ApplySmoothed(RailState first, RailState second, float t);
+
+    // Only accessible via Delta or Record
+    private int factoryType;
+    private EntityId entityId;
+    private Tick tick;
+
+    protected bool GetFlag(uint flags, uint flag)
     {
       return ((flags & flag) == flag);
     }
 
-    protected internal void Reset() 
+    protected uint SetFlag(bool isEqual, uint flag)
     {
-      this.Tick = Tick.INVALID;
-      this.EntityId = EntityId.INVALID;
-      this.EntityType = -1;
-
-      this.IsPredicted = false;
-      this.IsController = false;
-      this.DestroyedTick = Tick.INVALID;
-
-      this.entityEvents.Clear();
-
-      this.ResetData();
+      if (isEqual == false)
+        return flag;
+      return 0;
     }
 
-    internal void Initialize(int type)
+    internal void ApplyDelta(RailState.Delta delta)
     {
-      this.EntityType = type;
+      RailState deltaState = delta.State;
+      this.ApplyMutableFrom(deltaState, deltaState.Flags);
+      if (deltaState.HasControllerData)
+        this.ApplyControllerFrom(deltaState);
+      if (deltaState.HasImmutableData)
+        this.ApplyImmutableFrom(deltaState);
     }
 
-    public RailState Clone()
+    internal RailState Clone()
     {
-      RailState clone = RailResource.Instance.AllocateState(this.EntityType);
-      clone.Tick = this.Tick;
-      clone.EntityId = this.EntityId;
-      clone.EntityType = this.EntityType;
-      clone.IsController = this.IsController;
-      clone.IsPredicted = this.IsPredicted;
-      clone.DestroyedTick = this.DestroyedTick;
-      clone.SetDataFrom(this);
+      RailState clone = RailState.Create(this.factoryType);
+      clone.OverwriteFrom(this);
       return clone;
     }
 
-    internal void SetOnPredict(Tick tick)
+    internal void OverwriteFrom(RailState.Record source)
     {
-      this.IsPredicted = true;
-      this.Tick = tick;
+      this.OverwriteFrom(source.State);
     }
 
-    internal void SetOnEntityCreate(EntityId id)
+    internal void OverwriteFrom(RailState source)
     {
-      this.Tick = Tick.INVALID;
-      this.EntityId = id;
+      this.Flags = source.Flags;
+      this.ApplyMutableFrom(source, RailState.FLAGS_ALL);
+      this.ApplyControllerFrom(source);
+      this.ApplyImmutableFrom(source);
+      this.HasControllerData = source.HasControllerData;
+      this.HasImmutableData = source.HasImmutableData;
     }
 
-    internal void SetOnStore(Tick tick)
+    private void Reset()
     {
-      this.Tick = tick;
+      this.Flags = 0;
+      this.HasControllerData = false;
+      this.HasImmutableData = false;
+      this.ResetAllData();
     }
 
-    private void SetOnDecode(Tick tick, EntityId id)
+    internal static void EncodeDelta(
+      ByteBuffer buffer,
+      RailState.Delta delta)
     {
-      this.Tick = tick;
-      this.EntityId = id;
+      // Write: [EntityId]
+      buffer.WriteEntityId(delta.EntityId);
+
+      // Write: [FactoryType]
+      RailState state = delta.State;
+      buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
+
+      // Write: [HasControllerData]
+      buffer.WriteBool(state.HasControllerData);
+
+      // Write: [HasImmutableData]
+      buffer.WriteBool(state.HasImmutableData);
+
+      // Write: [Flags]
+      buffer.Write(state.FlagBits, state.Flags);
+
+      // Write: [Mutable Data]
+      state.EncodeMutableData(buffer, state.Flags);
+
+      // Write: [Controller Data] (if applicable)
+      if (state.HasControllerData)
+        state.EncodeControllerData(buffer);
+
+      // Write: [Immutable Data] (if applicable)
+      if (state.HasImmutableData)
+        state.EncodeImmutableData(buffer);
     }
 
-    internal void AddEvent(RailEvent evnt)
-    {
-      this.entityEvents.Add(evnt);
-    }
-
-    #region Encode/Decode
-    internal static EntityId PeekId(ByteBuffer buffer)
-    {
-      return buffer.PeekEntityId();
-    }
-
-    internal bool ShouldEncode(
-      RailState basis, 
-      bool isController, 
-      bool isFirst,
-      Tick destroyed)
-    {
-      if (basis == null)
-        return true;
-      if (isController || isFirst || destroyed.IsValid)
-        return true;
-      uint flags = this.GetDirtyFlags(basis);
-      return flags > 0;
-    }
-
-    internal void Encode(
+    internal static RailState.Delta DecodeDelta(
       ByteBuffer buffer, 
-      RailState basis,
-      bool isController,
-      bool isFirst,
-      Tick destroyed)
+      Tick packetTick)
     {
-      // Write: [Id]
-      buffer.WriteEntityId(this.EntityId);
+      // Write: [EntityId]
+      EntityId entityId = buffer.ReadEntityId();
 
-      // Write: [Type]
-      this.EncodeType(buffer, basis);
+      // Read: [FactoryType]
+      int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
+      RailState state = RailState.Create(factoryType);
 
-      // Write: [IsDestroyed]
-      buffer.WriteBool(destroyed.IsValid);
+      // Read: [HasControllerData]
+      state.HasControllerData = buffer.ReadBool();
 
-      // Write: [IsController]
-      buffer.WriteBool(isController);
+      // Read: [HasImmutableData]
+      state.HasImmutableData = buffer.ReadBool();
 
-      // Write: [IsFirst]
-      buffer.WriteBool(isFirst);
+      // Read: [Flags]
+      state.Flags = buffer.Read(state.FlagBits);
 
-      if (destroyed.IsValid)
-      {
-        // Write: [Destroyed Tick] (if applicable)
-        buffer.WriteTick(destroyed);
-      }
-      else
-      {
-        // Write: [Mutable Data]
-        this.EncodeMutable(buffer, basis);
+      // Read: [Mutable Data]
+      state.DecodeMutableData(buffer, state.Flags);
 
-        // Write: [Immutable Data] (if applicable)
-        if (isFirst)
-          this.EncodeImmutableData(buffer);
+      // Read: [Controller Data] (if applicable)
+      if (state.HasControllerData)
+        state.DecodeControllerData(buffer);
 
-        // Write: [Controller Data] (if applicable)
-        if (isController)
-          this.EncodeControllerData(buffer);
-      }
+      // Read: [Immutable Data] (if applicable)
+      if (state.HasImmutableData)
+        state.DecodeImmutableData(buffer);
+
+      return new RailState.Delta(packetTick, entityId, state);
     }
-
-    internal static RailState Decode(
-      ByteBuffer buffer, 
-      RailState basis,
-      Tick latestTick,
-      bool isDelta) // If false, the basis is the latest state received
-    {
-      // Read: [Id]
-      EntityId id = buffer.ReadEntityId();
-
-      // Read: [Type]
-      int type = RailState.DecodeType(buffer, basis, isDelta);
-
-      RailState state = RailState.CreateState(basis, latestTick, id, type);
-
-      // Read: [IsDestroyed]
-      bool isDestroyed = buffer.ReadBool();
-
-      // Read: [IsController]
-      state.IsController = buffer.ReadBool();
-
-      // Read: [IsFirst]
-      bool isFirst = buffer.ReadBool();
-
-      if (isDestroyed)
-      {
-        // Read: [Destroyed Tick] (if applicable)
-        state.DestroyedTick = buffer.ReadTick();
-      }
-      else
-      {
-        // Read: [Mutable Data]
-        state.DecodeMutable(buffer, isDelta);
-
-        // Read: [Immutable Data] (if applicable)
-        if (isFirst)
-          state.DecodeImmutableData(buffer);
-
-        // Read: [Controller Data] (if applicable)
-        if (state.IsController)
-          state.DecodeControllerData(buffer);
-      }
-
-      return state;
-    }
-
-    private void EncodeType(
-      ByteBuffer buffer, 
-      RailState basis)
-    {
-      if (basis == null) // Full Encode
-      {
-        // Write: [Type]
-        buffer.WriteInt(
-          RailResource.Instance.EntityTypeCompressor, 
-          this.EntityType);
-      }
-      else
-      {
-        // No [Type] for deltas
-      }
-    }
-
-    private static int DecodeType(
-      ByteBuffer buffer, 
-      RailState basis, 
-      bool isDelta)
-    {
-      if (isDelta == false) // Full Decode
-      {
-        // Read: [Type]
-        return buffer.ReadInt(
-          RailResource.Instance.EntityTypeCompressor);
-      }
-      else // Delta Decode
-      {
-        // No [Type] for deltas -- use the basis
-        return basis.EntityType;
-      }
-    }
-
-    private void EncodeMutable(
-      ByteBuffer buffer, 
-      RailState basis)
-    {
-      if (basis == null) // Full Encode
-      {
-        // Write: [Mutable Data] (full)
-        this.EncodeMutableData(buffer, RailState.FLAGS_ALL);
-      }
-      else // Delta Encode
-      {
-        uint flags = this.GetDirtyFlags(basis);
-
-        // Write: [Dirty Flags]
-        buffer.Write(this.FlagBitsUsed, flags);
-
-        // Write: [Mutable Data] (delta)
-        this.EncodeMutableData(buffer, flags);
-      }
-    }
-
-    private void DecodeMutable(
-      ByteBuffer buffer, 
-      bool isDelta)
-    {
-      if (isDelta == false)
-      {
-        // Read: [Mutable Data] (full)
-        this.DecodeMutableData(buffer, RailState.FLAGS_ALL);
-      }
-      else
-      {
-        // Write: [Dirty Flags]
-        uint flags = buffer.Read(this.FlagBitsUsed);
-
-        // Write: [Mutable Data] (delta)
-        this.DecodeMutableData(buffer, flags);
-      }
-    }
-
-    private static RailState CreateState(
-      RailState basis,
-      Tick latestTick,
-      EntityId id,
-      int type)
-    {
-      RailState state = RailResource.Instance.AllocateState(type);
-      state.SetOnDecode(latestTick, id);
-      if (basis != null)
-        state.SetDataFrom(basis); // Copy over mutable and immutable data
-      return state;
-    }
-    #endregion
-
-    #region DEBUG
-    public virtual string DEBUG_FormatDebug() { return ""; }
-    #endregion
   }
 
-  /// <summary>
-  /// This is the class to override to attach user-defined data to an entity.
-  /// </summary>
   public abstract class RailState<T> : RailState
     where T : RailState<T>, new()
   {
     #region Casting Overrides
-    protected override uint GetDirtyFlags(RailState basis)
+    internal override void ApplyMutableFrom(RailState source, uint flags)
     {
-      return this.GetDirtyFlags((T)basis);
+      this.ApplyMutableFrom((T)source, flags);
     }
 
-    protected internal override void SetDataFrom(RailState other)
+    internal override void ApplyControllerFrom(RailState source)
     {
-      this.SetDataFrom((T)other);
+      this.ApplyControllerFrom((T)source);
+    }
+
+    internal override void ApplyImmutableFrom(RailState source)
+    {
+      this.ApplyImmutableFrom((T)source);
+    }
+
+    internal override uint CompareMutableData(RailState basis)
+    {
+      return CompareMutableData((T)basis);
+    }
+
+    internal override bool IsControllerDataEqual(RailState basis)
+    {
+      return IsControllerDataEqual((T)basis);
+    }
+
+    internal override void ApplySmoothed(RailState first, RailState second, float t)
+    {
+      this.ApplySmoothed((T)first, (T)second, t);
     }
     #endregion
 
-    protected abstract uint GetDirtyFlags(T basis);
-    protected abstract void SetDataFrom(T other);
+    protected abstract void ApplyMutableFrom(T source, uint flags);
+    protected abstract void ApplyControllerFrom(T source);
+    protected abstract void ApplyImmutableFrom(T source);
+
+    protected abstract uint CompareMutableData(T basis);
+    protected abstract bool IsControllerDataEqual(T basis);
+
+    protected virtual void ApplySmoothed(T first, T second, float t)
+    {
+      // Do nothing -- will just use whatever the current state is
+    }
   }
 }

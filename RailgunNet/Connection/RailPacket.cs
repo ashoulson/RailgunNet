@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-using CommonTools;
-
 namespace Railgun
 {
   interface IRailPacket
@@ -14,11 +12,6 @@ namespace Railgun
 
   internal abstract class RailPacket : IRailPacket
   {
-    // String hashes (md5):
-    private const int KEY_RESERVE_1 = 0x137CE785;
-    private const int KEY_RESERVE_2 = 0x4E9C95DA;
-    private const int KEY_ROLLBACK = 0x652FC8E6;
-
     /// <summary>
     /// Minimum number of reliable events to send.
     /// </summary>
@@ -106,23 +99,17 @@ namespace Railgun
       this.EncodePayload(buffer);
     }
 
-    internal void Decode(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+    internal void Decode(ByteBuffer buffer)
     {
       // Write: [Header]
       this.DecodeHeader(buffer);
 
       // Write: [Payload]
-      this.DecodePayload(buffer, entityLookup);
+      this.DecodePayload(buffer);
     }
 
-    protected abstract void EncodePayload(
-      ByteBuffer buffer);
-
-    protected abstract void DecodePayload(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup);
+    protected abstract void EncodePayload(ByteBuffer buffer);
+    protected abstract void DecodePayload(ByteBuffer buffer);
 
     #region Header
     private void EncodeHeader(ByteBuffer buffer)

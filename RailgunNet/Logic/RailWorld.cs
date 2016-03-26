@@ -22,11 +22,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
-  public class RailWorld : IRailLookup<EntityId, RailEntity>
+  public class RailWorld
   {
     public Tick Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities 
@@ -66,25 +64,21 @@ namespace Railgun
       this.Tick = Tick.INVALID;
     }
 
+    // Server-only
     internal T CreateEntity<T>()
       where T : RailEntity
     {
-      // TODO: Get some #defines in for this kind of thing
-      CommonDebug.Assert(RailConnection.IsServer);
-
-      T entity = RailResource.Instance.CreateEntity<T>();
+      T entity = RailEntity.Create<T>();
       entity.AssignId(this.nextEntityId);
       this.nextEntityId = this.nextEntityId.GetNext();
 
       return entity;
     }
 
+    // Client-only
     internal RailEntity CreateEntity(int type, EntityId id)
     {
-      // TODO: Get some #defines in for this kind of thing
-      CommonDebug.Assert(RailConnection.IsServer == false);
-
-      RailEntity entity = RailResource.Instance.CreateEntity(type);
+      RailEntity entity = RailEntity.Create(type);
       entity.AssignId(id);
 
       return entity;
@@ -103,7 +97,8 @@ namespace Railgun
       {
         this.entities.Remove(entityId);
         entity.World = null;
-        entity.Shutdown();
+        // TODO: REENABLE FOR DESTRUCTION
+        //entity.Shutdown();
       }
     }
     
@@ -111,7 +106,7 @@ namespace Railgun
     {
       this.Tick = this.Tick.GetNext();
       foreach (RailEntity entity in this.entities.Values)
-        entity.UpdateServer(this.Tick);
+        entity.UpdateServer();
     }
 
     internal void UpdateClient(Tick serverTick)
@@ -119,11 +114,12 @@ namespace Railgun
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
       {
-        Tick destroyedTick = entity.DestroyedTick;
-        if (destroyedTick.IsValid && (destroyedTick <= serverTick))
-          this.toRemove.Add(entity.Id);
-        else
-          entity.UpdateClient(serverTick);
+        // TODO: REENABLE FOR DESTRUCTION
+        //Tick destroyedTick = entity.DestroyedTick;
+        //if (destroyedTick.IsValid && (destroyedTick <= serverTick))
+        //  this.toRemove.Add(entity.Id);
+        //else
+          entity.UpdateClient();
       }
 
       foreach (EntityId id in this.toRemove)
@@ -134,7 +130,7 @@ namespace Railgun
     internal void StoreStates()
     {
       foreach (RailEntity entity in this.entities.Values)
-        entity.StoreState(this.Tick);
+        entity.StoreRecord();
     }
   }
 }

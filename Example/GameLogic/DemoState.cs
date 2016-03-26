@@ -43,17 +43,8 @@ public class DemoState : RailState<DemoState>
     FLAG_ANGLE |
     FLAG_STATUS;
 
-  protected override int FlagBitsUsed { get { return 4; } }
+  protected override int FlagBits { get { return 4; } }
   #endregion
-
-  protected override uint GetDirtyFlags(DemoState basis)
-  {
-    return
-      (DemoMath.CoordinatesEqual(this.X, basis.X) ? 0 : FLAG_X) |
-      (DemoMath.CoordinatesEqual(this.Y, basis.Y) ? 0 : FLAG_Y) |
-      (DemoMath.AnglesEqual(this.Angle, basis.Angle) ? 0 : FLAG_ANGLE) |
-      (this.Status == basis.Status ? 0 : FLAG_STATUS);
-  }
 
   // These should be properties, but we can't pass properties by ref
   public int ArchetypeId;
@@ -63,30 +54,16 @@ public class DemoState : RailState<DemoState>
   public float Angle;
   public byte Status;
 
-  protected override void ResetData()
+  protected override void DecodeMutableData(ByteBuffer buffer, uint flags)
   {
-    this.ArchetypeId = 0;
-    this.UserId = 0;
-    this.X = 0.0f;
-    this.Y = 0.0f;
-    this.Angle = 0.0f;
-    this.Status = 0;
+    if (this.GetFlag(flags, FLAG_X)) this.X = buffer.ReadFloat(DemoCompressors.Coordinate);
+    if (this.GetFlag(flags, FLAG_Y)) this.Y = buffer.ReadFloat(DemoCompressors.Coordinate);
+    if (this.GetFlag(flags, FLAG_ANGLE)) this.Angle = buffer.ReadFloat(DemoCompressors.Angle);
+    if (this.GetFlag(flags, FLAG_STATUS)) this.Status = buffer.ReadByte();
   }
 
-  protected override void SetDataFrom(DemoState other)
+  protected override void DecodeControllerData(ByteBuffer buffer)
   {
-    this.ArchetypeId = other.ArchetypeId;
-    this.UserId = other.UserId;
-    this.X = other.X;
-    this.Y = other.Y;
-    this.Angle = other.Angle;
-    this.Status = other.Status;
-  }
-
-  protected override void EncodeImmutableData(ByteBuffer buffer)
-  {
-    buffer.WriteInt(this.ArchetypeId);
-    buffer.WriteInt(this.UserId);
   }
 
   protected override void DecodeImmutableData(ByteBuffer buffer)
@@ -97,36 +74,67 @@ public class DemoState : RailState<DemoState>
 
   protected override void EncodeMutableData(ByteBuffer buffer, uint flags)
   {
-    if (this.Flag(flags, FLAG_X))      buffer.WriteFloat(DemoCompressors.Coordinate, this.X);
-    if (this.Flag(flags, FLAG_Y))      buffer.WriteFloat(DemoCompressors.Coordinate, this.Y);
-    if (this.Flag(flags, FLAG_ANGLE))  buffer.WriteFloat(DemoCompressors.Angle, this.Angle);
-    if (this.Flag(flags, FLAG_STATUS)) buffer.WriteByte(this.Status);
-  }
-
-  protected override void DecodeMutableData(ByteBuffer buffer, uint flags)
-  {
-    if (this.Flag(flags, FLAG_X))      this.X = buffer.ReadFloat(DemoCompressors.Coordinate);
-    if (this.Flag(flags, FLAG_Y))      this.Y = buffer.ReadFloat(DemoCompressors.Coordinate);
-    if (this.Flag(flags, FLAG_ANGLE))  this.Angle = buffer.ReadFloat(DemoCompressors.Angle);
-    if (this.Flag(flags, FLAG_STATUS)) this.Status = buffer.ReadByte();
+    if (this.GetFlag(flags, FLAG_X)) buffer.WriteFloat(DemoCompressors.Coordinate, this.X);
+    if (this.GetFlag(flags, FLAG_Y)) buffer.WriteFloat(DemoCompressors.Coordinate, this.Y);
+    if (this.GetFlag(flags, FLAG_ANGLE)) buffer.WriteFloat(DemoCompressors.Angle, this.Angle);
+    if (this.GetFlag(flags, FLAG_STATUS)) buffer.WriteByte(this.Status);
   }
 
   protected override void EncodeControllerData(ByteBuffer buffer)
   {
   }
 
-  protected override void DecodeControllerData(ByteBuffer buffer)
+  protected override void EncodeImmutableData(ByteBuffer buffer)
+  {
+    buffer.WriteInt(this.ArchetypeId);
+    buffer.WriteInt(this.UserId);
+  }
+
+  protected override void ResetAllData()
+  {
+    this.ArchetypeId = 0;
+    this.UserId = 0;
+    this.X = 0.0f;
+    this.Y = 0.0f;
+    this.Angle = 0.0f;
+    this.Status = 0;
+  }
+
+  protected override void ApplyMutableFrom(DemoState other, uint flags)
+  {
+    if (this.GetFlag(flags, FLAG_X)) this.X = other.X;
+    if (this.GetFlag(flags, FLAG_Y)) this.Y = other.Y;
+    if (this.GetFlag(flags, FLAG_ANGLE)) this.Angle = other.Angle;
+    if (this.GetFlag(flags, FLAG_STATUS)) this.Status = other.Status;
+  }
+
+  protected override void ApplyControllerFrom(DemoState other)
   {
   }
 
-  protected override void ResetControllerData()
+  protected override void ApplyImmutableFrom(DemoState other)
   {
+    this.ArchetypeId = other.ArchetypeId;
+    this.UserId = other.UserId;
   }
 
-  #region DEBUG
-  public override string DEBUG_FormatDebug()
+  protected override uint CompareMutableData(DemoState basis)
   {
-    return "(" + this.X + "," + this.Y + ")";
+    return
+      this.SetFlag(DemoMath.CoordinatesEqual(this.X, basis.X), FLAG_X) |
+      this.SetFlag(DemoMath.CoordinatesEqual(this.Y, basis.Y), FLAG_Y) |
+      this.SetFlag(DemoMath.AnglesEqual(this.Angle, basis.Angle), FLAG_ANGLE) |
+      this.SetFlag(this.Status == basis.Status, FLAG_STATUS);
   }
-  #endregion
+
+  protected override bool IsControllerDataEqual(DemoState basis)
+  {
+    return true;
+  }
+
+  protected override void ApplySmoothed(DemoState first, DemoState second, float t)
+  {
+    this.X = DemoMath.LerpUnclampedFloat(first.X, second.X, t);
+    this.Y = DemoMath.LerpUnclampedFloat(first.Y, second.Y, t);
+  }
 }

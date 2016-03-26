@@ -32,7 +32,7 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 
   int actionCount = 0;
 
-  protected override void OnStart()
+  protected override void Start()
   {
     DemoEvents.OnControlledAdded(this);
   }
@@ -50,9 +50,9 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 
     if (RailConnection.IsServer && command.Action)
     {
-      DemoActionEvent evnt = RailEvent.OpenEvent<DemoActionEvent>(this);
+      DemoActionEvent evnt = RailEvent.Create<DemoActionEvent>(this);
       evnt.Key = this.actionCount++;
-      this.Controller.QueueUnreliable(evnt, 4);
+      this.Controller.QueueUnreliable(evnt, 2);
     }
   }
 
@@ -60,9 +60,9 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
   {
   }
 
-  protected override void OnShutdown()
-  {
-    if (this.Shutdown != null)
-      this.Shutdown.Invoke();
-  }
+  //protected override void OnShutdown()
+  //{
+  //  if (this.Shutdown != null)
+  //    this.Shutdown.Invoke();
+  //}
 }

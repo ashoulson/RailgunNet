@@ -24,9 +24,9 @@ using System.Collections.Generic;
 
 using System.Diagnostics;
 
-namespace CommonTools
+namespace Railgun
 {
-  internal static class CommonDebug
+  internal static class RailDebug
   {
     // TODO: We may want some logging values outside of debug/diagnostics for
     // release builds. Investigate this possibility.

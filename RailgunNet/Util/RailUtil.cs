@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Railgun
 {
-  internal static class Iteration
+  internal static class RailUtil
   {
     public static IEnumerable<T> Interleave<T>(
       IEnumerable<T> first,

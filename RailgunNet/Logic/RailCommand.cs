@@ -22,19 +22,24 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
   /// Commands contain input data from the client to be applied to entities.
   /// </summary>
   public abstract class RailCommand : 
-    IRailPoolable<RailCommand>, IRailTimedValue, IRailCloneable<RailCommand>
+    IRailPoolable<RailCommand>, IRailTimedValue
   {
+    internal static RailCommand Create()
+    {
+      return RailResource.Instance.CreateCommand();
+    }
+
+    #region Interface
     IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
     void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
     Tick IRailTimedValue.Tick { get { return this.Tick; } }
+    #endregion
 
     internal abstract void SetDataFrom(RailCommand other);
 
@@ -54,7 +59,7 @@ namespace Railgun
 
     public RailCommand Clone()
     {
-      RailCommand clone = RailResource.Instance.AllocateCommand();
+      RailCommand clone = RailCommand.Create();
       clone.Tick = this.Tick;
       clone.SetDataFrom(this);
       return clone;
@@ -74,7 +79,7 @@ namespace Railgun
     internal static RailCommand Decode(
       ByteBuffer buffer)
     {
-      RailCommand command = RailResource.Instance.AllocateCommand();
+      RailCommand command = RailCommand.Create();
 
       // Read: [Tick]
       command.Tick = buffer.ReadTick();
