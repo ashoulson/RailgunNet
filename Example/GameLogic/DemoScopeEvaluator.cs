@@ -1,4 +1,6 @@
-﻿using System;
+﻿
+#if SERVER
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -52,3 +54,4 @@ public class DemoScopeEvaluator : RailScopeEvaluator
     return true;
   }
 }
+#endif

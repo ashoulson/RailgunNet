@@ -57,15 +57,8 @@ namespace Railgun
       this.ResetData();
     }
 
-    public RailCommand Clone()
-    {
-      RailCommand clone = RailCommand.Create();
-      clone.Tick = this.Tick;
-      clone.SetDataFrom(this);
-      return clone;
-    }
-
     #region Encode/Decode/etc.
+#if CLIENT
     internal void Encode(
       BitBuffer buffer)
     {
@@ -75,7 +68,9 @@ namespace Railgun
       // Write: [Command Data]
       this.EncodeData(buffer);
     }
+#endif
 
+#if SERVER
     internal static RailCommand Decode(
       BitBuffer buffer)
     {
@@ -89,6 +84,7 @@ namespace Railgun
 
       return command;
     }
+#endif
     #endregion
   }
 

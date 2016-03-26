@@ -26,8 +26,19 @@ using System.Linq;
 
 namespace Railgun
 {
+  /// <summary>
+  /// Entities represent any object existent in the world. These can be 
+  /// "physical" objects that move around and do things like pawns and
+  /// vehicles, or conceptual objects like scoreboards and teams that 
+  /// mainly serve as blackboards for transmitting state data.
+  /// 
+  /// In order to register an Entity class with Railgun, tag it with the
+  /// [RegisterEntity] attribute. See RailRegistry.cs for more information.
+  /// </summary>
   public abstract class RailEntity
   {
+    #region Smoothing/Prediction Internal Classes
+#if CLIENT
     private static void ComputeSmoothed(
       Tick realTick,
       float frameDelta,
@@ -252,7 +263,10 @@ namespace Railgun
         this.prevRecord = null;
       }
     }
+#endif
+    #endregion
 
+    #region Creation
     internal static RailEntity Create(int factoryType)
     {
       RailEntity entity = RailResource.Instance.CreateEntity(factoryType);
@@ -261,15 +275,19 @@ namespace Railgun
       return entity;
     }
 
+#if SERVER
     internal static T Create<T>()
       where T : RailEntity
     {
       int factoryType = RailResource.Instance.GetEntityFactoryType<T>();
       return (T)RailEntity.Create(factoryType);
     }
+#endif
+    #endregion
 
-    // Settings
-    protected virtual bool ForceUpdates { get { return true; } } // Server-only
+#if SERVER
+    protected virtual bool ForceUpdates { get { return true; } }
+#endif
 
     // Simulation info
     protected internal RailWorld World { get; internal set; }
@@ -278,10 +296,8 @@ namespace Railgun
 
     // Synchronization info
     public EntityId Id { get; private set; }
-    internal Tick DestroyedTick { get; private set; }
+    internal Tick RemovedTick { get; private set; }
 
-    private RailDejitterBuffer<RailState.Delta> incoming;  // Client-only
-    private RailQueueBuffer<RailState.Record> outgoing;    // Server-only
     private IRailControllerInternal controller;
 
     internal virtual void OnSimulateCommand(RailCommand command) { }
@@ -292,9 +308,14 @@ namespace Railgun
     private int factoryType;
     private bool hasStarted;
 
-    // Client-only
+#if SERVER
+    private readonly RailQueueBuffer<RailState.Record> outgoing;
+#endif
+#if CLIENT
+    private readonly RailDejitterBuffer<RailState.Delta> incoming; 
     private readonly SmoothingBuffer smoothBuffer;
     private readonly PredictionBuffer predictBuffer;
+#endif
 
     internal RailEntity()
     {
@@ -306,18 +327,19 @@ namespace Railgun
       this.controller = null;
       this.hasStarted = false;
 
-      // TODO: Don't need this on the server!
+#if SERVER
+      this.outgoing =
+        new RailQueueBuffer<RailState.Record>(
+          RailConfig.DEJITTER_BUFFER_LENGTH);
+#endif
+#if CLIENT
       this.incoming =
         new RailDejitterBuffer<RailState.Delta>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
       this.smoothBuffer = new SmoothingBuffer(this.incoming);
       this.predictBuffer = new PredictionBuffer(this.incoming);
-
-      // TODO: Don't need this on the client!
-      this.outgoing =
-        new RailQueueBuffer<RailState.Record>(
-          RailConfig.DEJITTER_BUFFER_LENGTH);
+#endif
     }
 
     internal void AssignId(EntityId id)
@@ -342,16 +364,7 @@ namespace Railgun
       this.OnShutdown();
     }
 
-    #region Server
-    internal void UpdateServer()
-    {
-      this.DoStart();
-      IRailControllerInternal controller = this.controller;
-      if ((controller != null) && (controller.LatestCommand != null))
-        this.OnSimulateCommand(this.controller.LatestCommand);
-      this.OnSimulate();
-    }
-
+#if SERVER
     internal void StoreRecord()
     {
       RailState.Record record =
@@ -378,36 +391,39 @@ namespace Railgun
         basis,
         (destination == this.controller),
         (basisTick.IsValid == false),
-        this.DestroyedTick,
+        this.RemovedTick,
         this.ForceUpdates);
     }
 
-    internal void Destroy()
+    internal void UpdateServer()
     {
-      this.DestroyedTick = this.World.Tick + 1;
-    }
-    #endregion
-
-    #region Client
-    internal void UpdateClient()
-    {
-      this.UpdateSmoothing();
       this.DoStart();
-      if (this.controller != null)
-        this.UpdatePrediction();
+      IRailControllerInternal controller = this.controller;
+      if ((controller != null) && (controller.LatestCommand != null))
+        this.OnSimulateCommand(this.controller.LatestCommand);
+      this.OnSimulate();
+    }
+
+    internal void MarkForRemove()
+    {
+      // We'll remove on the next tick since we're probably 
+      // already mid-way through evaluating this tick
+      this.RemovedTick = this.World.Tick + 1;
+    }
+#endif
+
+#if CLIENT
+    internal bool HasReadyState(Tick tick)
+    {
+      return (this.incoming.GetLatestAt(tick) != null);
     }
 
     internal void ReceiveDelta(RailState.Delta delta)
     {
       if (delta.IsDestroyed)
-        this.DestroyedTick = delta.DestroyedTick;
+        this.RemovedTick = delta.RemovedTick;
       else
         this.incoming.Store(delta);
-    }
-
-    internal bool HasReadyState(Tick tick)
-    {
-      return (this.incoming.GetLatestAt(tick) != null);
     }
 
     internal RailState GetSmoothedState(float frameDelta)
@@ -416,6 +432,14 @@ namespace Railgun
         return this.smoothBuffer.GetSmoothed(frameDelta, this.World.Tick);
       else
         return this.predictBuffer.GetSmoothed(frameDelta);
+    }
+
+    internal void UpdateClient()
+    {
+      this.UpdateSmoothing();
+      this.DoStart();
+      if (this.controller != null)
+        this.UpdatePrediction();
     }
 
     private void UpdateSmoothing()
@@ -438,7 +462,7 @@ namespace Railgun
         this.predictBuffer.Update(this.State);
       }
     }
-    #endregion
+#endif
   }
 
   /// <summary>
@@ -449,10 +473,12 @@ namespace Railgun
   {
     public new TState State { get { return (TState)base.State; } }
 
+#if CLIENT
     public new TState GetSmoothedState(float frameDelta) 
     { 
       return (TState)base.GetSmoothedState(frameDelta); 
     }
+#endif
   }
 
   /// <summary>

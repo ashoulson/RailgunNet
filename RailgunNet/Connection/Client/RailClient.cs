@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+#if CLIENT
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -26,7 +27,8 @@ using System.Linq;
 
 namespace Railgun
 {
-  public class RailClient : RailConnection
+  public class RailClient 
+    : RailConnection
   {
     private RailClientPeer serverPeer;
 
@@ -49,7 +51,7 @@ namespace Railgun
     public RailClient()
     {
       RailConnection.IsServer = false;
-      this.World.InitializeClient();
+      this.World.Initialize(Tick.INVALID);
       this.serverPeer = null;
 
       this.localTick = Tick.START;
@@ -151,7 +153,8 @@ namespace Railgun
       RailEntity entity;
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
       {
-        entity = this.World.CreateEntity(delta.FactoryType, delta.EntityId);
+        entity = RailEntity.Create(delta.FactoryType);
+        entity.AssignId(delta.EntityId);
         this.pendingEntities.Add(entity.Id, entity);
         this.knownEntities.Add(entity.Id, entity);
       }
@@ -176,3 +179,4 @@ namespace Railgun
     #endregion
   }
 }
+#endif

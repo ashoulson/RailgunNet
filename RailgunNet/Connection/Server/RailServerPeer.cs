@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+#if SERVER
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -123,7 +124,7 @@ namespace Railgun
       foreach (RailEntity entity in destroyedEntities)
       {
         Tick latest = this.ackedView.GetLatest(entity.Id);
-        if (latest.IsValid && (latest < entity.DestroyedTick))
+        if (latest.IsValid && (latest < entity.RemovedTick))
           yield return entity.ProduceDelta(latest, this);
       }
     }
@@ -164,3 +165,4 @@ namespace Railgun
     }
   }
 }
+#endif

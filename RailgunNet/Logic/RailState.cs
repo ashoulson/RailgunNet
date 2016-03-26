@@ -1,15 +1,57 @@
-﻿using System;
+﻿/*
+ *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
+ *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
+ *
+ *  This software is provided 'as-is', without any express or implied
+ *  warranty. In no event will the authors be held liable for any damages
+ *  arising from the use of this software.
+ *  Permission is granted to anyone to use this software for any purpose,
+ *  including commercial applications, and to alter it and redistribute it
+ *  freely, subject to the following restrictions:
+ *  
+ *  1. The origin of this software must not be misrepresented; you must not
+ *     claim that you wrote the original software. If you use this software
+ *     in a product, an acknowledgment in the product documentation would be
+ *     appreciated but is not required.
+ *  2. Altered source versions must be plainly marked as such, and must not be
+ *     misrepresented as being the original software.
+ *  3. This notice may not be removed or altered from any source distribution.
+*/
+
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Railgun
 {
+  /// <summary>
+  /// States are the fundamental data management class of Railgun. They 
+  /// contain all of the synchronized information that an Entity needs to
+  /// function. States have multiple sub-fields that are sent at different
+  /// cadences, as follows:
+  /// 
+  ///    Mutable Data:
+  ///       Sent whenever the state differs from the client's view.
+  ///       Delta-encoded against the client's view.
+  ///    
+  ///    Controller Data:
+  ///       Sent to the controller of the entity every update.
+  ///       Not delta-encoded -- always sent full-encode.
+  ///       
+  ///    Immutable Data:
+  ///       Sent only once at creation. Can not be changed after.
+  ///       
+  ///    Removal Data (Not currently implemented):
+  ///       Sent when the state is removed. Arrives at the time of removal.
+  ///       
+  /// In order to register a State class with Railgun, tag it with the
+  /// [RegisterState] attribute. See RailRegistry.cs for more information.
+  /// </summary>
   public abstract class RailState : IRailPoolable<RailState>
   {
     internal const uint FLAGS_ALL  = 0xFFFFFFFF; // All values different
     internal const uint FLAGS_NONE = 0x00000000; // No values different
 
+    #region Delta/Record Internal Classes
     /// <summary>
     /// Used to differentiate/typesafe state deltas. Not strictly necessary.
     /// </summary>
@@ -28,7 +70,7 @@ namespace Railgun
       internal bool HasImmutableData { get { return this.state.HasImmutableData; } }
 
       internal bool IsDestroyed { get { return this.state.DestroyedTick.IsValid; } }
-      internal Tick DestroyedTick { get { return this.state.DestroyedTick; } }
+      internal Tick RemovedTick { get { return this.state.DestroyedTick; } }
 
       private readonly RailState state;
 
@@ -65,7 +107,14 @@ namespace Railgun
         this.state.tick = tick;
       }
     }
+    #endregion
 
+    #region Interface
+    IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
+    void IRailPoolable<RailState>.Reset() { this.Reset(); }
+    #endregion
+
+    #region Creation
     internal static RailState Create(int factoryType)
     {
       RailState state = RailResource.Instance.CreateState(factoryType);
@@ -73,11 +122,7 @@ namespace Railgun
       return state;
     }
 
-    #region Interface
-    IRailPool<RailState> IRailPoolable<RailState>.Pool { get; set; }
-    void IRailPoolable<RailState>.Reset() { this.Reset(); }
-    #endregion
-
+#if SERVER
     /// <summary>
     /// Creates a delta between a state and a record. If forced is set to
     /// false, this function will return null if there is no change between
@@ -120,6 +165,7 @@ namespace Railgun
 
       return new RailState.Delta(tick, entityId, deltaState);
     }
+#endif
 
     /// <summary>
     /// Creates a record of the current state, taking the latest record (if
@@ -144,6 +190,7 @@ namespace Railgun
       RailState recordState = current.Clone();
       return new RailState.Record(tick, recordState);
     }
+    #endregion
 
     private static IntCompressor FactoryTypeCompressor
     {
@@ -155,7 +202,7 @@ namespace Railgun
     private uint Flags { get; set; }             // Synchronized
     private bool HasControllerData { get; set; } // Synchronized
     private bool HasImmutableData { get; set; }  // Synchronized
-    private Tick DestroyedTick { get; set; }
+    private Tick DestroyedTick { get; set; }     // Synchronized
 
     #region Client
     protected abstract void DecodeMutableData(BitBuffer buffer, uint flags);
@@ -180,10 +227,11 @@ namespace Railgun
 
     internal abstract void ApplySmoothed(RailState first, RailState second, float t);
 
-    // Only accessible via Delta or Record
-    private int factoryType;
+    // Only accessible (read or write) via Delta or Record
     private EntityId entityId;
     private Tick tick;
+
+    private int factoryType;
 
     protected bool GetFlag(uint flags, uint flag)
     {
@@ -197,26 +245,11 @@ namespace Railgun
       return 0;
     }
 
-    internal void ApplyDelta(RailState.Delta delta)
-    {
-      RailState deltaState = delta.State;
-      this.ApplyMutableFrom(deltaState, deltaState.Flags);
-      if (deltaState.HasControllerData)
-        this.ApplyControllerFrom(deltaState);
-      if (deltaState.HasImmutableData)
-        this.ApplyImmutableFrom(deltaState);
-    }
-
     internal RailState Clone()
     {
       RailState clone = RailState.Create(this.factoryType);
       clone.OverwriteFrom(this);
       return clone;
-    }
-
-    internal void OverwriteFrom(RailState.Record source)
-    {
-      this.OverwriteFrom(source.State);
     }
 
     internal void OverwriteFrom(RailState source)
@@ -237,6 +270,19 @@ namespace Railgun
       this.ResetAllData();
     }
 
+#if CLIENT
+    internal void ApplyDelta(RailState.Delta delta)
+    {
+      RailState deltaState = delta.State;
+      this.ApplyMutableFrom(deltaState, deltaState.Flags);
+      if (deltaState.HasControllerData)
+        this.ApplyControllerFrom(deltaState);
+      if (deltaState.HasImmutableData)
+        this.ApplyImmutableFrom(deltaState);
+    }
+#endif
+
+#if SERVER
     internal static void EncodeDelta(
       BitBuffer buffer,
       RailState.Delta delta)
@@ -280,7 +326,8 @@ namespace Railgun
       if (state.HasImmutableData)
         state.EncodeImmutableData(buffer);
     }
-
+#endif
+#if CLIENT
     internal static RailState.Delta DecodeDelta(
       BitBuffer buffer, 
       Tick packetTick)
@@ -326,6 +373,7 @@ namespace Railgun
 
       return new RailState.Delta(packetTick, entityId, state);
     }
+#endif
   }
 
   public abstract class RailState<T> : RailState

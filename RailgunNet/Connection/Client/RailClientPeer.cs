@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+#if CLIENT
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,8 +30,9 @@ namespace Railgun
   /// <summary>
   /// The peer created by the client representing the server.
   /// </summary>
-  internal class RailClientPeer : 
-    RailPeer, IRailControllerInternal
+  internal class RailClientPeer
+    : RailPeer
+    , IRailControllerInternal
   {
     internal event Action<IRailServerPacket> PacketReceived;
 
@@ -117,3 +119,4 @@ namespace Railgun
     }
   }
 }
+#endif

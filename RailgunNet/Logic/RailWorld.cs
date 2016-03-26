@@ -32,13 +32,8 @@ namespace Railgun
       get { return this.entities.Values; } 
     }
 
-    // TODO: Rollover? Free list?
-    private EntityId nextEntityId;
-
     private Dictionary<EntityId, RailEntity> entities;
-
-    // Pre-allocated removal list
-    private List<EntityId> toRemove;
+    private List<EntityId> toRemove; // Pre-allocated removal list
 
     public bool TryGet(EntityId id, out RailEntity value)
     {
@@ -48,40 +43,13 @@ namespace Railgun
     internal RailWorld()
     {
       this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
-      this.nextEntityId = EntityId.INVALID.GetNext();
       this.Tick = Tick.INVALID;
-
       this.toRemove = new List<EntityId>();
     }
 
-    internal void InitializeServer()
+    internal void Initialize(Tick tick)
     {
-      this.Tick = Tick.START;
-    }
-
-    internal void InitializeClient()
-    {
-      this.Tick = Tick.INVALID;
-    }
-
-    // Server-only
-    internal T CreateEntity<T>()
-      where T : RailEntity
-    {
-      T entity = RailEntity.Create<T>();
-      entity.AssignId(this.nextEntityId);
-      this.nextEntityId = this.nextEntityId.GetNext();
-
-      return entity;
-    }
-
-    // Client-only
-    internal RailEntity CreateEntity(int type, EntityId id)
-    {
-      RailEntity entity = RailEntity.Create(type);
-      entity.AssignId(id);
-
-      return entity;
+      this.Tick = tick;
     }
 
     internal void AddEntity(RailEntity entity)
@@ -101,6 +69,7 @@ namespace Railgun
       }
     }
     
+#if SERVER
     internal void UpdateServer()
     {
       this.Tick = this.Tick.GetNext();
@@ -108,12 +77,19 @@ namespace Railgun
         entity.UpdateServer();
     }
 
+    internal void StoreStates()
+    {
+      foreach (RailEntity entity in this.entities.Values)
+        entity.StoreRecord();
+    }
+#endif
+#if CLIENT
     internal void UpdateClient(Tick serverTick)
     {
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
       {
-        Tick destroyedTick = entity.DestroyedTick;
+        Tick destroyedTick = entity.RemovedTick;
         if (destroyedTick.IsValid && (destroyedTick <= serverTick))
           this.toRemove.Add(entity.Id);
         else
@@ -124,11 +100,6 @@ namespace Railgun
         this.RemoveEntity(id);
       this.toRemove.Clear();
     }
-
-    internal void StoreStates()
-    {
-      foreach (RailEntity entity in this.entities.Values)
-        entity.StoreRecord();
-    }
+#endif
   }
 }

@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using System.Linq;
-
 namespace Railgun
 {
   public interface IRailController
@@ -36,17 +34,6 @@ namespace Railgun
     void QueueUnreliable(RailEvent evnt, int timeToLive = 1);
   }
 
-  /// <summary>
-  /// Server-only extension of the IRailController
-  /// </summary>
-  public interface IRailControllerServer : IRailController
-  {
-    void GrantControl(RailEntity entity);
-    void RevokeControl(RailEntity entity);
-
-    RailScopeEvaluator ScopeEvaluator { set; }
-  }
-
   internal interface IRailControllerInternal : IRailController
   {
     // Server-only
@@ -55,4 +42,14 @@ namespace Railgun
     // Client-only
     IEnumerable<RailCommand> PendingCommands { get; }
   }
+
+#if SERVER
+  public interface IRailControllerServer : IRailController
+  {
+    void GrantControl(RailEntity entity);
+    void RevokeControl(RailEntity entity);
+
+    RailScopeEvaluator ScopeEvaluator { set; }
+  }
+#endif
 }

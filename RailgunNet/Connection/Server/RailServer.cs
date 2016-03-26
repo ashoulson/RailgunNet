@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+#if SERVER
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -53,10 +54,15 @@ namespace Railgun
     /// </summary>
     private Dictionary<EntityId, RailEntity> destroyedEntities;
 
+    /// <summary>
+    /// Used for creating new entities and assigning them unique ids.
+    /// </summary>
+    private EntityId nextEntityId;
+
     public RailServer() : base()
     {
       RailConnection.IsServer = true;
-      this.World.InitializeServer();
+      this.World.Initialize(Tick.START);
 
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
       this.destroyedEntities = new Dictionary<EntityId, RailEntity>();
@@ -120,10 +126,11 @@ namespace Railgun
     /// <summary>
     /// Creates an entity of a given type and adds it to the world.
     /// </summary>
-    public T AddNewEntity<T>()
-      where T : RailEntity
+    public T AddNewEntity<T>() where T : RailEntity
     {
-      T entity = this.World.CreateEntity<T>();
+      T entity = RailEntity.Create<T>();
+      entity.AssignId(this.nextEntityId);
+      this.nextEntityId = this.nextEntityId.GetNext();
       this.World.AddEntity(entity);
       return (T)entity;
     }
@@ -133,7 +140,7 @@ namespace Railgun
     /// </summary>
     public void DestroyEntity(RailEntity entity)
     {
-      entity.Destroy();
+      entity.MarkForRemove();
       this.World.RemoveEntity(entity.Id);
       this.destroyedEntities.Add(entity.Id, entity);
     }
@@ -150,3 +157,4 @@ namespace Railgun
     }
   }
 }
+#endif
