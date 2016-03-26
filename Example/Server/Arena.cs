@@ -37,16 +37,16 @@ namespace Example
       server.ControllerJoined += this.OnControllerAdded;
       server.ControllerLeft += this.OnControllerLeft;
 
-      //for (int i = 0; i < 15; i++)
-      //{
-      //  for (int j = 0; j < 15; j++)
-      //  {
-      //    DemoDummy dummy = this.server.AddNewEntity<DemoDummy>();
-      //    dummy.State.ArchetypeId = 1;
-      //    dummy.State.X = i * 5;
-      //    dummy.State.Y = j * 5;
-      //  }
-      //}
+      for (int i = 0; i < 15; i++)
+      {
+        for (int j = 0; j < 15; j++)
+        {
+          DemoDummy dummy = this.server.AddNewEntity<DemoDummy>();
+          dummy.State.ArchetypeId = 1;
+          dummy.State.X = (float)i * 5.0f;
+          dummy.State.Y = (float)j * 5.0f;
+        }
+      }
     }
 
     private void OnControllerAdded(IRailControllerServer controller)
@@ -56,6 +56,10 @@ namespace Example
       controller.GrantControl(controlled);
       controller.ScopeEvaluator = new DemoScopeEvaluator(controlled);
       controller.UserData = controlled;
+
+      //DemoMimic mimic = this.server.AddNewEntity<DemoMimic>();
+      //mimic.State.ArchetypeId = 2;
+      //mimic.Bind(controlled, 3.5f, 0.0f);
     }
 
     private void OnControllerLeft(IRailControllerServer controller)

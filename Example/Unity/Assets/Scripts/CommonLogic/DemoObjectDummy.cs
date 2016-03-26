@@ -32,8 +32,6 @@ public class DemoObjectDummy : MonoBehaviour
       this.DoSmoothing = true;
     if (Input.GetKeyDown(KeyCode.Alpha2))
       this.DoSmoothing = false;
-
-    gameObject.GetComponent<Renderer>().material.color = this.color;
   }
 
   private void UpdatePosition()

@@ -26,46 +26,41 @@ using Railgun;
 using UnityEngine;
 
 [RegisterEntity(typeof(DemoState))]
-public class DemoDummy : RailEntity<DemoState>
+public class DemoMimic : RailEntity<DemoState>
 {
-  public static System.Random random = new System.Random();
-
+  public event Action Shutdown;
   public event Action Frozen;
   public event Action Unfrozen;
 
-  private float startX;
-  private float startY;
-  private float distance;
-  private float angle;
-  private float speed;
+  private DemoControlled controlled;
+  private float xOffset;
+  private float yOffset;
+
+  public void Bind(
+    DemoControlled controlled,
+    float xOffset,
+    float yOffset)
+  {
+    this.controlled = controlled;
+    this.xOffset = xOffset;
+    this.yOffset = yOffset;
+  }
 
   protected override void OnStart()
   {
-    DemoEvents.OnDummyAdded(this);
-
-    this.startX = this.State.X;
-    this.startY = this.State.Y;
-    this.angle = 0.0f;
-
-    this.distance = 1.0f + ((float)DemoDummy.random.NextDouble() * 2.0f);
-    this.speed = 1.0f + ((float)DemoDummy.random.NextDouble() * 2.0f);
-
-    if (DemoDummy.random.NextDouble() > 0.5f)
-      this.speed *= -1.0f;
+    DemoEvents.OnMimicAdded(this);
   }
 
   protected override void OnSimulate()
   {
-    this.angle += RailConfig.FIXED_DELTA_TIME * this.speed;
+    this.State.X = this.controlled.State.X + this.xOffset;
+    this.State.Y = this.controlled.State.Y + this.yOffset;
+  }
 
-    float adjustedX = this.startX + this.distance;
-    float adjustedY = this.startY;
-
-    float newX = (float)(this.startX + (adjustedX - this.startX) * System.Math.Cos(this.angle) - (adjustedY - this.startY) * System.Math.Sin(this.angle));
-    float newY = (float)(this.startY + (adjustedX - this.startX) * System.Math.Sin(this.angle) + (adjustedY - this.startY) * System.Math.Cos(this.angle));
-
-    this.State.X = newX;
-    this.State.Y = newY;
+  protected override void OnShutdown()
+  {
+    if (this.Shutdown != null)
+      this.Shutdown.Invoke();
   }
 
   protected override void OnFrozen()
