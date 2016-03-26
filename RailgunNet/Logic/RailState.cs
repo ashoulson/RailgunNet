@@ -158,15 +158,15 @@ namespace Railgun
     private Tick DestroyedTick { get; set; }
 
     #region Client
-    protected abstract void DecodeMutableData(ByteBuffer buffer, uint flags);
-    protected abstract void DecodeControllerData(ByteBuffer buffer);
-    protected abstract void DecodeImmutableData(ByteBuffer buffer);
+    protected abstract void DecodeMutableData(BitBuffer buffer, uint flags);
+    protected abstract void DecodeControllerData(BitBuffer buffer);
+    protected abstract void DecodeImmutableData(BitBuffer buffer);
     #endregion
 
     #region Server
-    protected abstract void EncodeMutableData(ByteBuffer buffer, uint flags);
-    protected abstract void EncodeControllerData(ByteBuffer buffer);
-    protected abstract void EncodeImmutableData(ByteBuffer buffer);
+    protected abstract void EncodeMutableData(BitBuffer buffer, uint flags);
+    protected abstract void EncodeControllerData(BitBuffer buffer);
+    protected abstract void EncodeImmutableData(BitBuffer buffer);
     #endregion
 
     protected abstract void ResetAllData();
@@ -238,7 +238,7 @@ namespace Railgun
     }
 
     internal static void EncodeDelta(
-      ByteBuffer buffer,
+      BitBuffer buffer,
       RailState.Delta delta)
     {
       // Write: [EntityId]
@@ -282,7 +282,7 @@ namespace Railgun
     }
 
     internal static RailState.Delta DecodeDelta(
-      ByteBuffer buffer, 
+      BitBuffer buffer, 
       Tick packetTick)
     {
       // Write: [EntityId]

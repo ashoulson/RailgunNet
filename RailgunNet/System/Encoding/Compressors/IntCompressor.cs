@@ -27,7 +27,7 @@ namespace Railgun
   public static class IntCompressorExtensions
   {
     public static void WriteInt(
-      this ByteBuffer buffer,
+      this BitBuffer buffer,
       IntCompressor compressor,
       int value)
     {
@@ -35,14 +35,14 @@ namespace Railgun
     }
 
     public static int ReadInt(
-      this ByteBuffer buffer,
+      this BitBuffer buffer,
       IntCompressor compressor)
     {
       return compressor.Unpack(buffer.Read(compressor.RequiredBits));
     }
 
     public static int PeekInt(
-      this ByteBuffer buffer,
+      this BitBuffer buffer,
       IntCompressor compressor)
     {
       return compressor.Unpack(buffer.Peek(compressor.RequiredBits));

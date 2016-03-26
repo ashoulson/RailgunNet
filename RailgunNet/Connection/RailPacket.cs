@@ -7,7 +7,7 @@ namespace Railgun
 {
   interface IRailPacket
   {
-    void Encode(ByteBuffer buffer);
+    void Encode(BitBuffer buffer);
   }
 
   internal abstract class RailPacket : IRailPacket
@@ -90,7 +90,7 @@ namespace Railgun
     /// remaining packet space. If more space is available, we will try
     /// to fill it with any remaining events, up to the maximum packet size.
     /// </summary>
-    public void Encode(ByteBuffer buffer)
+    public void Encode(BitBuffer buffer)
     {
       // Write: [Header]
       this.EncodeHeader(buffer);
@@ -99,7 +99,7 @@ namespace Railgun
       this.EncodePayload(buffer);
     }
 
-    internal void Decode(ByteBuffer buffer)
+    internal void Decode(BitBuffer buffer)
     {
       // Write: [Header]
       this.DecodeHeader(buffer);
@@ -108,11 +108,11 @@ namespace Railgun
       this.DecodePayload(buffer);
     }
 
-    protected abstract void EncodePayload(ByteBuffer buffer);
-    protected abstract void DecodePayload(ByteBuffer buffer);
+    protected abstract void EncodePayload(BitBuffer buffer);
+    protected abstract void DecodePayload(BitBuffer buffer);
 
     #region Header
-    private void EncodeHeader(ByteBuffer buffer)
+    private void EncodeHeader(BitBuffer buffer)
     {
       // Write: [LocalTick]
       buffer.WriteTick(this.senderTick);
@@ -124,7 +124,7 @@ namespace Railgun
       buffer.WriteEventId(this.ackEventId);
     }
 
-    private void DecodeHeader(ByteBuffer buffer)
+    private void DecodeHeader(BitBuffer buffer)
     {
       // Read: [LocalTick]
       this.senderTick = buffer.ReadTick();

@@ -48,7 +48,7 @@ public class DemoCommand : RailCommand<DemoCommand>
     this.Action = action;
   }
 
-  protected override void EncodeData(ByteBuffer buffer)
+  protected override void EncodeData(BitBuffer buffer)
   {
     buffer.WriteBool(this.Up);
     buffer.WriteBool(this.Down);
@@ -57,7 +57,7 @@ public class DemoCommand : RailCommand<DemoCommand>
     buffer.WriteBool(this.Action);
   }
 
-  protected override void DecodeData(ByteBuffer buffer)
+  protected override void DecodeData(BitBuffer buffer)
   {
     this.SetData(
       buffer.ReadBool(),

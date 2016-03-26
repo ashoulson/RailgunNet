@@ -91,7 +91,7 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    protected override void EncodePayload(ByteBuffer buffer)
+    protected override void EncodePayload(BitBuffer buffer)
     {
       // Write: [CommandAck]
       buffer.WriteTick(this.CommandAck);
@@ -100,7 +100,7 @@ namespace Railgun
       this.EncodeDeltas(buffer);
     }
 
-    protected override void DecodePayload(ByteBuffer buffer)
+    protected override void DecodePayload(BitBuffer buffer)
     {
       // Read: [CommandAck]
       this.CommandAck = buffer.ReadTick();
@@ -109,7 +109,7 @@ namespace Railgun
       this.DecodeDeltas(buffer);
     }
 
-    private void EncodeDeltas(ByteBuffer buffer)
+    private void EncodeDeltas(BitBuffer buffer)
     {
       buffer.PackToSize(
         RailConfig.MESSAGE_MAX_SIZE,
@@ -119,7 +119,7 @@ namespace Railgun
         (delta) => this.sent.Add(delta));
     }
 
-    private void DecodeDeltas(ByteBuffer buffer)
+    private void DecodeDeltas(BitBuffer buffer)
     {
       IEnumerable<RailState.Delta> decoded =
         buffer.UnpackAll(

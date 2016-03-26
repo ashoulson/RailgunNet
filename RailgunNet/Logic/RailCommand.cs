@@ -45,8 +45,8 @@ namespace Railgun
 
     internal Tick Tick { get; set; }
 
-    protected abstract void EncodeData(ByteBuffer buffer);
-    protected abstract void DecodeData(ByteBuffer buffer);
+    protected abstract void EncodeData(BitBuffer buffer);
+    protected abstract void DecodeData(BitBuffer buffer);
     protected abstract void ResetData();
 
     protected internal abstract void Populate();
@@ -67,7 +67,7 @@ namespace Railgun
 
     #region Encode/Decode/etc.
     internal void Encode(
-      ByteBuffer buffer)
+      BitBuffer buffer)
     {
       // Write: [Tick]
       buffer.WriteTick(this.Tick);
@@ -77,7 +77,7 @@ namespace Railgun
     }
 
     internal static RailCommand Decode(
-      ByteBuffer buffer)
+      BitBuffer buffer)
     {
       RailCommand command = RailCommand.Create();
 

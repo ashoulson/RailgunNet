@@ -184,7 +184,7 @@ namespace Railgun
 
     protected void OnMessagesReady(IRailNetPeer peer)
     {
-      foreach (ByteBuffer buffer in this.interpreter.BeginReads(this.netPeer))
+      foreach (BitBuffer buffer in this.interpreter.BeginReads(this.netPeer))
       {
         RailPacket packet = this.AllocateIncoming();
 

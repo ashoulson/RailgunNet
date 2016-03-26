@@ -28,17 +28,17 @@ namespace Railgun
   {
     private const int BITS_USED = 6; // Assuming MAX_RANGE is 50
 
-    public static void WriteTickSpan(this ByteBuffer buffer, TickSpan eventId)
+    public static void WriteTickSpan(this BitBuffer buffer, TickSpan eventId)
     {
       buffer.Write(TickSpanExtensions.BITS_USED, eventId.Pack());
     }
 
-    public static TickSpan ReadTickSpan(this ByteBuffer buffer)
+    public static TickSpan ReadTickSpan(this BitBuffer buffer)
     {
       return TickSpan.Unpack((byte)buffer.Read(TickSpanExtensions.BITS_USED));
     }
 
-    public static TickSpan PeekTickSpan(this ByteBuffer buffer)
+    public static TickSpan PeekTickSpan(this BitBuffer buffer)
     {
       return TickSpan.Unpack((byte)buffer.Peek(TickSpanExtensions.BITS_USED));
     }

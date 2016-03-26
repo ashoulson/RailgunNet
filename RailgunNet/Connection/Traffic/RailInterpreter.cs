@@ -30,12 +30,12 @@ namespace Railgun
   internal class RailInterpreter
   {
     private readonly byte[] bytes;
-    private readonly ByteBuffer byteBuffer;
+    private readonly BitBuffer byteBuffer;
 
     internal RailInterpreter()
     {
       this.bytes = new byte[RailConfig.DATA_BUFFER_SIZE];
-      this.byteBuffer = new ByteBuffer();
+      this.byteBuffer = new BitBuffer();
     }
 
     internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
@@ -49,7 +49,7 @@ namespace Railgun
       peer.EnqueueSend(this.bytes, length);
     }
 
-    internal IEnumerable<ByteBuffer> BeginReads(IRailNetPeer peer)
+    internal IEnumerable<BitBuffer> BeginReads(IRailNetPeer peer)
     {
       foreach (int length in peer.ReadReceived(this.bytes))
       {

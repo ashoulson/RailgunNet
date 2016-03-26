@@ -26,17 +26,17 @@ namespace Railgun
 {
   public static class EntityIdExtensions
   {
-    public static void WriteEntityId(this ByteBuffer buffer, EntityId eventId)
+    public static void WriteEntityId(this BitBuffer buffer, EntityId eventId)
     {
       buffer.WriteInt(eventId.Pack());
     }
 
-    public static EntityId ReadEntityId(this ByteBuffer buffer)
+    public static EntityId ReadEntityId(this BitBuffer buffer)
     {
       return EntityId.Unpack(buffer.ReadInt());
     }
 
-    public static EntityId PeekEntityId(this ByteBuffer buffer)
+    public static EntityId PeekEntityId(this BitBuffer buffer)
     {
       return EntityId.Unpack(buffer.PeekInt());
     }

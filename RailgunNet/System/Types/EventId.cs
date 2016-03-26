@@ -28,17 +28,17 @@ namespace Railgun
   {
     private const int BITS_USED = EventId.LOG_MAX_EVENTS;
 
-    public static void WriteEventId(this ByteBuffer buffer, EventId eventId)
+    public static void WriteEventId(this BitBuffer buffer, EventId eventId)
     {
       buffer.Write(EventIdExtensions.BITS_USED, eventId.Pack());
     }
 
-    public static EventId ReadEventId(this ByteBuffer buffer)
+    public static EventId ReadEventId(this BitBuffer buffer)
     {
       return EventId.Unpack((int)buffer.Read(EventIdExtensions.BITS_USED));
     }
 
-    public static EventId PeekEventId(this ByteBuffer buffer)
+    public static EventId PeekEventId(this BitBuffer buffer)
     {
       return EventId.Unpack((int)buffer.Peek(EventIdExtensions.BITS_USED));
     }

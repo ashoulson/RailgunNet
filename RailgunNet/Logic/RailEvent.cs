@@ -86,8 +86,8 @@ namespace Railgun
 
     internal abstract void SetDataFrom(RailEvent other);
 
-    protected abstract void EncodeData(ByteBuffer buffer);
-    protected abstract void DecodeData(ByteBuffer buffer);
+    protected abstract void EncodeData(BitBuffer buffer);
+    protected abstract void DecodeData(BitBuffer buffer);
     protected abstract void ResetData();
 
     protected internal virtual void Invoke() { }
@@ -120,7 +120,7 @@ namespace Railgun
     }
 
     #region Encode/Decode/etc.
-    internal void Encode(ByteBuffer buffer, Tick packetSenderTick)
+    internal void Encode(BitBuffer buffer, Tick packetSenderTick)
     {
       EntityId entityId = EntityId.INVALID;
       if (this.Entity != null)
@@ -156,7 +156,7 @@ namespace Railgun
     }
 
     internal static RailEvent Decode(
-      ByteBuffer buffer, 
+      BitBuffer buffer, 
       Tick packetSenderTick)
     {
       // Read: [EventType]

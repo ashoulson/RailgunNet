@@ -15,12 +15,12 @@ public class DemoActionEvent : RailEvent<DemoActionEvent>
     this.Key = other.Key;
   }
 
-  protected override void EncodeData(ByteBuffer buffer)
+  protected override void EncodeData(BitBuffer buffer)
   {
     buffer.WriteInt(this.Key);
   }
 
-  protected override void DecodeData(ByteBuffer buffer)
+  protected override void DecodeData(BitBuffer buffer)
   {
     this.Key = buffer.ReadInt();
   }

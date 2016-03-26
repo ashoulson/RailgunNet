@@ -27,7 +27,7 @@ namespace Railgun
   public static class FloatCompressorExtensions
   {
     public static void WriteFloat(
-      this ByteBuffer buffer, 
+      this BitBuffer buffer, 
       FloatCompressor compressor, 
       float value)
     {
@@ -35,14 +35,14 @@ namespace Railgun
     }
 
     public static float ReadFloat(
-      this ByteBuffer buffer,
+      this BitBuffer buffer,
       FloatCompressor compressor)
     {
       return compressor.Unpack(buffer.Read(compressor.RequiredBits));
     }
 
     public static float PeekFloat(
-      this ByteBuffer buffer,
+      this BitBuffer buffer,
       FloatCompressor compressor)
     {
       return compressor.Unpack(buffer.Peek(compressor.RequiredBits));
