@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -143,7 +141,7 @@ namespace Railgun
       {
         // Write: [TickSpan]
         TickSpan span = TickSpan.Create(packetSenderTick, this.Tick);
-        CommonDebug.Assert(span.IsInRange);
+        RailDebug.Assert(span.IsInRange);
         buffer.WriteTickSpan(span);
       }
 
@@ -178,7 +176,7 @@ namespace Railgun
       {
         // Read: [TickSpan]
         TickSpan span = buffer.ReadTickSpan();
-        CommonDebug.Assert(span.IsInRange);
+        RailDebug.Assert(span.IsInRange);
         evnt.Tick = Tick.Create(packetSenderTick, span);
       }
 

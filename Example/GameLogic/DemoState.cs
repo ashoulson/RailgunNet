@@ -74,8 +74,6 @@ public class DemoState : RailState<DemoState>
 
   protected override void EncodeMutableData(ByteBuffer buffer, uint flags)
   {
-    Console.WriteLine(this.X + " " + this.Y);
-
     if (this.GetFlag(flags, FLAG_X)) buffer.WriteFloat(DemoCompressors.Coordinate, this.X);
     if (this.GetFlag(flags, FLAG_Y)) buffer.WriteFloat(DemoCompressors.Coordinate, this.Y);
     if (this.GetFlag(flags, FLAG_ANGLE)) buffer.WriteFloat(DemoCompressors.Angle, this.Angle);

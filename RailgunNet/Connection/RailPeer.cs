@@ -23,8 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
   internal abstract class RailPeer : IRailControllerInternal
@@ -155,7 +153,7 @@ namespace Railgun
       if (entity.Controller == this)
         return;
 
-      CommonDebug.Assert(entity.Controller == null);
+      RailDebug.Assert(entity.Controller == null);
       this.controlledEntities.Add(entity);
 
       entity.AssignController(this);
@@ -166,7 +164,7 @@ namespace Railgun
     /// </summary>
     public void RevokeControl(RailEntity entity)
     {
-      CommonDebug.Assert(entity.Controller == this);
+      RailDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
 
       entity.AssignController(null);
@@ -195,7 +193,7 @@ namespace Railgun
         if (buffer.IsFinished)
           this.ProcessPacket(packet);
         else
-          CommonDebug.LogError("Bad packet read, discarding...");
+          RailDebug.LogError("Bad packet read, discarding...");
       }
     }
 

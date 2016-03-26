@@ -22,14 +22,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   interface IRailServerPacket : IRailPacket
   {
     Tick ServerTick { get; }
-    IEnumerable<IRailStateDelta> Deltas { get; }
+    IEnumerable<RailState.Delta> Deltas { get; }
   }
 
   /// <summary>
@@ -47,29 +45,29 @@ namespace Railgun
     IRailPool<RailServerPacket> IRailPoolable<RailServerPacket>.Pool { get; set; }
     void IRailPoolable<RailServerPacket>.Reset() { this.Reset(); }
     Tick IRailServerPacket.ServerTick { get { return this.SenderTick; } }
-    IEnumerable<IRailStateDelta> IRailServerPacket.Deltas { get { return this.deltas; } }
+    IEnumerable<RailState.Delta> IRailServerPacket.Deltas { get { return this.deltas; } }
     #endregion
 
     internal Tick CommandAck { get; private set; }
-    internal IEnumerable<IRailStateDelta> Deltas { get { return this.deltas; } }
+    internal IEnumerable<RailState.Delta> Deltas { get { return this.deltas; } }
 
     // Server-only
-    internal IEnumerable<IRailStateDelta> Sent { get { return this.sent; } }
-    internal IEnumerable<IRailStateDelta> Pending { get { return this.pending; } }
+    internal IEnumerable<RailState.Delta> Sent { get { return this.sent; } }
+    internal IEnumerable<RailState.Delta> Pending { get { return this.pending; } }
 
     // Values received on client
-    private readonly List<IRailStateDelta> deltas;
+    private readonly List<RailState.Delta> deltas;
 
     // Input/output information for entity scoping
-    private readonly List<IRailStateDelta> pending;
-    private readonly List<IRailStateDelta> sent;
+    private readonly List<RailState.Delta> pending;
+    private readonly List<RailState.Delta> sent;
 
     public RailServerPacket() : base()
     {
-      this.deltas = new List<IRailStateDelta>();
+      this.deltas = new List<RailState.Delta>();
       this.CommandAck = Tick.INVALID;
-      this.pending = new List<IRailStateDelta>();
-      this.sent = new List<IRailStateDelta>();
+      this.pending = new List<RailState.Delta>();
+      this.sent = new List<RailState.Delta>();
     }
 
     protected override void Reset()
@@ -84,7 +82,7 @@ namespace Railgun
 
     internal void Populate(
       Tick commandAck,
-      IEnumerable<IRailStateDelta> deltas)
+      IEnumerable<RailState.Delta> deltas)
     {
       this.CommandAck = commandAck;
       this.pending.AddRange(deltas);
@@ -115,16 +113,16 @@ namespace Railgun
         RailConfig.MESSAGE_MAX_SIZE,
         RailConfig.ENTITY_MAX_SIZE,
         this.pending,
-        (delta) => delta.Encode(buffer),
+        (delta) => RailState.EncodeDelta(buffer, delta),
         (delta) => this.sent.Add(delta));
     }
 
     private void DecodeDeltas(ByteBuffer buffer)
     {
-      IEnumerable<IRailStateDelta> decoded =
+      IEnumerable<RailState.Delta> decoded =
         buffer.UnpackAll(
-          () => RailState.Decode(buffer, this.SenderTick));
-      foreach (IRailStateDelta delta in decoded)
+          () => RailState.DecodeDelta(buffer, this.SenderTick));
+      foreach (RailState.Delta delta in decoded)
         this.deltas.Add(delta);
     }
     #endregion

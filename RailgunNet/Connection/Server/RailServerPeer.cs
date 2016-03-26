@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -106,15 +104,15 @@ namespace Railgun
 
       base.SendPacket(packet);
 
-      foreach (IRailStateDelta delta in packet.Sent)
+      foreach (RailState.Delta delta in packet.Sent)
         this.scope.RegisterSent(delta.EntityId, this.LocalTick);
 
-      foreach (IRailStateDelta delta in packet.Pending)
+      foreach (RailState.Delta delta in packet.Pending)
         RailPool.Free(delta);
       RailPool.Free(packet);
     }
 
-    private IEnumerable<IRailStateDelta> ProduceDeltas(
+    private IEnumerable<RailState.Delta> ProduceDeltas(
       IEnumerable<RailEntity> activeEntities)
     {
       IEnumerable<RailEntity> scopedEntities =

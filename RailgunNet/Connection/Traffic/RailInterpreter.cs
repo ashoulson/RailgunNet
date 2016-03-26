@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -47,7 +45,7 @@ namespace Railgun
       packet.Encode(this.byteBuffer);
 
       int length = this.byteBuffer.Store(this.bytes);
-      CommonDebug.Assert(length <= RailConfig.MESSAGE_MAX_SIZE);
+      RailDebug.Assert(length <= RailConfig.MESSAGE_MAX_SIZE);
       peer.EnqueueSend(this.bytes, length);
     }
 

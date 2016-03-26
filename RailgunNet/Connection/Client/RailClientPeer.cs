@@ -24,8 +24,6 @@ using System.Collections.Generic;
 
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -88,7 +86,7 @@ namespace Railgun
       RailServerPacket serverPacket = (RailServerPacket)packet;
 
       this.UpdateCommands(serverPacket.CommandAck);
-      foreach (IRailStateDelta delta in serverPacket.Deltas)
+      foreach (RailState.Delta delta in serverPacket.Deltas)
         this.localView.RecordUpdate(delta.EntityId, packet.SenderTick);
 
       if (this.PacketReceived != null)
