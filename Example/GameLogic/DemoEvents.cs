@@ -26,6 +26,7 @@ public class DemoEvents
 {
   public static event Action<DemoControlled> ControlledCreated;
   public static event Action<DemoDummy> DummyCreated;
+  public static event Action<DemoMimic> MimicCreated;
 
   public static event Action<DemoActionEvent> DemoActionEvent;
 
@@ -39,6 +40,12 @@ public class DemoEvents
   {
     if (DemoEvents.DummyCreated != null)
       DemoEvents.DummyCreated.Invoke(entity);
+  }
+
+  public static void OnMimicAdded(DemoMimic entity)
+  {
+    if (DemoEvents.DummyCreated != null)
+      DemoEvents.MimicCreated.Invoke(entity);
   }
 
   public static void OnDemoActionEvent(DemoActionEvent evnt)

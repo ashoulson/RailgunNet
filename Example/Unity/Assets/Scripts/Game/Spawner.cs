@@ -9,6 +9,7 @@ public class Spawner : MonoBehaviour
   {
     DemoEvents.ControlledCreated += this.OnControlledCreated;
     DemoEvents.DummyCreated += this.OnDummyCreated;
+    DemoEvents.MimicCreated += this.OnMimicCreated;
   }
 
   void Start()
@@ -38,4 +39,15 @@ public class Spawner : MonoBehaviour
     DemoObjectDummy obj = go.GetComponent<DemoObjectDummy>();
     obj.Entity = entity;
   }
+
+  private void OnMimicCreated(DemoMimic entity)
+  {
+    GameObject go =
+      ArchetypeLibrary.Instance.Instantiate(
+        entity.State.ArchetypeId);
+
+    DemoObjectMimic obj = go.GetComponent<DemoObjectMimic>();
+    obj.Entity = entity;
+  }
+
 }

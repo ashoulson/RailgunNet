@@ -2,6 +2,8 @@
 
 Alexander Shoulson, Ph.D. - http://ashoulson.com
 
+![Example 1](https://raw.githubusercontent.com/ashoulson/RailgunNet/master/Images/example1.gif) &nbsp; ![Example 2](https://raw.githubusercontent.com/ashoulson/RailgunNet/master/Images/example2.gif) &nbsp; ![Example 3](https://raw.githubusercontent.com/ashoulson/RailgunNet/master/Images/example3.gif)
+
 ---
 
 Based loosely on the [Quake 3](https://github.com/id-Software/Quake-III-Arena) and [Valve/Source](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking) networking models.
