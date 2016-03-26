@@ -29,16 +29,10 @@ using UnityEngine;
 public class DemoControlled : RailEntity<DemoState, DemoCommand>
 {
   public event Action Shutdown;
+  public event Action Frozen;
+  public event Action Unfrozen;
 
   int actionCount = 0;
-
-  protected override bool ForceUpdates
-  {
-    get
-    {
-      return false;
-    }
-  }
 
   protected override void OnStart()
   {
@@ -72,5 +66,17 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
   {
     if (this.Shutdown != null)
       this.Shutdown.Invoke();
+  }
+
+  protected override void OnFrozen()
+  {
+    if (this.Frozen != null)
+      this.Frozen.Invoke();
+  }
+
+  protected override void OnUnfrozen()
+  {
+    if (this.Unfrozen != null)
+      this.Unfrozen.Invoke();
   }
 }

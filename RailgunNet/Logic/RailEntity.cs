@@ -286,11 +286,19 @@ namespace Railgun
     #endregion
 
     protected virtual bool ForceUpdates { get { return true; } }
+    protected virtual int TicksBeforeFreeze { get { return RailConfig.TICKS_BEFORE_FREEZE; } }
 
     // Simulation info
     protected internal RailWorld World { get; internal set; }
     public IRailController Controller { get { return this.controller; } }
     public RailState State { get; private set; }
+
+#if CLIENT
+    protected bool IsFrozen { get; private set; }
+    private bool CanFreeze { get { return this.TicksBeforeFreeze > 0; } }
+#elif SERVER
+    protected bool IsFrozen { get { return false; } }
+#endif
 
     // Synchronization info
     public EntityId Id { get; private set; }
@@ -300,8 +308,13 @@ namespace Railgun
 
     internal virtual void OnSimulateCommand(RailCommand command) { }
     protected virtual void OnSimulate() { }
+
+    protected virtual void OnControllerChanged() { }
     protected virtual void OnStart() { }
     protected virtual void OnShutdown() { }
+
+    protected virtual void OnFrozen() { }
+    protected virtual void OnUnfrozen() { }
 
     private int factoryType;
     private bool hasStarted;
@@ -313,6 +326,8 @@ namespace Railgun
     private readonly RailDejitterBuffer<RailState.Delta> incoming; 
     private readonly SmoothingBuffer smoothBuffer;
     private readonly PredictionBuffer predictBuffer;
+
+    private Tick lastDelta;
 #endif
 
     internal RailEntity()
@@ -337,6 +352,9 @@ namespace Railgun
           RailConfig.NETWORK_SEND_RATE);
       this.smoothBuffer = new SmoothingBuffer(this.incoming);
       this.predictBuffer = new PredictionBuffer(this.incoming);
+
+      this.lastDelta = Tick.START;
+      this.IsFrozen = false;
 #endif
     }
 
@@ -348,12 +366,17 @@ namespace Railgun
     internal void AssignController(IRailControllerInternal controller)
     {
       this.controller = controller;
+      if (this.hasStarted)
+        this.OnControllerChanged();
     }
 
     private void DoStart()
     {
       if (this.hasStarted == false)
+      {
+        this.OnControllerChanged();
         this.OnStart();
+      }
       this.hasStarted = true;
     }
 
@@ -421,6 +444,9 @@ namespace Railgun
         this.RemovedTick = delta.RemovedTick;
       else
         this.incoming.Store(delta);
+
+      if ((this.lastDelta.IsValid == false) || (this.lastDelta < delta.Tick))
+        this.lastDelta = delta.Tick;
     }
 
     internal RailState GetSmoothedState(float frameDelta)
@@ -457,6 +483,31 @@ namespace Railgun
         this.OnSimulateCommand(command);
         this.OnSimulate();
         this.predictBuffer.Update(this.State);
+      }
+    }
+
+    internal void UpdateFreeze(Tick actualServerTick)
+    {
+      if (this.CanFreeze && (this.controller == null))
+      {
+        int delta = actualServerTick - this.lastDelta;
+        bool shouldFreeze = (delta > this.TicksBeforeFreeze);
+
+        if (shouldFreeze && (this.IsFrozen == false))
+        {
+          this.IsFrozen = true;
+          this.OnFrozen();
+        }
+        else if ((shouldFreeze == false) && this.IsFrozen)
+        {
+          this.IsFrozen = false;
+          this.OnUnfrozen();
+        }
+      }
+      else if (this.IsFrozen)
+      {
+        this.OnUnfrozen();
+        this.IsFrozen = false;
       }
     }
 #endif

@@ -30,6 +30,8 @@ public class DemoObjectControlled : MonoBehaviour
   void Start()
   {
     this.Entity.Shutdown += this.OnShutdown;
+    this.Entity.Frozen += this.OnFrozen;
+    this.Entity.Unfrozen += this.OnUnfrozen;
   }
 
   void Update()
@@ -59,5 +61,15 @@ public class DemoObjectControlled : MonoBehaviour
   private void OnShutdown()
   {
     GameObject.Destroy(this.gameObject);
+  }
+
+  private void OnFrozen()
+  {
+    this.gameObject.SetActive(false);
+  }
+
+  private void OnUnfrozen()
+  {
+    this.gameObject.SetActive(true);
   }
 }
