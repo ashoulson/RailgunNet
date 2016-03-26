@@ -11,27 +11,17 @@ public class DemoObjectDummy : MonoBehaviour
   public bool DoSmoothing = false;
   public Color color = Color.white;
 
-  //private RailSmootherVector2 smoother;
-
   private static Vector2 GetCoordinates(RailState state)
   {
     DemoState demoState = (DemoState)state;
     return new Vector2(demoState.X, demoState.Y);
   }
 
-  //void Awake()
-  //{
-  //  this.smoother = new RailSmootherVector2(
-  //    DemoObjectDummy.GetCoordinates,
-  //    float.MaxValue,
-  //    2.0f);
-  //}
-
-  //void Start()
-  //{
-  //  this.Entity.Frozen += this.OnFrozen;
-  //  this.Entity.Unfrozen += this.OnUnfrozen;
-  //}
+  void Start()
+  {
+    this.Entity.Frozen += this.OnFrozen;
+    this.Entity.Unfrozen += this.OnUnfrozen;
+  }
 
   void Update()
   {
@@ -46,12 +36,6 @@ public class DemoObjectDummy : MonoBehaviour
     gameObject.GetComponent<Renderer>().material.color = this.color;
   }
 
-  //void FixedUpdate()
-  //{
-  //  if (Input.GetKey(KeyCode.Y))
-  //    Debug.Log(this.Entity.DEBUG_FormatDebug());
-  //}
-
   private void UpdatePosition()
   {
     DemoState state = this.Entity.State;
@@ -61,13 +45,13 @@ public class DemoObjectDummy : MonoBehaviour
       new Vector2(state.X, state.Y);
   }
 
-  //private void OnFrozen()
-  //{
-  //  this.gameObject.SetActive(false);
-  //}
+  private void OnFrozen()
+  {
+    this.gameObject.SetActive(false);
+  }
 
-  //private void OnUnfrozen()
-  //{
-  //  this.gameObject.SetActive(true);
-  //}
+  private void OnUnfrozen()
+  {
+    this.gameObject.SetActive(true);
+  }
 }

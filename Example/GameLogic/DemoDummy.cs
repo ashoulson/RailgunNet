@@ -57,15 +57,15 @@ public class DemoDummy : RailEntity<DemoState>
     this.State.Y += this.speed * this.direction;
   }
 
-  //protected override void OnFrozen()
-  //{
-  //  if (this.Frozen != null)
-  //    this.Frozen.Invoke();
-  //}
+  protected override void OnFrozen()
+  {
+    if (this.Frozen != null)
+      this.Frozen.Invoke();
+  }
 
-  //protected override void OnUnfrozen()
-  //{
-  //  if (this.Unfrozen != null)
-  //    this.Unfrozen.Invoke();
-  //}
+  protected override void OnUnfrozen()
+  {
+    if (this.Unfrozen != null)
+      this.Unfrozen.Invoke();
+  }
 }

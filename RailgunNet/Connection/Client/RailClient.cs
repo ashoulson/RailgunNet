@@ -143,9 +143,10 @@ namespace Railgun
     {
       foreach (RailState.Delta delta in packet.Deltas)
         this.ProcessDelta(delta);
-      // TODO: REENABLE FOR FREEZING
-      //foreach (RailEntity entity in this.knownEntities.Values)
-      //  entity.UpdateFreeze(packet.ServerTick);
+
+      // Don't freeze removed entities
+      foreach (RailEntity entity in this.World.Entities)
+        entity.UpdateFreeze(packet.ServerTick);
     }
 
     private void ProcessDelta(RailState.Delta delta)
