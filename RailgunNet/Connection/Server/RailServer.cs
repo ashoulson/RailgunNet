@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -71,8 +69,7 @@ namespace Railgun
     {
       if (this.clients.ContainsKey(peer) == false)
       {
-        RailServerPeer client = 
-          new RailServerPeer(peer, this.Interpreter, this.World);
+        RailServerPeer client = new RailServerPeer(peer, this.Interpreter);
         this.clients.Add(peer, client);
 
         if (this.ControllerJoined != null)
@@ -131,17 +128,17 @@ namespace Railgun
       return (T)entity;
     }
 
-    /// <summary>
-    /// Removes an entity from the world and destroys it.
-    /// </summary>
-    public void DestroyEntity(RailEntity entity)
-    {
-      this.World.RemoveEntity(entity.Id);
-      this.destroyedEntities.Add(entity.Id, entity);
+    ///// <summary>
+    ///// Removes an entity from the world and destroys it.
+    ///// </summary>
+    //public void DestroyEntity(RailEntity entity)
+    //{
+    //  this.World.RemoveEntity(entity.Id);
+    //  this.destroyedEntities.Add(entity.Id, entity);
 
-      // We remove on the next tick since this tick may already be done
-      entity.DestroyedTick = this.World.Tick + 1;
-    }
+    //  // We remove on the next tick since this tick may already be done
+    //  entity.DestroyedTick = this.World.Tick + 1;
+    //}
 
     /// <summary>
     /// Packs and sends a server-to-client packet to each peer.
@@ -150,7 +147,6 @@ namespace Railgun
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
         clientPeer.SendPacket(
-          this.World.Tick, 
           this.World.Entities,
           this.destroyedEntities.Values);
     }

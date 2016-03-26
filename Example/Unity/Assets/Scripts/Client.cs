@@ -12,6 +12,8 @@ public class Client : MonoBehaviour
 
   public static Client Instance { get; private set; }
 
+  public static bool DoSmoothing = true;
+
   public string address;
   private NetSocket netSocket;
   private RailClient client;
@@ -59,6 +61,11 @@ public class Client : MonoBehaviour
     this.netSocket.Transmit();
 
     this.UpdateBandwidth();
+
+    if (Input.GetKey(KeyCode.Alpha1))
+      Client.DoSmoothing = true;
+    if (Input.GetKey(KeyCode.Alpha2))
+      Client.DoSmoothing = false;
   }
 
   private void UpdateBandwidth()

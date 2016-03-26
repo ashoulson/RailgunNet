@@ -24,26 +24,10 @@ using System.Collections.Generic;
 
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
-  public class RailClient : RailConnection, IRailLookup<EntityId, RailEntity>
+  public class RailClient : RailConnection
   {
-    /// <summary>
-    /// A little bit of a hack to account for pending entities.
-    /// </summary>
-    bool IRailLookup<EntityId, RailEntity>.TryGet(
-      EntityId key,
-      out RailEntity value)
-    {
-      if (this.pendingEntities.TryGetValue(key, out value))
-        return true;
-      if (this.World.TryGet(key, out value))
-        return true;
-      return false;
-    }
-
     private RailClientPeer serverPeer;
 
     /// <summary>
@@ -80,12 +64,8 @@ namespace Railgun
 
     public void SetPeer(IRailNetPeer netPeer)
     {
-      CommonDebug.Assert(this.serverPeer == null, "Overwriting peer");
-      this.serverPeer = 
-        new RailClientPeer(
-          netPeer, 
-          this.Interpreter,
-          this.World);
+      RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
+      this.serverPeer = new RailClientPeer(netPeer, this.Interpreter);
       this.serverPeer.PacketReceived += this.OnPacketReceived;
     }
 
@@ -112,7 +92,7 @@ namespace Railgun
     {
       if (this.serverPeer != null)
       {
-        RailCommand command = RailResource.Instance.AllocateCommand();
+        RailCommand command = RailCommand.Create();
         command.Populate();
         command.Tick = this.localTick;
 
@@ -143,7 +123,7 @@ namespace Railgun
     {
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
-        if (entity.HasLatest(serverTick))
+        if (entity.HasReadyState(serverTick))
         {
           this.World.AddEntity(entity);
           this.toRemove.Add(entity);
@@ -159,33 +139,39 @@ namespace Railgun
     #region Packet Receive
     private void OnPacketReceived(IRailServerPacket packet)
     {
-      foreach (RailState state in packet.States)
-        this.ProcessState(state, packet.LatestServerTick);
-      foreach (RailEntity entity in this.knownEntities.Values)
-        entity.UpdateFreeze(packet.LatestServerTick);
+      foreach (RailState.Delta delta in packet.Deltas)
+        this.ProcessDelta(delta);
+      // TODO: REENABLE FOR FREEZING
+      //foreach (RailEntity entity in this.knownEntities.Values)
+      //  entity.UpdateFreeze(packet.ServerTick);
     }
 
-    private void ProcessState(RailState state, Tick latestServerTick)
+    private void ProcessDelta(RailState.Delta delta)
     {
       RailEntity entity;
-      if (this.knownEntities.TryGetValue(state.EntityId, out entity) == false)
+      if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
       {
-        entity = this.World.CreateEntity(state.EntityType, state.EntityId);
-        this.pendingEntities.Add(state.EntityId, entity);
-        this.knownEntities.Add(state.EntityId, entity);
+        entity = this.World.CreateEntity(delta.FactoryType, delta.EntityId);
+        this.pendingEntities.Add(entity.Id, entity);
+        this.knownEntities.Add(entity.Id, entity);
       }
 
-      entity.StoreState(state);
-      entity.LastUpdatedServerTick = latestServerTick;
-      this.UpdateControlStatus(entity, state);
+      entity.ReceiveDelta(delta);
+      this.UpdateControlStatus(entity, delta);
     }
 
-    private void UpdateControlStatus(RailEntity entity, RailState state)
+    private void UpdateControlStatus(RailEntity entity, RailState.Delta delta)
     {
-      if (state.IsController && (entity.Controller == null))
-        this.serverPeer.GrantControl(entity);
-      if ((state.IsController == false) && (entity.Controller != null))
-        this.serverPeer.RevokeControl(entity);
+      if (delta.HasControllerData)
+      {
+        if (entity.Controller == null)
+          this.serverPeer.GrantControl(entity);
+      }
+      else
+      {
+        if (entity.Controller != null)
+          this.serverPeer.RevokeControl(entity);
+      }
     }
     #endregion
   }

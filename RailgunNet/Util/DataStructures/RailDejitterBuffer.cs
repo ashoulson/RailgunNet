@@ -22,10 +22,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using System.Linq;
+
 namespace Railgun
 {
-  internal class RailRingBuffer<T>
-    where T : class, IRailTimedValue, IRailPoolable<T>, IRailCloneable<T>
+  internal class RailDejitterBuffer<T>
+    where T : class, IRailTimedValue
   {
     // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
@@ -37,11 +39,16 @@ namespace Railgun
     /// </summary>
     internal T Latest
     {
-      get { return this.latest; }
+      get 
+      {
+        if (this.latestIdx < 0)
+          return null;
+        return this.data[this.latestIdx];
+      }
     }
 
     private T[] data;
-    private T latest;
+    private int latestIdx;
 
     internal IEnumerable<T> Values
     {
@@ -53,28 +60,47 @@ namespace Railgun
       }
     }
 
-    public RailRingBuffer(int capacity, int divisor = 1)
+    public RailDejitterBuffer(int capacity, int divisor = 1)
     {
       this.divisor = divisor;
       this.data = new T[capacity / divisor];
+      this.latestIdx = -1;
     }
 
-    public void Store(T value)
+    /// <summary>
+    /// Stores a value. If this displaces an existing value in the process,
+    /// this function will return it. Note that this function does not enforce
+    /// time constraints. It is possible to replace a value with an older one.
+    /// </summary>
+    public T Store(T value)
     {
       int index = this.TickToIndex(value.Tick);
       T current = this.data[index];
-      if (this.data[index] != null)
-        RailPool.Free(current);
+
+      bool updateLatest = false;
+      if (this.latestIdx < 0)
+      {
+        this.latestIdx = index;
+      }
+      else
+      {
+        T latest = this.data[this.latestIdx];
+        if (value.Tick >= latest.Tick)
+        {
+          this.latestIdx = index;
+        }
+        else if (index == this.latestIdx)
+        {
+          // We're replacing the latest element with an older one, will
+          // need to find a new one after we do the insertion
+          updateLatest = true;
+        }
+      }
 
       this.data[index] = value;
-
-      // Store the latest received value if it's newer than the current one
-      if ((this.latest == null) || (this.latest.Tick < value.Tick))
-      {
-        if (this.latest != null)
-          RailPool.Free(this.latest);
-        this.latest = value.Clone();
-      }
+      if (updateLatest)
+        this.UpdateLatest();
+      return current;
     }
 
     public T Get(Tick tick)
@@ -88,17 +114,23 @@ namespace Railgun
       return null;
     }
 
-    public void PopulateDelta(RailRingDelta<T> delta, Tick currentTick)
+    /// <summary>
+    /// Given a tick, returns the the following values:
+    /// - The value at or immediately before the tick (current)
+    /// - The value immediately after that (next)
+    /// 
+    /// Runs in O(n).
+    /// </summary>
+    public void GetRangeAt(
+      Tick currentTick,
+      out T current,
+      out T next)
     {
-      if (currentTick == Tick.INVALID)
-      {
-        delta.Set(null, null, null);
-        return;
-      }
+      current = null;
+      next = null;
 
-      T prior = null;
-      T current = null;
-      T next = null;
+      if (currentTick == Tick.INVALID)
+        return;
 
       for (int i = 0; i < this.data.Length; i++)
       {
@@ -110,24 +142,17 @@ namespace Railgun
             if ((next == null) || (value.Tick < next.Tick))
               next = value;
           }
-          else if ((prior == null) || (value.Tick > prior.Tick))
+          else if ((current == null) || (value.Tick > current.Tick))
           {
-            if ((current == null) || (value.Tick > current.Tick))
-            {
-              prior = current;
-              current = value;
-            }
-            else
-            {
-              prior = value;
-            }
+            current = value;
           }
         }
       }
-
-      delta.Set(prior, current, next);
     }
 
+    /// <summary>
+    /// Finds the latest value at or before a given tick. O(n)
+    /// </summary>
     public T GetLatestAt(Tick tick)
     {
       if (tick == Tick.INVALID)
@@ -153,6 +178,25 @@ namespace Railgun
       return result;
     }
 
+    /// <summary>
+    /// Finds all items at or later than the given tick, in order.
+    /// </summary>
+    public IEnumerable<T> GetLatestFrom(Tick tick)
+    {
+      List<T> found = new List<T>(this.data.Length);
+      if (tick == Tick.INVALID)
+        return found;
+
+      for (int i = 0; i < this.data.Length; i++)
+      {
+        T next = this.data[i];
+        if ((next != null) && (next.Tick >= tick))
+          found.Add(next);
+      }
+
+      return found.OrderBy(val => val.Tick, Tick.Comparer);
+    }
+
     public bool Contains(Tick tick)
     {
       if (tick == Tick.INVALID)
@@ -174,6 +218,30 @@ namespace Railgun
 
       value = this.Get(tick);
       return (value != null);
+    }
+
+    /// <summary>
+    /// Finds the absolute latest value in the buffer. O(n)
+    /// </summary>
+    private void UpdateLatest()
+    {
+      Tick retTick = Tick.INVALID;
+      int newIndex = -1;
+
+      for (int i = 0; i < this.data.Length; i++)
+      {
+        T value = this.data[i];
+        if (value != null)
+        {
+          if ((newIndex < 0) || (value.Tick > retTick))
+          {
+            newIndex = i;
+            retTick = value.Tick;
+          }
+        }
+      }
+
+      this.latestIdx = newIndex;
     }
 
     private int TickToIndex(Tick tick)

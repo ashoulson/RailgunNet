@@ -27,8 +27,8 @@ using UnityEngine;
 
 public static class DemoMath
 {
-  internal const float COORDINATE_PRECISION = 0.01f;
-  internal const float ANGLE_PRECISION = 0.01f;
+  internal const float COORDINATE_PRECISION = 0.001f;
+  internal const float ANGLE_PRECISION = 0.001f;
 
   internal static bool CoordinatesEqual(float a, float b)
   {
@@ -38,5 +38,13 @@ public static class DemoMath
   internal static bool AnglesEqual(float a, float b)
   {
     return Mathf.Abs(a - b) < DemoMath.ANGLE_PRECISION;
+  }
+
+  internal static float LerpUnclampedFloat(
+    float from,
+    float to,
+    float t)
+  {
+    return (from + ((to - from) * t));
   }
 }

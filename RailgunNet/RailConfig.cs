@@ -39,7 +39,7 @@ namespace Railgun
     /// <summary>
     /// Number of outgoing commands to send per packet.
     /// </summary>
-    internal const int COMMAND_SEND_COUNT = 4;
+    internal const int COMMAND_SEND_COUNT = 8;
 
     /// <summary>
     /// Number of commands to buffer for prediction.

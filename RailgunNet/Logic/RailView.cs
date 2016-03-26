@@ -29,6 +29,9 @@ namespace Railgun
       this.latestUpdates = new Dictionary<EntityId, Tick>();
     }
 
+    /// <summary>
+    /// Returns the latest tick the peer has acked for this entity ID.
+    /// </summary>
     public Tick GetLatest(EntityId id)
     {
       Tick result;
@@ -42,6 +45,9 @@ namespace Railgun
       this.latestUpdates.Clear();
     }
 
+    /// <summary>
+    /// Records an acked tick from the peer for a given entity ID.
+    /// </summary>
     public void RecordUpdate(EntityId id, Tick tick)
     {
       Tick currentTick;

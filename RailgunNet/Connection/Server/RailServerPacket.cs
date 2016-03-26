@@ -22,14 +22,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   interface IRailServerPacket : IRailPacket
   {
-    Tick LatestServerTick { get; }
-    IEnumerable<RailState> States { get; }
+    Tick ServerTick { get; }
+    IEnumerable<RailState.Delta> Deltas { get; }
   }
 
   /// <summary>
@@ -38,123 +36,95 @@ namespace Railgun
   internal class RailServerPacket : 
     RailPacket, IRailServerPacket, IRailPoolable<RailServerPacket>
   {
-    // String hashes (md5):
-    private const int KEY_RESERVE = 0x024BE210;
-    private const int KEY_ROLLBACK = 0x667C36AC;
+    internal static RailServerPacket Create()
+    {
+      return RailResource.Instance.CreateServerPacket();
+    }
 
+    #region Interface
     IRailPool<RailServerPacket> IRailPoolable<RailServerPacket>.Pool { get; set; }
     void IRailPoolable<RailServerPacket>.Reset() { this.Reset(); }
+    Tick IRailServerPacket.ServerTick { get { return this.SenderTick; } }
+    IEnumerable<RailState.Delta> IRailServerPacket.Deltas { get { return this.deltas; } }
+    #endregion
 
-    public IEnumerable<RailState> States 
-    { 
-      get { return this.states; }
-    }
+    internal Tick CommandAck { get; private set; }
+    internal IEnumerable<RailState.Delta> Deltas { get { return this.deltas; } }
 
-    public Tick LatestServerTick
-    {
-      get { return this.SenderTick; }
-    }
+    // Server-only
+    internal IEnumerable<RailState.Delta> Sent { get { return this.sent; } }
+    internal IEnumerable<RailState.Delta> Pending { get { return this.pending; } }
 
-    private readonly List<RailState> states;
-
-    // Values controlled by the peer
-    internal Tick CommandTick { get; set; }
-    internal IRailController Destination { private get; set; }
-    internal IEnumerable<EntityId> SentIds { get { return this.sentIds; } }
+    // Values received on client
+    private readonly List<RailState.Delta> deltas;
 
     // Input/output information for entity scoping
-    private readonly List<KeyValuePair<RailEntity, Tick>> pendingEntities;
-    private readonly List<EntityId> sentIds;
+    private readonly List<RailState.Delta> pending;
+    private readonly List<RailState.Delta> sent;
 
     public RailServerPacket() : base()
     {
-      this.states = new List<RailState>();
-
-      this.CommandTick = Tick.INVALID;
-      this.Destination = null;
-
-      this.pendingEntities = new List<KeyValuePair<RailEntity, Tick>>();
-      this.sentIds = new List<EntityId>();
+      this.deltas = new List<RailState.Delta>();
+      this.CommandAck = Tick.INVALID;
+      this.pending = new List<RailState.Delta>();
+      this.sent = new List<RailState.Delta>();
     }
 
     protected override void Reset()
     {
       base.Reset();
 
-      this.states.Clear();
-
-      this.CommandTick = Tick.INVALID;
-      this.Destination = null;
-
-      this.pendingEntities.Clear();
-      this.sentIds.Clear();
+      this.deltas.Clear();
+      this.CommandAck = Tick.INVALID;
+      this.pending.Clear();
+      this.sent.Clear();
     }
 
-    internal void QueueEntity(RailEntity entity, Tick lastAcked)
+    internal void Populate(
+      Tick commandAck,
+      IEnumerable<RailState.Delta> deltas)
     {
-      this.pendingEntities.Add(
-        new KeyValuePair<RailEntity, Tick>(
-          entity, 
-          lastAcked));
+      this.CommandAck = commandAck;
+      this.pending.AddRange(deltas);
     }
 
     #region Encode/Decode
     protected override void EncodePayload(ByteBuffer buffer)
     {
-      // Write: [CommandTick]
-      buffer.WriteTick(this.CommandTick);
+      // Write: [CommandAck]
+      buffer.WriteTick(this.CommandAck);
 
       // Write: [States]
-      this.EncodeStates(buffer);
-
-      Console.WriteLine(this.sentIds.Count);
+      this.EncodeDeltas(buffer);
     }
 
-    protected override void DecodePayload(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+    protected override void DecodePayload(ByteBuffer buffer)
     {
-      // Read: [CommandTick]
-      this.CommandTick = buffer.ReadTick();
+      // Read: [CommandAck]
+      this.CommandAck = buffer.ReadTick();
 
       // Read: [States]
-      this.DecodeStates(buffer, entityLookup);
+      this.DecodeDeltas(buffer);
     }
 
-    #region States
-    private void EncodeStates(ByteBuffer buffer)
+    private void EncodeDeltas(ByteBuffer buffer)
     {
-      IRailController destination = this.Destination;
-      Tick tick = this.SenderTick;
-
       buffer.PackToSize(
         RailConfig.MESSAGE_MAX_SIZE,
         RailConfig.ENTITY_MAX_SIZE,
-        this.pendingEntities,
-        (pair) => pair.Key.EncodeState(buffer, destination, tick, pair.Value),
-        (pair) => this.sentIds.Add(pair.Key.Id));
+        this.pending,
+        (delta) => RailState.EncodeDelta(buffer, delta),
+        (delta) => this.sent.Add(delta));
     }
 
-    private void DecodeStates(
-      ByteBuffer buffer,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+    private void DecodeDeltas(ByteBuffer buffer)
     {
-      IEnumerable<RailState> decoded =
+      IEnumerable<RailState.Delta> decoded =
         buffer.UnpackAll(
-          () => RailEntity.DecodeState(buffer, this.SenderTick, entityLookup));
-
-      try // The enumerator is lazy evaluated, so we exception check here
-      {
-        foreach (RailState state in decoded)
-          if (state != null)
-            this.states.Add(state);
-      }
-      catch (BasisNotFoundException bnfe)
-      {
-        CommonDebug.LogWarning(bnfe);
-      }
+          () => RailState.DecodeDelta(buffer, this.SenderTick));
+      foreach (RailState.Delta delta in decoded)
+        this.deltas.Add(delta);
     }
-    #endregion
     #endregion
   }
 }

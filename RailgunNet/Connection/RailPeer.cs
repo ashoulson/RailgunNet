@@ -23,8 +23,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
   internal abstract class RailPeer : IRailControllerInternal
@@ -55,12 +53,6 @@ namespace Railgun
     /// The entities controlled by this controller.
     /// </summary>
     protected readonly HashSet<RailEntity> controlledEntities;
-
-    /// <summary>
-    /// A reference to all known entities available. Used in decoding.
-    /// Provided by the connection.
-    /// </summary>
-    private IRailLookup<EntityId, RailEntity> entityLookup;
 
     /// <summary>
     /// An estimator for the remote peer's current tick.
@@ -111,7 +103,7 @@ namespace Railgun
     /// <summary>
     /// A history buffer of received unreliable events.
     /// </summary>
-    private readonly RailHeapBuffer<EventId, RailEvent> unreliableHistory;
+    private readonly RailExpiringDictionary<EventId, RailEvent> unreliableHistory;
     #endregion
 
     // Server-only
@@ -131,17 +123,15 @@ namespace Railgun
 
     internal RailPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+      RailInterpreter interpreter)
     {
       this.netPeer = netPeer;
       this.interpreter = interpreter;
-      this.entityLookup = entityLookup;
 
       this.outgoingReliable = new Queue<RailEvent>();
       this.outgoingUnreliable = new Queue<RailEvent>();
       this.unreliableHistory = 
-        new RailHeapBuffer<EventId, RailEvent>(EventId.Comparer);
+        new RailExpiringDictionary<EventId, RailEvent>(EventId.Comparer);
 
       this.controlledEntities = new HashSet<RailEntity>();
       this.remoteClock = new RailClock();
@@ -163,10 +153,10 @@ namespace Railgun
       if (entity.Controller == this)
         return;
 
-      CommonDebug.Assert(entity.Controller == null);
+      RailDebug.Assert(entity.Controller == null);
       this.controlledEntities.Add(entity);
 
-      entity.SetController(this);
+      entity.AssignController(this);
     }
 
     /// <summary>
@@ -174,10 +164,10 @@ namespace Railgun
     /// </summary>
     public void RevokeControl(RailEntity entity)
     {
-      CommonDebug.Assert(entity.Controller == this);
+      RailDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
 
-      entity.SetController(null);
+      entity.AssignController(null);
     }
 
     internal virtual int Update(Tick localTick)
@@ -198,12 +188,12 @@ namespace Railgun
       {
         RailPacket packet = this.AllocateIncoming();
 
-        packet.Decode(buffer, this.entityLookup);
+        packet.Decode(buffer);
 
         if (buffer.IsFinished)
           this.ProcessPacket(packet);
         else
-          CommonDebug.LogError("Bad packet read, discarding...");
+          RailDebug.LogError("Bad packet read, discarding...");
       }
     }
 
@@ -269,7 +259,9 @@ namespace Railgun
 
       clone.EventId = this.lastQueuedUnreliableEventId;
       clone.Tick = this.localTick;
-      clone.Expiration = this.localTick + timeToLive;
+      clone.Expiration = 
+        this.localTick + 
+        (timeToLive * RailConfig.NETWORK_SEND_RATE);
       clone.IsReliable = false;
 
       this.outgoingUnreliable.Enqueue(clone);
@@ -284,7 +276,7 @@ namespace Railgun
     private IEnumerable<RailEvent> GetOutgoingEvents(Tick localTick)
     {
       return 
-        Iteration.Interleave(
+        RailUtil.Interleave(
           this.outgoingReliable,
           this.GetNonExpired(localTick));
     }
@@ -336,7 +328,7 @@ namespace Railgun
     /// </summary>
     private bool FilterUnreliable(RailEvent evnt)
     {
-      return this.unreliableHistory.Record(evnt);
+      return this.unreliableHistory.Store(evnt);
     }
 
     /// <summary>
@@ -371,7 +363,7 @@ namespace Railgun
 
       // Also clear out the history for some past tick number
       int delay = RailPeer.EVENT_HISTORY_DELAY;
-      this.unreliableHistory.Advance(Tick.ClampSubtract(localTick, delay));
+      this.unreliableHistory.Expire(Tick.ClampSubtract(localTick, delay));
     }
     #endregion
   }

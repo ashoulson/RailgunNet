@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -33,63 +31,58 @@ namespace Railgun
   public abstract class RailEvent : 
     IRailPoolable<RailEvent>, IRailKeyedValue<EventId>, IRailTimedValue
   {
-    public static T OpenEvent<T>()
+    public static T Create<T>(RailEntity entity)
       where T : RailEvent
     {
-      return RailResource.Instance.AllocateEvent<T>();
-    }
+      if (entity == null)
+        throw new ArgumentNullException("entity");
 
-    public static T OpenEvent<T>(RailEntity entity)
-      where T : RailEvent
-    {
-      T evnt = RailResource.Instance.AllocateEvent<T>();
-      evnt.entity = entity;
+      T evnt = RailEvent.Create<T>();
+      evnt.Entity = entity;
+      evnt.EntityId = entity.Id;
       return evnt;
     }
 
-    IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
-    void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
-
-    EventId IRailKeyedValue<EventId>.Key { get { return this.EventId; } }
-    Tick IRailTimedValue.Tick { get { return this.Tick; } }
-
-    protected virtual bool CanSendToFrozenEntities { get { return false; } }
-
-    /// <summary>
-    /// An id assigned to this event, used for reliability.
-    /// </summary>
-    internal EventId EventId { get; set; }
-
-    /// <summary>
-    /// The tick (sender-side) that this event was generated.
-    /// </summary>
-    internal Tick Tick { get; set; }
-
-    /// <summary>
-    /// Whether or not the event should be delivered reliably.
-    /// </summary>
-    internal bool IsReliable { get; set; }
-
-    /// <summary>
-    /// The maximum age for this event. Used for entity events.
-    /// This value is not synchronized.
-    /// </summary>
-    internal Tick Expiration { get; set; }
-
-    /// <summary>
-    /// The int index for the type of event.
-    /// </summary>
-    protected internal int EventType { get; set; }
-
-    /// <summary>
-    /// The entity associated with this event, if any.
-    /// </summary>
-    internal RailEntity Entity
+    public static T Create<T>()
+      where T : RailEvent
     {
-      get { return this.entity; }
+      int factoryType = RailResource.Instance.GetEventFactoryType<T>();
+      return (T)RailEvent.Create(factoryType);
     }
 
-    private RailEntity entity;
+    internal static RailEvent Create(int factoryType)
+    {
+      RailEvent evnt = RailResource.Instance.CreateEvent(factoryType);
+      evnt.factoryType = factoryType;
+      return evnt;
+    }
+
+    #region Interface
+    IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
+    void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
+    EventId IRailKeyedValue<EventId>.Key { get { return this.EventId; } }
+    Tick IRailTimedValue.Tick { get { return this.Tick; } }
+    #endregion
+
+    private static IntCompressor FactoryTypeCompressor
+    {
+      get { return RailResource.Instance.EventTypeCompressor; }
+    }
+
+    // Settings
+    protected virtual bool CanSendToFrozen { get { return false; } }
+
+    // Synchronized
+    internal EventId EventId { get; set; }
+    internal Tick Tick { get; set; }
+    internal bool IsReliable { get; set; }
+
+    // Entity targeting
+    internal EntityId EntityId { get; private set; }
+    internal RailEntity Entity { get; private set; }
+
+    // Local only
+    internal Tick Expiration { get; set; }
 
     internal abstract void SetDataFrom(RailEvent other);
 
@@ -100,18 +93,17 @@ namespace Railgun
     protected internal virtual void Invoke() { }
     protected internal virtual void Invoke(RailEntity entity) { }
 
-    internal void Initialize(int eventType)
-    {
-      this.EventType = eventType;
-    }
+    private int factoryType;
 
     internal RailEvent Clone()
     {
-      RailEvent clone = RailResource.Instance.AllocateEvent(this.EventType);
+      RailEvent clone = RailEvent.Create(this.factoryType);
       clone.EventId = this.EventId;
       clone.Tick = this.Tick;
+      clone.IsReliable = this.IsReliable;
+      clone.Entity = this.Entity;
+      clone.EntityId = this.EntityId;
       clone.Expiration = this.Expiration;
-      clone.entity = this.entity;
       clone.SetDataFrom(this);
       return clone;
     }
@@ -120,8 +112,10 @@ namespace Railgun
     {
       this.EventId = EventId.INVALID;
       this.Tick = Tick.INVALID;
+      this.IsReliable = false;
+      this.Entity = null;
+      this.EntityId = EntityId.INVALID;
       this.Expiration = Tick.INVALID;
-      this.entity = null;
       this.ResetData();
     }
 
@@ -133,9 +127,7 @@ namespace Railgun
         entityId = this.Entity.Id;
 
       // Write: [EventType]
-      buffer.WriteInt(
-        RailResource.Instance.EventTypeCompressor, 
-        this.EventType);
+      buffer.WriteInt(RailEvent.FactoryTypeCompressor, this.factoryType);
 
       // Write: [IsReliable]
       buffer.WriteBool(this.IsReliable);
@@ -149,7 +141,7 @@ namespace Railgun
       {
         // Write: [TickSpan]
         TickSpan span = TickSpan.Create(packetSenderTick, this.Tick);
-        CommonDebug.Assert(span.IsInRange);
+        RailDebug.Assert(span.IsInRange);
         buffer.WriteTickSpan(span);
       }
 
@@ -165,14 +157,12 @@ namespace Railgun
 
     internal static RailEvent Decode(
       ByteBuffer buffer, 
-      Tick packetSenderTick,
-      IRailLookup<EntityId, RailEntity> entityLookup)
+      Tick packetSenderTick)
     {
       // Read: [EventType]
-      int eventType = buffer.ReadInt(
-        RailResource.Instance.EventTypeCompressor);
+      int factoryType = buffer.ReadInt(RailEvent.FactoryTypeCompressor);
 
-      RailEvent evnt = RailResource.Instance.AllocateEvent(eventType);
+      RailEvent evnt = RailEvent.Create(factoryType);
 
       // Read: [IsReliable]
       evnt.IsReliable = buffer.ReadBool();
@@ -186,7 +176,7 @@ namespace Railgun
       {
         // Read: [TickSpan]
         TickSpan span = buffer.ReadTickSpan();
-        CommonDebug.Assert(span.IsInRange);
+        RailDebug.Assert(span.IsInRange);
         evnt.Tick = Tick.Create(packetSenderTick, span);
       }
 
@@ -202,10 +192,12 @@ namespace Railgun
       // Dereference the entity Id and make sure everything is valid
       if (entityId.IsValid)
       {
-        if (entityLookup.TryGet(entityId, out evnt.entity) == false)
-          return null;
-        if ((evnt.CanSendToFrozenEntities == false) && evnt.entity.IsFrozen)
-          return null;
+        // TODO: REENABLE FOR ENTITY DEREFERENCE
+        //if (entityLookup.TryGet(entityId, out evnt.entity) == false)
+        //  return null;
+        // TODO: REENABLE FOR FREEZING
+        //if ((evnt.CanSendToFrozenEntities == false) && evnt.entity.IsFrozen)
+        //  return null;
       }
 
       return evnt;

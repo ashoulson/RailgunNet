@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   internal static class TickSpanExtensions
@@ -68,7 +66,7 @@ namespace Railgun
 
     internal static TickSpan Create(Tick latest, Tick basis)
     {
-      CommonDebug.Assert(latest >= basis);
+      RailDebug.Assert(latest >= basis);
 
       int delta = latest - basis;
       if (delta > TickSpan.MAX_RANGE)
@@ -103,7 +101,7 @@ namespace Railgun
     {
       get
       {
-        CommonDebug.Assert(this.IsInRange);
+        RailDebug.Assert(this.IsInRange);
         return (byte)(this.spanValue - 2);
       }
     }

@@ -22,13 +22,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
-  /// Server is the core executing class on the server. It is responsible for
-  /// managing connection contexts and payload I/O.
+  /// Server is the core executing class for communication. It is responsible
+  /// for managing connection contexts and payload I/O.
   /// </summary>
   public abstract class RailConnection
   {

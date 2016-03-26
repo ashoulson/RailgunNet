@@ -24,8 +24,6 @@ using System.Collections.Generic;
 
 using System.Linq;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -49,9 +47,8 @@ namespace Railgun
 
     internal RailClientPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter,
-      IRailLookup<EntityId, RailEntity> entityLookup)
-      : base(netPeer, interpreter, entityLookup)
+      RailInterpreter interpreter)
+      : base(netPeer, interpreter)
     {
       this.pendingCommands = new Queue<RailCommand>();
       this.localView = new RailView();
@@ -86,14 +83,11 @@ namespace Railgun
     protected override void ProcessPacket(RailPacket packet)
     {
       base.ProcessPacket(packet);
-
       RailServerPacket serverPacket = (RailServerPacket)packet;
 
-      this.UpdateCommands(serverPacket.CommandTick);
-
-      // Update the view from what we've received
-      foreach (RailState state in serverPacket.States)
-        this.localView.RecordUpdate(state.EntityId, serverPacket.SenderTick);
+      this.UpdateCommands(serverPacket.CommandAck);
+      foreach (RailState.Delta delta in serverPacket.Deltas)
+        this.localView.RecordUpdate(delta.EntityId, packet.SenderTick);
 
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(serverPacket);
@@ -101,12 +95,12 @@ namespace Railgun
 
     protected override RailPacket AllocateIncoming()
     {
-      return RailResource.Instance.AllocateServerPacket();
+      return RailServerPacket.Create();
     }
 
     protected override RailPacket AllocateOutgoing()
     {
-      return RailResource.Instance.AllocateClientPacket();
+      return RailClientPacket.Create();
     }
 
     private void UpdateCommands(Tick lastReceivedTick)

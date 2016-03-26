@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   internal interface IRailPoolable<T>
@@ -36,6 +34,7 @@ namespace Railgun
   {
     T Allocate();
     void Deallocate(T obj);
+    IRailPool<T> Clone();
   }
 
   internal static class RailPool
@@ -44,6 +43,19 @@ namespace Railgun
       where T : IRailPoolable<T>
     {
       obj.Pool.Deallocate(obj);
+    }
+
+    // Special cases
+    internal static void Free(
+      RailState.Delta container)
+    {
+      RailPool.Free(container.State);
+    }
+
+    internal static void Free(
+      RailState.Record container)
+    {
+      RailPool.Free(container.State);
     }
   }
 
@@ -70,10 +82,15 @@ namespace Railgun
 
     public void Deallocate(T obj)
     {
-      CommonDebug.Assert(obj.Pool == this);
+      RailDebug.Assert(obj.Pool == this);
       
       obj.Reset();
       this.freeList.Push(obj);
+    }
+
+    public IRailPool<T> Clone()
+    {
+      return new RailPool<T>();
     }
   }
 
@@ -101,10 +118,15 @@ namespace Railgun
 
     public void Deallocate(TBase obj)
     {
-      CommonDebug.Assert(obj.Pool == this);
+      RailDebug.Assert(obj.Pool == this);
       
       obj.Reset();
       this.freeList.Push(obj);
+    }
+
+    public IRailPool<TBase> Clone()
+    {
+      return new RailPool<TBase, TDerived>();
     }
   }
 }

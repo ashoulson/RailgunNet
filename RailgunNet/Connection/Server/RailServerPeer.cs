@@ -22,8 +22,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-using CommonTools;
-
 namespace Railgun
 {
   /// <summary>
@@ -50,29 +48,29 @@ namespace Railgun
       set { this.scope.Evaluator = value; }
     }
 
-    private readonly RailRingBuffer<RailCommand> commandBuffer;
+    private readonly RailDejitterBuffer<RailCommand> commandBuffer;
     private readonly RailScope scope;
 
+    // The latest entity tick acks from the client
     private readonly RailView ackedView;
+
+    // The latest command received from the client
     private RailCommand latestCommand;
-    private Tick latestCommandTick;
 
     internal RailServerPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter,
-      IRailLookup<EntityId, RailEntity> entityLookup)
-      : base(netPeer, interpreter, entityLookup)
+      RailInterpreter interpreter)
+      : base(netPeer, interpreter)
     {
       // We use no divisor for storing commands because commands are sent in
       // batches that we can use to fill in the holes between send ticks
       this.commandBuffer =
-        new RailRingBuffer<RailCommand>(
+        new RailDejitterBuffer<RailCommand>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
       this.scope = new RailScope();
 
       this.ackedView = new RailView();
       this.latestCommand = null;
-      this.latestCommandTick = Tick.INVALID;
     }
 
     internal override int Update(Tick localTick)
@@ -82,52 +80,47 @@ namespace Railgun
       this.latestCommand =
         this.commandBuffer.GetLatestAt(
           this.RemoteClock.EstimatedRemote);
-
-      if (this.latestCommand != null)
-        this.latestCommandTick = this.latestCommand.Tick;
-
       return ticks;
     }
 
     internal void Shutdown()
     {
       foreach (RailEntity entity in this.controlledEntities)
-        entity.SetController(null);
+        entity.AssignController(null);
       this.controlledEntities.Clear();
     }
 
     internal void SendPacket(
-      Tick localTick,
       IEnumerable<RailEntity> activeEntities,
       IEnumerable<RailEntity> destroyedEntities)
     {
       RailServerPacket packet =
-        base.AllocatePacketSend<RailServerPacket>(localTick);
+        base.AllocatePacketSend<RailServerPacket>(this.LocalTick);
 
-      // Set data
-      packet.Destination = this; // (Not sent, but used for controller flags)
-      packet.CommandTick = this.latestCommandTick;
+      Tick commandAck = Tick.INVALID;
+      if (this.latestCommand != null)
+        commandAck = this.latestCommand.Tick;
+      packet.Populate(commandAck, this.ProduceDeltas(activeEntities));
 
-      // Queue up all destroyed entities for the packet; these get priority
-      foreach (RailEntity entity in destroyedEntities)
-      {
-        Tick latest = this.ackedView.GetLatest(entity.Id);
-        if (latest.IsValid && (latest < entity.DestroyedTick))
-          packet.QueueEntity(entity, Tick.INVALID);
-      }
-
-      // Queue up all active entities in scope for the packet to try to fit
-      foreach (RailEntity entity in this.scope.Evaluate(activeEntities, localTick))
-        packet.QueueEntity(entity, this.ackedView.GetLatest(entity.Id));
-
-      // Send the packet
       base.SendPacket(packet);
 
-      // Record which entities we packed in
-      foreach (EntityId id in packet.SentIds)
-        this.scope.RegisterSent(id, localTick);
+      foreach (RailState.Delta delta in packet.Sent)
+        this.scope.RegisterSent(delta.EntityId, this.LocalTick);
 
+      foreach (RailState.Delta delta in packet.Pending)
+        RailPool.Free(delta);
       RailPool.Free(packet);
+    }
+
+    private IEnumerable<RailState.Delta> ProduceDeltas(
+      IEnumerable<RailEntity> activeEntities)
+    {
+      IEnumerable<RailEntity> scopedEntities =
+        this.scope.Evaluate(activeEntities, this.LocalTick);
+      foreach (RailEntity entity in scopedEntities)
+        yield return entity.ProduceDelta(
+          this.ackedView.GetLatest(entity.Id), 
+          this);
     }
 
     protected override void ProcessPacket(RailPacket packet)
@@ -146,12 +139,12 @@ namespace Railgun
 
     protected override RailPacket AllocateIncoming()
     {
-      return RailResource.Instance.AllocateClientPacket();
+      return RailClientPacket.Create();
     }
 
     protected override RailPacket AllocateOutgoing()
     {
-      return RailResource.Instance.AllocateServerPacket();
+      return RailServerPacket.Create();
     }
   }
 }
