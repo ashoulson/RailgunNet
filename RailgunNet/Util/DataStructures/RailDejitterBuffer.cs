@@ -22,6 +22,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using System.Linq;
+
 namespace Railgun
 {
   internal class RailDejitterBuffer<T>
@@ -174,6 +176,25 @@ namespace Railgun
         }
       }
       return result;
+    }
+
+    /// <summary>
+    /// Finds all items at or later than the given tick, in order.
+    /// </summary>
+    public IEnumerable<T> GetLatestFrom(Tick tick)
+    {
+      List<T> found = new List<T>(this.data.Length);
+      if (tick == Tick.INVALID)
+        return found;
+
+      for (int i = 0; i < this.data.Length; i++)
+      {
+        T next = this.data[i];
+        if ((next != null) && (next.Tick >= tick))
+          found.Add(next);
+      }
+
+      return found.OrderBy(val => val.Tick, Tick.Comparer);
     }
 
     public bool Contains(Tick tick)
