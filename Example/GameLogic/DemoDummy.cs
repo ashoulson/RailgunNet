@@ -37,14 +37,14 @@ public class DemoDummy : RailEntity<DemoState>
   private float direction = 1.0f;
   private float speed = 0.1f;
 
-  protected override void Start()
+  protected override void OnStart()
   {
     DemoEvents.OnDummyAdded(this);
 
     this.startX = this.State.X;
   }
 
-  protected override void Simulate()
+  protected override void OnSimulate()
   {
     this.ticks++;
     if (this.ticks >= 40)

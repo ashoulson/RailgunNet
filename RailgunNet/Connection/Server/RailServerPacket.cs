@@ -82,10 +82,12 @@ namespace Railgun
 
     internal void Populate(
       Tick commandAck,
-      IEnumerable<RailState.Delta> deltas)
+      IEnumerable<RailState.Delta> destroyedDeltas,
+      IEnumerable<RailState.Delta> activeDeltas)
     {
       this.CommandAck = commandAck;
-      this.pending.AddRange(deltas);
+      this.pending.AddRange(destroyedDeltas);
+      this.pending.AddRange(activeDeltas);
     }
 
     #region Encode/Decode

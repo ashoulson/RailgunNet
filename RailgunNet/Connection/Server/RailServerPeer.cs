@@ -100,7 +100,11 @@ namespace Railgun
       Tick commandAck = Tick.INVALID;
       if (this.latestCommand != null)
         commandAck = this.latestCommand.Tick;
-      packet.Populate(commandAck, this.ProduceDeltas(activeEntities));
+
+      packet.Populate(
+        commandAck,
+        this.ProduceDestroyed(destroyedEntities),
+        this.ProduceDeltas(activeEntities));
 
       base.SendPacket(packet);
 
@@ -110,6 +114,18 @@ namespace Railgun
       foreach (RailState.Delta delta in packet.Pending)
         RailPool.Free(delta);
       RailPool.Free(packet);
+    }
+
+    private IEnumerable<RailState.Delta> ProduceDestroyed(
+      IEnumerable<RailEntity> destroyedEntities)
+    {
+      // Queue up all destroyed entities for the packet; these get priority
+      foreach (RailEntity entity in destroyedEntities)
+      {
+        Tick latest = this.ackedView.GetLatest(entity.Id);
+        if (latest.IsValid && (latest < entity.DestroyedTick))
+          yield return entity.ProduceDelta(latest, this);
+      }
     }
 
     private IEnumerable<RailState.Delta> ProduceDeltas(

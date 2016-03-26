@@ -128,17 +128,15 @@ namespace Railgun
       return (T)entity;
     }
 
-    ///// <summary>
-    ///// Removes an entity from the world and destroys it.
-    ///// </summary>
-    //public void DestroyEntity(RailEntity entity)
-    //{
-    //  this.World.RemoveEntity(entity.Id);
-    //  this.destroyedEntities.Add(entity.Id, entity);
-
-    //  // We remove on the next tick since this tick may already be done
-    //  entity.DestroyedTick = this.World.Tick + 1;
-    //}
+    /// <summary>
+    /// Removes an entity from the world and destroys it.
+    /// </summary>
+    public void DestroyEntity(RailEntity entity)
+    {
+      entity.Destroy();
+      this.World.RemoveEntity(entity.Id);
+      this.destroyedEntities.Add(entity.Id, entity);
+    }
 
     /// <summary>
     /// Packs and sends a server-to-client packet to each peer.

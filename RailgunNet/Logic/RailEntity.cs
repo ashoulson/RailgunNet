@@ -278,14 +278,16 @@ namespace Railgun
 
     // Synchronization info
     public EntityId Id { get; private set; }
+    internal Tick DestroyedTick { get; private set; }
 
     private RailDejitterBuffer<RailState.Delta> incoming;  // Client-only
     private RailQueueBuffer<RailState.Record> outgoing;    // Server-only
     private IRailControllerInternal controller;
 
-    internal virtual void SimulateCommand(RailCommand command) { }
-    protected virtual void Simulate() { }
-    protected virtual void Start() { }
+    internal virtual void OnSimulateCommand(RailCommand command) { }
+    protected virtual void OnSimulate() { }
+    protected virtual void OnStart() { }
+    protected virtual void OnShutdown() { }
 
     private int factoryType;
     private bool hasStarted;
@@ -331,8 +333,13 @@ namespace Railgun
     private void DoStart()
     {
       if (this.hasStarted == false)
-        this.Start();
+        this.OnStart();
       this.hasStarted = true;
+    }
+
+    internal void DoShutdown()
+    {
+      this.OnShutdown();
     }
 
     #region Server
@@ -341,8 +348,8 @@ namespace Railgun
       this.DoStart();
       IRailControllerInternal controller = this.controller;
       if ((controller != null) && (controller.LatestCommand != null))
-        this.SimulateCommand(this.controller.LatestCommand);
-      this.Simulate();
+        this.OnSimulateCommand(this.controller.LatestCommand);
+      this.OnSimulate();
     }
 
     internal void StoreRecord()
@@ -365,13 +372,19 @@ namespace Railgun
         basis = this.outgoing.LatestAt(basisTick);
 
       return RailState.CreateDelta(
-        this.World.Tick,
+        Tick.INVALID, // The tick will go in the packet instead
         this.Id,
         this.State,
         basis,
         (destination == this.controller),
         (basisTick.IsValid == false),
+        this.DestroyedTick,
         this.ForceUpdates);
+    }
+
+    internal void Destroy()
+    {
+      this.DestroyedTick = this.World.Tick + 1;
     }
     #endregion
 
@@ -386,7 +399,10 @@ namespace Railgun
 
     internal void ReceiveDelta(RailState.Delta delta)
     {
-      this.incoming.Store(delta);
+      if (delta.IsDestroyed)
+        this.DestroyedTick = delta.DestroyedTick;
+      else
+        this.incoming.Store(delta);
     }
 
     internal bool HasReadyState(Tick tick)
@@ -417,8 +433,8 @@ namespace Railgun
 
       foreach (RailCommand command in this.controller.PendingCommands)
       {
-        this.SimulateCommand(command);
-        this.Simulate();
+        this.OnSimulateCommand(command);
+        this.OnSimulate();
         this.predictBuffer.Update(this.State);
       }
     }
@@ -446,11 +462,11 @@ namespace Railgun
     where TState : RailState, new()
     where TCommand : RailCommand
   {
-    internal override void SimulateCommand(RailCommand command)
+    internal override void OnSimulateCommand(RailCommand command)
     {
-      this.SimulateCommand((TCommand)command);
+      this.OnSimulateCommand((TCommand)command);
     }
 
-    protected virtual void SimulateCommand(TCommand command) { }
+    protected virtual void OnSimulateCommand(TCommand command) { }
   }
 }

@@ -61,7 +61,7 @@ namespace Example
     private void OnControllerLeft(IRailControllerServer controller)
     {
       DemoControlled controlled = (DemoControlled)controller.UserData;
-      //this.server.DestroyEntity(controlled);
+      this.server.DestroyEntity(controlled);
     }
   }
 }

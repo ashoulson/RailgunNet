@@ -97,8 +97,7 @@ namespace Railgun
       {
         this.entities.Remove(entityId);
         entity.World = null;
-        // TODO: REENABLE FOR DESTRUCTION
-        //entity.Shutdown();
+        entity.DoShutdown();
       }
     }
     
@@ -114,11 +113,10 @@ namespace Railgun
       this.Tick = serverTick;
       foreach (RailEntity entity in this.entities.Values)
       {
-        // TODO: REENABLE FOR DESTRUCTION
-        //Tick destroyedTick = entity.DestroyedTick;
-        //if (destroyedTick.IsValid && (destroyedTick <= serverTick))
-        //  this.toRemove.Add(entity.Id);
-        //else
+        Tick destroyedTick = entity.DestroyedTick;
+        if (destroyedTick.IsValid && (destroyedTick <= serverTick))
+          this.toRemove.Add(entity.Id);
+        else
           entity.UpdateClient();
       }
 
