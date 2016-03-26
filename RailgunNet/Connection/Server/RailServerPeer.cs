@@ -104,8 +104,8 @@ namespace Railgun
 
       packet.Populate(
         commandAck,
-        this.ProduceDestroyed(destroyedEntities),
-        this.ProduceDeltas(activeEntities));
+        this.ProduceDeltas(this.FilterDestroyed(destroyedEntities)),
+        this.ProduceDeltas(this.FilterActive(activeEntities)));
 
       base.SendPacket(packet);
 
@@ -117,27 +117,35 @@ namespace Railgun
       RailPool.Free(packet);
     }
 
-    private IEnumerable<RailState.Delta> ProduceDestroyed(
+    private IEnumerable<RailState.Delta> ProduceDeltas(
+      IEnumerable<RailEntity> entities)
+    {
+      foreach (RailEntity entity in entities)
+      {
+        RailState.Delta delta =
+          entity.ProduceDelta(
+            this.ackedView.GetLatest(entity.Id),
+            this);
+        if (delta != null)
+          yield return delta;
+      }
+    }
+
+    private IEnumerable<RailEntity> FilterDestroyed(
       IEnumerable<RailEntity> destroyedEntities)
     {
-      // Queue up all destroyed entities for the packet; these get priority
       foreach (RailEntity entity in destroyedEntities)
       {
         Tick latest = this.ackedView.GetLatest(entity.Id);
         if (latest.IsValid && (latest < entity.RemovedTick))
-          yield return entity.ProduceDelta(latest, this);
+          yield return entity;
       }
     }
 
-    private IEnumerable<RailState.Delta> ProduceDeltas(
+    private IEnumerable<RailEntity> FilterActive(
       IEnumerable<RailEntity> activeEntities)
     {
-      IEnumerable<RailEntity> scopedEntities =
-        this.scope.Evaluate(activeEntities, this.LocalTick);
-      foreach (RailEntity entity in scopedEntities)
-        yield return entity.ProduceDelta(
-          this.ackedView.GetLatest(entity.Id), 
-          this);
+      return this.scope.Evaluate(activeEntities, this.LocalTick);
     }
 
     protected override void ProcessPacket(RailPacket packet)

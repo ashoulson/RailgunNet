@@ -69,8 +69,8 @@ namespace Railgun
       internal bool HasControllerData { get { return this.state.HasControllerData; } }
       internal bool HasImmutableData { get { return this.state.HasImmutableData; } }
 
-      internal bool IsDestroyed { get { return this.state.DestroyedTick.IsValid; } }
-      internal Tick RemovedTick { get { return this.state.DestroyedTick; } }
+      internal bool IsDestroyed { get { return this.state.RemovedTick.IsValid; } }
+      internal Tick RemovedTick { get { return this.state.RemovedTick; } }
 
       private readonly RailState state;
 
@@ -129,19 +129,19 @@ namespace Railgun
     /// the current and basis.
     /// </summary>
     internal static RailState.Delta CreateDelta(
-      Tick tick,
       EntityId entityId,
       RailState current,
       RailState.Record basisRecord,
       bool includeControllerData,
       bool includeImmutableData,
-      Tick destroyedTick,
+      Tick removedTick,
       bool forced = false)
     {
       bool shouldReturn =
         forced ||
         includeControllerData ||
-        includeImmutableData;
+        includeImmutableData ||
+        removedTick.IsValid;
 
       uint flags = RailState.FLAGS_ALL;
       if ((basisRecord != null) && (basisRecord.State != null))
@@ -161,9 +161,10 @@ namespace Railgun
       if (includeImmutableData)
         deltaState.ApplyImmutableFrom(current);
 
-      deltaState.DestroyedTick = destroyedTick;
+      deltaState.RemovedTick = removedTick;
 
-      return new RailState.Delta(tick, entityId, deltaState);
+      // We don't need to include a tick when sending -- it's in the packet
+      return new RailState.Delta(Tick.INVALID, entityId, deltaState);
     }
 #endif
 
@@ -202,7 +203,7 @@ namespace Railgun
     private uint Flags { get; set; }             // Synchronized
     private bool HasControllerData { get; set; } // Synchronized
     private bool HasImmutableData { get; set; }  // Synchronized
-    private Tick DestroyedTick { get; set; }     // Synchronized
+    private Tick RemovedTick { get; set; }       // Synchronized
 
     #region Client
     protected abstract void DecodeMutableData(BitBuffer buffer, uint flags);
@@ -294,13 +295,13 @@ namespace Railgun
       RailState state = delta.State;
       buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
 
-      // Write: [IsDestroyed]
-      buffer.WriteBool(state.DestroyedTick.IsValid);
+      // Write: [IsRemoved]
+      buffer.WriteBool(state.RemovedTick.IsValid);
 
-      if (state.DestroyedTick.IsValid)
+      if (state.RemovedTick.IsValid)
       {
-        // Write: [DestroyedTick]
-        buffer.WriteTick(state.DestroyedTick);
+        // Write: [RemovedTick]
+        buffer.WriteTick(state.RemovedTick);
 
         // End Write
         return;
@@ -339,13 +340,13 @@ namespace Railgun
       int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
       RailState state = RailState.Create(factoryType);
 
-      // Read: [IsDestroyed]
-      bool isDestroyed = buffer.ReadBool();
+      // Read: [IsRemoved]
+      bool isRemoved = buffer.ReadBool();
 
-      if (isDestroyed)
+      if (isRemoved)
       {
         // Read: [DestroyedTick]
-        state.DestroyedTick = buffer.ReadTick();
+        state.RemovedTick = buffer.ReadTick();
 
         // End Read
         return new RailState.Delta(packetTick, entityId, state);

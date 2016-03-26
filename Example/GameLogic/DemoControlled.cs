@@ -32,6 +32,14 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 
   int actionCount = 0;
 
+  protected override bool ForceUpdates
+  {
+    get
+    {
+      return false;
+    }
+  }
+
   protected override void OnStart()
   {
     DemoEvents.OnControlledAdded(this);

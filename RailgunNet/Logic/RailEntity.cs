@@ -285,9 +285,7 @@ namespace Railgun
 #endif
     #endregion
 
-#if SERVER
     protected virtual bool ForceUpdates { get { return true; } }
-#endif
 
     // Simulation info
     protected internal RailWorld World { get; internal set; }
@@ -385,7 +383,6 @@ namespace Railgun
         basis = this.outgoing.LatestAt(basisTick);
 
       return RailState.CreateDelta(
-        Tick.INVALID, // The tick will go in the packet instead
         this.Id,
         this.State,
         basis,
