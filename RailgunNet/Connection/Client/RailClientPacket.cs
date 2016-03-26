@@ -103,7 +103,7 @@ namespace Railgun
     }
 
     #region Encode/Decode
-    protected override void EncodePayload(ByteBuffer buffer)
+    protected override void EncodePayload(BitBuffer buffer)
     {
       // Write: [Commands]
       this.EncodeCommands(buffer);
@@ -112,7 +112,7 @@ namespace Railgun
       this.EncodeView(buffer);
     }
 
-    protected override void DecodePayload(ByteBuffer buffer)
+    protected override void DecodePayload(BitBuffer buffer)
     {
       // Read: [Commands]
       this.DecodeCommands(buffer);
@@ -122,14 +122,14 @@ namespace Railgun
     }
 
     #region Commands
-    protected void EncodeCommands(ByteBuffer buffer)
+    protected void EncodeCommands(BitBuffer buffer)
     {
       buffer.PackAll(
         this.commands,
         (command) => command.Encode(buffer));
     }
 
-    protected void DecodeCommands(ByteBuffer buffer)
+    protected void DecodeCommands(BitBuffer buffer)
     {
       IEnumerable<RailCommand> decoded =
         buffer.UnpackAll(
@@ -139,7 +139,7 @@ namespace Railgun
     #endregion
 
     #region View
-    protected void EncodeView(ByteBuffer buffer)
+    protected void EncodeView(BitBuffer buffer)
     {
       buffer.PackToSize(
         RailConfig.MESSAGE_MAX_SIZE,
@@ -152,7 +152,7 @@ namespace Railgun
         });
     }
 
-    public void DecodeView(ByteBuffer buffer)
+    public void DecodeView(BitBuffer buffer)
     {
       IEnumerable<KeyValuePair<EntityId, Tick>> decoded =
         buffer.UnpackAll(

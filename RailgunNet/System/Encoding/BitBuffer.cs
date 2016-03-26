@@ -28,7 +28,7 @@ namespace Railgun
   /// <summary>
   /// A first-in-first-out (FIFO) bit encoding buffer.
   /// </summary>
-  public class ByteBuffer
+  public class BitBuffer
   {
     private static int FindHighestBitPosition(byte data)
     {
@@ -73,7 +73,7 @@ namespace Railgun
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
-    public ByteBuffer(int capacity = ByteBuffer.DEFAULT_CAPACITY)
+    public BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
     {
       this.chunks = new uint[capacity];
       this.readPos = 0;
@@ -193,7 +193,7 @@ namespace Railgun
         this.chunks[i] = chunk;
       }
 
-      int positionInByte = ByteBuffer.FindHighestBitPosition(data[length - 1]);
+      int positionInByte = BitBuffer.FindHighestBitPosition(data[length - 1]);
 
       // Take one off the position to backtrack from the sentinel bit
       this.writePos = ((length - 1) * 8) + (positionInByte - 1);
@@ -228,8 +228,8 @@ namespace Railgun
     private void ExpandArray()
     {
       int newCapacity =
-        (this.chunks.Length * ByteBuffer.GROW_FACTOR) +
-        ByteBuffer.MIN_GROW;
+        (this.chunks.Length * BitBuffer.GROW_FACTOR) +
+        BitBuffer.MIN_GROW;
 
       uint[] newChunks = new uint[newCapacity];
       Array.Copy(this.chunks, newChunks, this.chunks.Length);
@@ -416,17 +416,22 @@ namespace Railgun
     #region Int
     public void WriteInt(int val)
     {
-      this.WriteUInt((uint)val);
+      uint zigzag = (uint)((val << 1) ^ (val >> 31));
+      this.WriteUInt(zigzag);
     }
 
     public int ReadInt()
     {
-      return (int)this.ReadUInt();
+      uint val = this.ReadUInt();
+      int zagzig = (int)((val >> 1) ^ (-(val & 1)));
+      return zagzig;
     }
 
     public int PeekInt()
     {
-      return (int)this.PeekUInt();
+      uint val = this.PeekUInt();
+      int zagzig = (int)((val >> 1) ^ (-(val & 1)));
+      return zagzig;
     }
     #endregion
 

@@ -26,17 +26,17 @@ namespace Railgun
 {
   public static class TickExtensions
   {
-    public static void WriteTick(this ByteBuffer buffer, Tick eventId)
+    public static void WriteTick(this BitBuffer buffer, Tick eventId)
     {
       buffer.WriteInt(eventId.Pack());
     }
 
-    public static Tick ReadTick(this ByteBuffer buffer)
+    public static Tick ReadTick(this BitBuffer buffer)
     {
       return Tick.Unpack(buffer.ReadInt());
     }
 
-    public static Tick PeekTick(this ByteBuffer buffer)
+    public static Tick PeekTick(this BitBuffer buffer)
     {
       return Tick.Unpack(buffer.PeekInt());
     }
