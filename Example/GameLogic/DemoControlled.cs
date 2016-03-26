@@ -32,12 +32,12 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
 
   int actionCount = 0;
 
-  protected override void Start()
+  protected override void OnStart()
   {
     DemoEvents.OnControlledAdded(this);
   }
 
-  protected override void SimulateCommand(DemoCommand command)
+  protected override void OnSimulateCommand(DemoCommand command)
   {
     if (command.Up)
       this.State.Y += 5.0f * Time.fixedDeltaTime;
@@ -56,13 +56,13 @@ public class DemoControlled : RailEntity<DemoState, DemoCommand>
     }
   }
 
-  protected override void Simulate()
+  protected override void OnSimulate()
   {
   }
 
-  //protected override void OnShutdown()
-  //{
-  //  if (this.Shutdown != null)
-  //    this.Shutdown.Invoke();
-  //}
+  protected override void OnShutdown()
+  {
+    if (this.Shutdown != null)
+      this.Shutdown.Invoke();
+  }
 }

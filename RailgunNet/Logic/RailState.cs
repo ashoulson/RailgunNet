@@ -27,6 +27,9 @@ namespace Railgun
       internal bool HasControllerData { get { return this.state.HasControllerData; } }
       internal bool HasImmutableData { get { return this.state.HasImmutableData; } }
 
+      internal bool IsDestroyed { get { return this.state.DestroyedTick.IsValid; } }
+      internal Tick DestroyedTick { get { return this.state.DestroyedTick; } }
+
       private readonly RailState state;
 
       public Delta(
@@ -87,6 +90,7 @@ namespace Railgun
       RailState.Record basisRecord,
       bool includeControllerData,
       bool includeImmutableData,
+      Tick destroyedTick,
       bool forced = false)
     {
       bool shouldReturn =
@@ -111,6 +115,8 @@ namespace Railgun
       deltaState.HasImmutableData = includeImmutableData;
       if (includeImmutableData)
         deltaState.ApplyImmutableFrom(current);
+
+      deltaState.DestroyedTick = destroyedTick;
 
       return new RailState.Delta(tick, entityId, deltaState);
     }
@@ -149,6 +155,7 @@ namespace Railgun
     private uint Flags { get; set; }             // Synchronized
     private bool HasControllerData { get; set; } // Synchronized
     private bool HasImmutableData { get; set; }  // Synchronized
+    private Tick DestroyedTick { get; set; }
 
     #region Client
     protected abstract void DecodeMutableData(ByteBuffer buffer, uint flags);
@@ -241,6 +248,18 @@ namespace Railgun
       RailState state = delta.State;
       buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
 
+      // Write: [IsDestroyed]
+      buffer.WriteBool(state.DestroyedTick.IsValid);
+
+      if (state.DestroyedTick.IsValid)
+      {
+        // Write: [DestroyedTick]
+        buffer.WriteTick(state.DestroyedTick);
+
+        // End Write
+        return;
+      }
+
       // Write: [HasControllerData]
       buffer.WriteBool(state.HasControllerData);
 
@@ -272,6 +291,18 @@ namespace Railgun
       // Read: [FactoryType]
       int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
       RailState state = RailState.Create(factoryType);
+
+      // Read: [IsDestroyed]
+      bool isDestroyed = buffer.ReadBool();
+
+      if (isDestroyed)
+      {
+        // Read: [DestroyedTick]
+        state.DestroyedTick = buffer.ReadTick();
+
+        // End Read
+        return new RailState.Delta(packetTick, entityId, state);
+      }
 
       // Read: [HasControllerData]
       state.HasControllerData = buffer.ReadBool();
