@@ -15,19 +15,16 @@ Supported Networking Tasks:
 - Delta-compression for entity data
 - Network clock (frame number) sync
 - Smoothing and interpolation support
-- Client-side prediction support
-- Reliable global events
+- Clientside prediction support
 - Scoping and packet size/QoS enforcement
-
-To-Do:
+- Reliable global events
 - Unreliable entity/controller events
-- Lag compensation support
-- ...and a lot more
 
 Wishlist:
 - Code generation for new synced object states
 
 Not Supported:
+- Lag compensation for hit detection (see [VolatilePhysics](https://github.com/ashoulson/VolatilePhysics)))
 - Transport-layer network packet I/O
 
 Primary Design Features of Railgun:
