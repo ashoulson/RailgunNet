@@ -24,7 +24,7 @@ Wishlist:
 - Code generation for new synced object states
 
 Not Supported:
-- Lag compensation for hit detection (see [VolatilePhysics](https://github.com/ashoulson/VolatilePhysics)))
+- Lag compensation for hit detection (see [VolatilePhysics](https://github.com/ashoulson/VolatilePhysics))
 - Transport-layer network packet I/O
 
 Primary Design Features of Railgun:
