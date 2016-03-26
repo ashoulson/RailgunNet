@@ -105,9 +105,9 @@ namespace Railgun
       /// <summary>
       /// Interpolates or extrapolates to get a smooth state.
       /// </summary>
-      internal RailState GetSmoothedState(
-        Tick curTick,
-        float frameDelta)
+      internal RailState GetSmoothed(
+        float frameDelta,
+        Tick curTick)
       {
         this.cachedOutput.OverwriteFrom(this.curRecord.State);
 
@@ -183,17 +183,20 @@ namespace Railgun
       }
 
       internal RailState Start(
+        Tick current,
         RailState currentState)
       {
         this.ClearRecords();
 
         // Bring us up to the last received state in the buffer
-        RailState.Delta lastDelta = this.buffer.Latest;
         RailState lastState = currentState.Clone();
-        lastState.ApplyDelta(lastDelta);
+
+        // Need to apply all the deltas in order
+        foreach (RailState.Delta delta in this.buffer.GetLatestFrom(current))
+          lastState.ApplyDelta(delta);
         this.curRecord =
           RailState.CreateRecord(
-            lastDelta.Tick,
+            this.buffer.Latest.Tick,
             lastState);
 
         if (this.cachedOutput == null)
@@ -220,7 +223,7 @@ namespace Railgun
       /// <summary>
       /// Interpolates if possible to get a smoothed state.
       /// </summary>
-      internal RailState GetSmoothedState(
+      internal RailState GetSmoothed(
         float frameDelta)
       {
         this.cachedOutput.OverwriteFrom(this.curRecord.State);
@@ -288,8 +291,8 @@ namespace Railgun
     private bool hasStarted;
 
     // Client-only
-    private readonly SmoothingBuffer smoothingBuffer;
-    private readonly PredictionBuffer predictionBuffer;
+    private readonly SmoothingBuffer smoothBuffer;
+    private readonly PredictionBuffer predictBuffer;
 
     internal RailEntity()
     {
@@ -306,8 +309,8 @@ namespace Railgun
         new RailDejitterBuffer<RailState.Delta>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
-      this.smoothingBuffer = new SmoothingBuffer(this.incoming);
-      this.predictionBuffer = new PredictionBuffer(this.incoming);
+      this.smoothBuffer = new SmoothingBuffer(this.incoming);
+      this.predictBuffer = new PredictionBuffer(this.incoming);
 
       // TODO: Don't need this on the client!
       this.outgoing =
@@ -393,39 +396,30 @@ namespace Railgun
 
     internal RailState GetSmoothedState(float frameDelta)
     {
-      if (this.controller == null) 
-      {
-        return this.smoothingBuffer.GetSmoothedState(
-          this.World.Tick,
-          frameDelta);
-      }
+      if (this.controller == null)
+        return this.smoothBuffer.GetSmoothed(frameDelta, this.World.Tick);
       else
-      {
-        return this.predictionBuffer.GetSmoothedState(
-          frameDelta);
-      }
+        return this.predictBuffer.GetSmoothed(frameDelta);
     }
 
     private void UpdateSmoothing()
     {
       RailState currentState =
-        this.smoothingBuffer.Update(this.World.Tick);
+        this.smoothBuffer.Update(this.World.Tick);
       this.State.OverwriteFrom(currentState);
     }
 
     private void UpdatePrediction()
     {
-      RailState latestState = 
-        this.predictionBuffer.Start(this.State);
+      RailState latestState =
+        this.predictBuffer.Start(this.World.Tick, this.State);
       this.State.OverwriteFrom(latestState);
-
-      RailDebug.Log(this.controller.PendingCommands.Count());
 
       foreach (RailCommand command in this.controller.PendingCommands)
       {
         this.SimulateCommand(command);
         this.Simulate();
-        this.predictionBuffer.Update(this.State);
+        this.predictBuffer.Update(this.State);
       }
     }
     #endregion
