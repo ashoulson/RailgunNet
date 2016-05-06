@@ -25,7 +25,7 @@ Wishlist:
 
 Not Supported:
 - Lag compensation for hit detection (see [VolatilePhysics](https://github.com/ashoulson/VolatilePhysics))
-- Transport-layer network packet I/O
+- Transport-layer network packet I/O (see [MiniUDP](https://github.com/ashoulson/MiniUDP))
 
 Primary Design Features of Railgun:
 - **Transport-Agnostic.** Railgun is not tied to the transport layer used for transmitting data over the internet. As long as a simple interface is upheld (essentially just sending/receiving unreliable byte[] arrays), Railgun can work with a number of network libraries.
