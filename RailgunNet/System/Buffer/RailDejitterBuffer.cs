@@ -18,16 +18,17 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
-
 using System.Linq;
 
 namespace Railgun
 {
+  /// <summary>
+  /// Pre-allocated random access buffer for dejittering values. Preferable to
+  /// DejitterList because of fast insertion and lookup, but harder to use.
+  /// </summary>
   internal class RailDejitterBuffer<T>
-    where T : class, IRailTimedValue
+    where T : class, IRailTimedValue, IRailPoolable<T>
   {
     // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
@@ -68,14 +69,22 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Stores a value. If this displaces an existing value in the process,
-    /// this function will return it. Note that this function does not enforce
-    /// time constraints. It is possible to replace a value with an older one.
+    /// Clears the buffer, freeing all contents.
     /// </summary>
-    public T Store(T value)
+    public void Clear()
+    {
+      for (int i = 0; i < this.data.Length; i++)
+        RailPool.SafeReplace(ref this.data[i], null);
+      this.latestIdx = -1;
+    }
+
+    /// <summary>
+    /// Stores a value. Note that this function does not enforce time 
+    /// constraints. It is possible to replace a value with an older one.
+    /// </summary>
+    public void Store(T value)
     {
       int index = this.TickToIndex(value.Tick);
-      T current = this.data[index];
 
       bool updateLatest = false;
       if (this.latestIdx < 0)
@@ -97,10 +106,9 @@ namespace Railgun
         }
       }
 
-      this.data[index] = value;
+      RailPool.SafeReplace(ref this.data[index], value);
       if (updateLatest)
         this.UpdateLatest();
-      return current;
     }
 
     public T Get(Tick tick)
@@ -246,7 +254,7 @@ namespace Railgun
 
     private int TickToIndex(Tick tick)
     {
-      return (tick.RawValue / this.divisor) % this.data.Length;
+      return (int)(tick.RawValue / this.divisor) % this.data.Length;
     }
   }
 }

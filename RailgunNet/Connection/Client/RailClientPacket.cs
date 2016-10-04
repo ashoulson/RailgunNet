@@ -18,17 +18,14 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
-
-using System.Linq;
 
 namespace Railgun
 {
 #if SERVER
   interface IRailClientPacket
   {
+    IEnumerable<RailCommandUpdate> CommandUpdates { get; }
   }
 #endif
 
@@ -42,94 +39,83 @@ namespace Railgun
     , IRailClientPacket
 #endif
   {
+    #region Pooling
+    IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
+    void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
+    #endregion
+
     internal static RailClientPacket Create()
     {
       return RailResource.Instance.CreateClientPacket();
     }
 
     #region Interface
-    IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
-    void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
+#if SERVER
+    IEnumerable<RailCommandUpdate> IRailClientPacket.CommandUpdates { get { return this.commandUpdates.Received; } }
+#endif
     #endregion
 
 #if SERVER
-    /// <summary>
-    /// A brief history of commands from the client. May not be sent in order.
-    /// </summary>
-    public IEnumerable<RailCommand> Commands
-    {
-      get { return this.commands; }
-    }
-
-    /// <summary>
-    /// A (partial) view indicating the last update frame for each entity.
-    /// </summary>
-    public RailView View
-    {
-      get { return this.view; }
-    }
+    internal RailView View { get { return this.view; } }
 #endif
-
 #if CLIENT
-    public void AddCommands(IEnumerable<RailCommand> commands)
-    {
-      // We reverse the list to take the latest commands until we reach
-      // capacity. Order doesn't matter on arrival since they go into a
-      // dejitter buffer on the server's end.
-      foreach (RailCommand command in commands.Reverse())
-      {
-        if (this.commands.Count >= RailConfig.COMMAND_SEND_COUNT)
-          break;
-        this.commands.Add(command);
-      }
-    }
-
-    public void AddView(RailView view)
-    {
-      this.view.Integrate(view);
-    }
+    internal IEnumerable<RailCommandUpdate> Sent { get { return this.commandUpdates.Sent; } }
 #endif
 
-    private readonly List<RailCommand> commands;
     private readonly RailView view;
+    private readonly RailPackedListC2S<RailCommandUpdate> commandUpdates;
 
     public RailClientPacket()
       : base()
     {
       this.view = new RailView();
-      this.commands = new List<RailCommand>();
+      this.commandUpdates = new RailPackedListC2S<RailCommandUpdate>();
     }
 
     protected override void Reset()
     {
       base.Reset();
 
-      this.commands.Clear();
       this.view.Clear();
+      this.commandUpdates.Clear();
     }
 
+#if CLIENT
+    internal void Populate(
+      IEnumerable<RailCommandUpdate> commandUpdates,
+      RailView view)
+    {
+      this.commandUpdates.AddPending(commandUpdates);
+      this.view.Integrate(view);
+    }
+#endif
+
     #region Encode/Decode
-    protected override void EncodePayload(BitBuffer buffer)
+    protected override void EncodePayload(
+      RailBitBuffer buffer, 
+      int reservedBytes)
     {
 #if CLIENT
       // Write: [Commands]
       this.EncodeCommands(buffer);
 
       // Write: [View]
-      this.EncodeView(buffer);
+      this.EncodeView(buffer, reservedBytes);
     }
 
-    protected void EncodeCommands(BitBuffer buffer)
+    protected void EncodeCommands(RailBitBuffer buffer)
     {
-      buffer.PackAll(
-        this.commands,
-        (command) => command.Encode(buffer));
+      this.commandUpdates.Encode(
+        buffer,
+        RailConfig.PACKCAP_COMMANDS,
+        RailConfig.MAXSIZE_COMMANDUPDATE,
+        (commandUpdate) => commandUpdate.Encode(buffer));
     }
 
-    protected void EncodeView(BitBuffer buffer)
+    protected void EncodeView(RailBitBuffer buffer, int reservedBytes)
     {
       buffer.PackToSize(
-        RailConfig.MESSAGE_MAX_SIZE,
+        RailConfig.PACKCAP_MESSAGE_TOTAL - reservedBytes,
         int.MaxValue,
         this.view.GetOrdered(),
         (pair) =>
@@ -140,7 +126,7 @@ namespace Railgun
 #endif
     }
 
-    protected override void DecodePayload(BitBuffer buffer)
+    protected override void DecodePayload(RailBitBuffer buffer)
     {
 #if SERVER
       // Read: [Commands]
@@ -150,15 +136,14 @@ namespace Railgun
       this.DecodeView(buffer);
     }
 
-    protected void DecodeCommands(BitBuffer buffer)
+    protected void DecodeCommands(RailBitBuffer buffer)
     {
-      IEnumerable<RailCommand> decoded =
-        buffer.UnpackAll(
-          () => RailCommand.Decode(buffer));
-      this.commands.AddRange(decoded);
+      this.commandUpdates.Decode(
+        buffer,
+        () => RailCommandUpdate.Decode(buffer));
     }
 
-    public void DecodeView(BitBuffer buffer)
+    public void DecodeView(RailBitBuffer buffer)
     {
       IEnumerable<KeyValuePair<EntityId, Tick>> decoded =
         buffer.UnpackAll(

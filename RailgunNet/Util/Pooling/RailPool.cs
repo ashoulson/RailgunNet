@@ -19,47 +19,35 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal interface IRailPoolable<T>
-  {
-    IRailPool<T> Pool { get; set; }
-    void Reset();
-  }
-
-  internal interface IRailPool<T>
+  public interface IRailPool<T>
   {
     T Allocate();
     void Deallocate(T obj);
     IRailPool<T> Clone();
   }
 
-  internal static class RailPool
+  public static class RailPool
   {
-    internal static void Free<T>(T obj)
+    public static void Free<T>(T obj)
       where T : IRailPoolable<T>
     {
       obj.Pool.Deallocate(obj);
     }
 
-    // Special cases
-    internal static void Free(
-      RailState.Delta container)
+    public static void SafeReplace<T>(ref T destination, T obj)
+      where T : IRailPoolable<T>
     {
-      RailPool.Free(container.State);
-    }
-
-    internal static void Free(
-      RailState.Record container)
-    {
-      RailPool.Free(container.State);
+      if (destination != null)
+        RailPool.Free(destination);
+      destination = obj;
     }
   }
 
-  internal class RailPool<T> : IRailPool<T>
+  public class RailPool<T> : IRailPool<T>
     where T : IRailPoolable<T>, new()
   {
     private readonly Stack<T> freeList;
@@ -83,7 +71,7 @@ namespace Railgun
     public void Deallocate(T obj)
     {
       RailDebug.Assert(obj.Pool == this);
-      
+
       obj.Reset();
       this.freeList.Push(obj);
     }
@@ -94,7 +82,7 @@ namespace Railgun
     }
   }
 
-  internal class RailPool<TBase, TDerived> : IRailPool<TBase>
+  public class RailPool<TBase, TDerived> : IRailPool<TBase>
     where TBase : IRailPoolable<TBase>
     where TDerived : TBase, new()
   {
@@ -119,7 +107,7 @@ namespace Railgun
     public void Deallocate(TBase obj)
     {
       RailDebug.Assert(obj.Pool == this);
-      
+
       obj.Reset();
       this.freeList.Push(obj);
     }
@@ -127,6 +115,44 @@ namespace Railgun
     public IRailPool<TBase> Clone()
     {
       return new RailPool<TBase, TDerived>();
+    }
+  }
+
+  public class RailPoolSpecial<TBase, TDerived> : IRailPool<TBase>
+    where TBase : IRailPoolable<TBase>
+    where TDerived : TBase
+  {
+    private readonly Stack<TBase> freeList;
+    private readonly Func<TDerived> constructor;
+
+    public RailPoolSpecial(Func<TDerived> constructor)
+    {
+      this.freeList = new Stack<TBase>();
+      this.constructor = constructor;
+    }
+
+    public TBase Allocate()
+    {
+      if (this.freeList.Count > 0)
+        return this.freeList.Pop();
+
+      TBase obj = this.constructor.Invoke();
+      obj.Pool = this;
+      obj.Reset();
+      return obj;
+    }
+
+    public void Deallocate(TBase obj)
+    {
+      RailDebug.Assert(obj.Pool == this);
+
+      obj.Reset();
+      this.freeList.Push(obj);
+    }
+
+    public IRailPool<TBase> Clone()
+    {
+      return new RailPoolSpecial<TBase, TDerived>(this.constructor);
     }
   }
 }

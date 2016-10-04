@@ -18,14 +18,53 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
 {
-  internal interface IRailKeyedValue<TKey>
+  public struct BitArray16
   {
-    TKey Key { get; }
+    public const int LENGTH = 16;
+
+    public ushort Bits { get { return this.bitField; } }
+
+    private readonly ushort bitField;
+
+    public static BitArray16 operator <<(BitArray16 a, int b)
+    {
+      return new BitArray16((ushort)(a.bitField << b));
+    }
+
+    public static BitArray16 operator >>(BitArray16 a, int b)
+    {
+      return new BitArray16((ushort)(a.bitField >> b));
+    }
+
+    private BitArray16(ushort bitField)
+    {
+      this.bitField = bitField;
+    }
+
+    public BitArray16 Store(int value)
+    {
+      RailDebug.Assert(value < LENGTH);
+      return new BitArray16((ushort)(this.bitField | (1U << value)));
+    }
+
+    public BitArray16 Remove(int value)
+    {
+      RailDebug.Assert(value < LENGTH);
+      return new BitArray16((ushort)(this.bitField & ~(1U << value)));
+    }
+
+    public IEnumerable<int> GetValues()
+    {
+      return BitArrayHelpers.GetValues(this.bitField);
+    }
+
+    public bool Contains(int value)
+    {
+      return BitArrayHelpers.Contains(value, this.bitField, LENGTH);
+    }
   }
 }

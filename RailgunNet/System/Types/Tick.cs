@@ -18,27 +18,25 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
 {
   public static class TickExtensions
   {
-    public static void WriteTick(this BitBuffer buffer, Tick eventId)
+    public static void WriteTick(this RailBitBuffer buffer, Tick tick)
     {
-      buffer.WriteInt(eventId.Pack());
+      tick.Write(buffer);
     }
 
-    public static Tick ReadTick(this BitBuffer buffer)
+    public static Tick ReadTick(this RailBitBuffer buffer)
     {
-      return Tick.Unpack(buffer.ReadInt());
+      return Tick.Read(buffer);
     }
 
-    public static Tick PeekTick(this BitBuffer buffer)
+    public static Tick PeekTick(this RailBitBuffer buffer)
     {
-      return Tick.Unpack(buffer.PeekInt());
+      return Tick.Peek(buffer);
     }
   }
 
@@ -49,10 +47,27 @@ namespace Railgun
   /// </summary>
   public struct Tick
   {
-    internal class TickComparer : Comparer<Tick>
+    #region Encoding/Decoding
+    internal void Write(RailBitBuffer buffer)
     {
-      private static readonly Comparer<int> Comparer =
-        Comparer<int>.Default;
+      buffer.WriteUInt(this.tickValue);
+    }
+
+    internal static Tick Read(RailBitBuffer buffer)
+    {
+      return new Tick(buffer.ReadUInt());
+    }
+
+    internal static Tick Peek(RailBitBuffer buffer)
+    {
+      return new Tick(buffer.PeekUInt());
+    }
+    #endregion
+
+    internal class TickComparer : Comparer<Tick>, IEqualityComparer<Tick>
+    {
+      private static readonly Comparer<uint> Comparer =
+        Comparer<uint>.Default;
 
       public override int Compare(Tick x, Tick y)
       {
@@ -60,40 +75,48 @@ namespace Railgun
         RailDebug.Assert(y.IsValid);
         return TickComparer.Comparer.Compare(x.tickValue, y.tickValue);
       }
+
+      public bool Equals(Tick x, Tick y)
+      {
+        RailDebug.Assert(x.IsValid);
+        RailDebug.Assert(y.IsValid);
+        return x == y;
+      }
+
+      public int GetHashCode(Tick x)
+      {
+        RailDebug.Assert(x.IsValid);
+        return x.GetHashCode();
+      }
     }
 
-    internal static readonly Comparer<Tick> Comparer = new TickComparer();
+    private static readonly TickComparer comparer = new TickComparer();
+    public static Comparer<Tick> Comparer { get { return Tick.comparer; } }
+    public static IEqualityComparer<Tick> EqualityComparer { get { return Tick.comparer; } }
 
-    #region Encoding/Decoding
-    internal int Pack()
+    internal static Tick Subtract(Tick a, int b, bool warnClamp = false)
     {
-      return this.tickValue;
-    }
-
-    internal static Tick Unpack(int value)
-    {
-      return new Tick(value);
-    }
-    #endregion
-
-    internal static Tick Create(Tick latest, TickSpan offset)
-    {
-      return latest - offset.RawValue;
-    }
-
-    internal static Tick ClampSubtract(Tick a, int b)
-    {
-      int result = a.tickValue - b;
+      RailDebug.Assert(b >= 0);
+      long result = (long)a.tickValue - b;
       if (result < 1)
+      {
+        if (warnClamp)
+          RailDebug.LogWarning("Clamping tick subtraction");
         result = 1;
-      return new Tick(result);
+      }
+      return new Tick((uint)result);
     }
 
-    internal static readonly Tick INVALID = new Tick(0);
-    internal static readonly Tick START = new Tick(1);
+    public static readonly Tick INVALID = new Tick(0);
+    public static readonly Tick START = new Tick(1);
 
     #region Operators
     // Can't find references on these, so just delete and build to find uses
+
+    public static Tick operator ++(Tick a)
+    {
+      return a.GetNext();
+    }
 
     public static bool operator ==(Tick a, Tick b)
     {
@@ -132,10 +155,11 @@ namespace Railgun
     public static int operator -(Tick a, Tick b)
     {
       RailDebug.Assert(a.IsValid && b.IsValid);
-      return (a.tickValue - b.tickValue);
+      long difference = (long)a.tickValue - (long)b.tickValue;
+      return (int)difference;
     }
 
-    public static Tick operator +(Tick a, int b)
+    public static Tick operator +(Tick a, uint b)
     {
       RailDebug.Assert(a.IsValid);
       return new Tick(a.tickValue + b);
@@ -143,14 +167,7 @@ namespace Railgun
 
     public static Tick operator -(Tick a, int b)
     {
-      int result = a.tickValue - b;
-      if (result < 1)
-      {
-        RailDebug.LogWarning("Clamping tick subtraction");
-        result = 1;
-      }
-
-      return new Tick(result);
+      return Tick.Subtract(a, b, true);
     }
     #endregion
 
@@ -173,7 +190,7 @@ namespace Railgun
     /// <summary>
     /// Should be used very sparingly. Otherwise it defeats type safety.
     /// </summary>
-    internal int RawValue
+    internal uint RawValue
     {
       get 
       {
@@ -192,9 +209,9 @@ namespace Railgun
       }
     }
 
-    private readonly int tickValue;
+    private readonly uint tickValue;
 
-    private Tick(int tickValue)
+    private Tick(uint tickValue)
     {
       this.tickValue = tickValue;
     }
@@ -207,7 +224,7 @@ namespace Railgun
 
     public override int GetHashCode()
     {
-      return this.tickValue;
+      return (int)this.tickValue;
     }
 
     public override bool Equals(object obj)

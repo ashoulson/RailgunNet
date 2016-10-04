@@ -49,22 +49,13 @@ namespace Railgun
   {
     public static IRailPool<T> CreatePool<T>(
       Type derivedType)
+      where T : IRailPoolable<T>
     {
       Type factoryType = typeof(RailPool<,>);
       Type specific = 
         factoryType.MakeGenericType(typeof(T), derivedType);
       ConstructorInfo ci = specific.GetConstructor(Type.EmptyTypes);
       return (IRailPool<T>)ci.Invoke(new object[] { });
-    }
-
-    public static IRailFactory<T> CreateFactory<T>(
-      Type derivedType)
-    {
-      Type factoryType = typeof(RailFactory<,>);
-      Type specific =
-        factoryType.MakeGenericType(typeof(T), derivedType);
-      ConstructorInfo ci = specific.GetConstructor(Type.EmptyTypes);
-      return (IRailFactory<T>)ci.Invoke(new object[] { });
     }
 
     public static IList<KeyValuePair<Type, T>> FindAll<T>()

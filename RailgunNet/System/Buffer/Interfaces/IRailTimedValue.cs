@@ -18,22 +18,10 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Railgun
 {
-  internal interface IRailFactory<T>
+  public interface IRailTimedValue
   {
-    T Allocate();
-    IRailFactory<T> Clone();
-  }
-
-  internal class RailFactory<TBase, TDerived> : IRailFactory<TBase>
-    where TDerived : TBase, new()
-  {
-    public TBase Allocate() { return new TDerived(); }
-    public IRailFactory<TBase> Clone() { return new RailFactory<TBase, TDerived>(); }
+    Tick Tick { get; }
   }
 }

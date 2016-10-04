@@ -20,10 +20,7 @@
 
 #if CLIENT
 using System;
-using System.Collections;
 using System.Collections.Generic;
-
-using System.Linq;
 
 namespace Railgun
 {
@@ -32,53 +29,38 @@ namespace Railgun
   /// </summary>
   internal class RailClientPeer
     : RailPeer
-    , IRailControllerInternal
   {
     internal event Action<IRailServerPacket> PacketReceived;
 
-    /// <summary>
-    /// Commands that have been sent to the server but not yet acked.
-    /// </summary>
-    public override IEnumerable<RailCommand> PendingCommands
-    {
-      get { return this.pendingCommands; }
-    }
-
-    private readonly Queue<RailCommand> pendingCommands;
     private readonly RailView localView;
+
+    private List<RailEntity> sortingList;
 
     internal RailClientPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(netPeer, interpreter)
     {
-      this.pendingCommands = new Queue<RailCommand>();
       this.localView = new RailView();
+      this.sortingList = new List<RailEntity>();
     }
 
-    internal override int Update(Tick localTick)
-    {
-      return base.Update(localTick);
-    }
-
-    internal void QueueCommand(RailCommand command)
-    {
-      if (this.pendingCommands.Count < RailConfig.COMMAND_BUFFER_COUNT)
-        this.pendingCommands.Enqueue(command);
-    }
-
-    internal void SendPacket()
+    internal void SendPacket(
+      Tick localTick,
+      IEnumerable<RailEntity> controlledEntities)
     {
       RailClientPacket packet =
-        base.AllocatePacketSend<RailClientPacket>(this.LocalTick);
+        base.AllocatePacketSend<RailClientPacket>(localTick);
 
-      // Set data
-      packet.AddCommands(this.pendingCommands);
-      packet.AddView(this.localView);
+      packet.Populate(
+        this.ProduceCommandUpdates(controlledEntities), 
+        this.localView);
 
       // Send the packet
       base.SendPacket(packet);
 
+      foreach (RailCommandUpdate commandUpdate in packet.Sent)
+        commandUpdate.Entity.LastSentCommandTick = localTick;
       RailPool.Free(packet);
     }
 
@@ -87,12 +69,34 @@ namespace Railgun
       base.ProcessPacket(packet);
       RailServerPacket serverPacket = (RailServerPacket)packet;
 
-      this.UpdateCommands(serverPacket.CommandAck);
-      foreach (RailState.Delta delta in serverPacket.Deltas)
+      foreach (RailStateDelta delta in serverPacket.Deltas)
         this.localView.RecordUpdate(delta.EntityId, packet.SenderTick);
 
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(serverPacket);
+    }
+
+    private IEnumerable<RailCommandUpdate> ProduceCommandUpdates(
+      IEnumerable<RailEntity> entities)
+    {
+      // If we have too many entities to fit commands for in a packet,
+      // we want to round-robin sort them to avoid starvation
+      this.sortingList.Clear();
+      this.sortingList.AddRange(entities);
+      this.sortingList.Sort(
+        (x, y) => Tick.Comparer.Compare(
+          x.LastSentCommandTick,
+          y.LastSentCommandTick));
+
+      foreach (RailEntity entity in sortingList)
+      {
+        RailCommandUpdate commandUpdate = 
+          RailCommandUpdate.Create(
+            entity.Id,
+            entity.OutgoingCommands);
+        commandUpdate.Entity = entity;
+        yield return commandUpdate;
+      }
     }
 
     protected override RailPacket AllocateIncoming()
@@ -103,19 +107,6 @@ namespace Railgun
     protected override RailPacket AllocateOutgoing()
     {
       return RailClientPacket.Create();
-    }
-
-    private void UpdateCommands(Tick lastReceivedTick)
-    {
-      if (lastReceivedTick.IsValid == false)
-        return;
-
-      while (this.pendingCommands.Count > 0)
-      {
-        if (this.pendingCommands.Peek().Tick > lastReceivedTick)
-          break;
-        RailPool.Free(this.pendingCommands.Dequeue());
-      }
     }
   }
 }
