@@ -18,38 +18,43 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Railgun
 {
-  public static class IntCompressorExtensions
+  public static class RailIntCompressorExtensions
   {
     public static void WriteInt(
-      this BitBuffer buffer,
-      IntCompressor compressor,
+      this RailBitBuffer buffer,
+      RailIntCompressor compressor,
       int value)
     {
-      buffer.Write(compressor.RequiredBits, compressor.Pack(value));
+      if (compressor.RequiredBits > RailConfig.VARINT_FALLBACK_SIZE)
+        buffer.WriteUInt(compressor.Pack(value));
+      else
+        buffer.Write(compressor.RequiredBits, compressor.Pack(value));
     }
 
     public static int ReadInt(
-      this BitBuffer buffer,
-      IntCompressor compressor)
+      this RailBitBuffer buffer,
+      RailIntCompressor compressor)
     {
-      return compressor.Unpack(buffer.Read(compressor.RequiredBits));
+      if (compressor.RequiredBits > RailConfig.VARINT_FALLBACK_SIZE)
+        return compressor.Unpack(buffer.ReadUInt());
+      else
+        return compressor.Unpack(buffer.Read(compressor.RequiredBits));
     }
 
     public static int PeekInt(
-      this BitBuffer buffer,
-      IntCompressor compressor)
+      this RailBitBuffer buffer,
+      RailIntCompressor compressor)
     {
-      return compressor.Unpack(buffer.Peek(compressor.RequiredBits));
+      if (compressor.RequiredBits > RailConfig.VARINT_FALLBACK_SIZE)
+        return compressor.Unpack(buffer.PeekUInt());
+      else
+        return compressor.Unpack(buffer.Peek(compressor.RequiredBits));
     }
   }
 
-  public class IntCompressor
+  public class RailIntCompressor
   {
     private readonly int minValue;
     private readonly int maxValue;
@@ -59,7 +64,7 @@ namespace Railgun
 
     internal int RequiredBits { get { return this.requiredBits; } }
 
-    public IntCompressor(int minValue, int maxValue)
+    public RailIntCompressor(int minValue, int maxValue)
     {
       this.minValue = minValue;
       this.maxValue = maxValue;
@@ -70,6 +75,15 @@ namespace Railgun
 
     public uint Pack(int value)
     {
+      if ((value < this.minValue) || (value > this.maxValue))
+        RailDebug.LogWarning(
+          "Clamping value for send! " +
+          value +
+          " vs. [" +
+          this.minValue +
+          "," +
+          this.maxValue +
+          "]");
       return (uint)(value - this.minValue) & this.mask;
     }
 
@@ -86,7 +100,7 @@ namespace Railgun
       long minLong = (long)this.minValue;
       long maxLong = (long)this.maxValue;
       uint range = (uint)(maxLong - minLong);
-      return RailMath.Log2(range) + 1;
+      return RailUtil.Log2(range) + 1;
     }
   }
 }

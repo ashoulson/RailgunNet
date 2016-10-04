@@ -18,11 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
-
-using System.Linq;
 
 namespace Railgun
 {
@@ -36,234 +32,11 @@ namespace Railgun
   /// [RegisterEntity] attribute. See RailRegistry.cs for more information.
   /// </summary>
   public abstract class RailEntity
+    : IRailPoolable<RailEntity>
   {
-    #region Smoothing/Prediction Internal Classes
-#if CLIENT
-    private static void ComputeSmoothed(
-      Tick realTick,
-      float frameDelta,
-      RailState.Record first,
-      RailState.Record second,
-      RailState destination)
-    {
-      destination.ApplySmoothed(
-        first.State,
-        second.State,
-        RailMath.ComputeInterp(
-          first.Tick.Time,
-          second.Tick.Time,
-          realTick.Time + frameDelta));
-    }
-
-    private class SmoothingBuffer
-    {
-      private RailState.Record prevRecord;
-      private RailState.Record curRecord;
-      private RailState.Record nextRecord;
-
-      private readonly RailDejitterBuffer<RailState.Delta> buffer;
-      private RailState cachedOutput;
-
-      internal SmoothingBuffer(RailDejitterBuffer<RailState.Delta> buffer)
-      {
-        this.buffer = buffer;
-        this.curRecord = null;
-        this.cachedOutput = null;
-      }
-
-      /// <summary>
-      /// Repopulates the state buffer with new values based on the delta
-      /// dejitter buffer provided by the entity.
-      /// </summary>
-      internal RailState Update(Tick current)
-      {
-        this.ClearRecords();
-
-        RailState.Delta curDelta;
-        RailState.Delta nextDelta;
-
-        this.buffer.GetRangeAt(
-          current,
-          out curDelta,
-          out nextDelta);
-
-        if (curDelta != null)
-        {
-          if (this.curRecord == null)
-            this.Initialize(curDelta);
-
-          // Apply the delta to the current auth record and push it
-          // into the current-past double buffer
-          if (this.curRecord.Tick < curDelta.Tick)
-          {
-            if (this.prevRecord != null)
-              RailPool.Free(this.prevRecord);
-            this.prevRecord = this.curRecord;
-            this.curRecord = this.CreateRecord(curDelta);
-          }
-
-          // Try to create a record for the next state as well, but make sure
-          // the next record is actually in the future (no time jumps)
-          if ((nextDelta != null) && (nextDelta.Tick > this.curRecord.Tick))
-          {
-            this.nextRecord = this.CreateRecord(nextDelta);
-          }
-        }
-
-        return this.curRecord.State;
-      }
-
-      /// <summary>
-      /// Interpolates or extrapolates to get a smooth state.
-      /// </summary>
-      internal RailState GetSmoothed(
-        float frameDelta,
-        Tick curTick)
-      {
-        this.cachedOutput.OverwriteFrom(this.curRecord.State);
-
-        if (this.nextRecord != null)
-        {
-          RailEntity.ComputeSmoothed(
-            curTick,
-            frameDelta,
-            this.curRecord,
-            this.nextRecord,
-            this.cachedOutput);
-        }
-        else if (this.prevRecord != null)
-        {
-          RailEntity.ComputeSmoothed(
-            curTick,
-            frameDelta,
-            this.prevRecord,
-            this.curRecord,
-            this.cachedOutput);
-        }
-
-        return this.cachedOutput;
-      }
-
-      /// <summary>
-      /// Initialzes the double buffer with the first delta we
-      /// receive from the server.
-      /// </summary>
-      private void Initialize(RailState.Delta firstDelta)
-      {
-        RailDebug.Assert(firstDelta.HasImmutableData);
-        this.cachedOutput = firstDelta.State.Clone();
-        this.curRecord = 
-          RailState.CreateRecord(
-            firstDelta.Tick, 
-            firstDelta.State.Clone());
-      }
-
-      private void ClearRecords()
-      {
-        // Clear out the prior next record since it may now be invalid
-        if (this.nextRecord != null)
-          RailPool.Free(this.nextRecord);
-        this.nextRecord = null;
-      }
-
-      /// <summary>
-      /// Copies the current record and applies the delta to it.
-      /// </summary>
-      private RailState.Record CreateRecord(RailState.Delta delta)
-      {
-        RailState.Record result =
-          RailState.CreateRecord(
-            delta.Tick,
-            this.curRecord.State);
-        result.State.ApplyDelta(delta);
-        return result;
-      }
-    }
-
-    private class PredictionBuffer
-    {
-      private RailState.Record prevRecord;
-      private RailState.Record curRecord;
-
-      private readonly RailDejitterBuffer<RailState.Delta> buffer;
-      private RailState cachedOutput;
-
-      internal PredictionBuffer(RailDejitterBuffer<RailState.Delta> buffer)
-      {
-        this.buffer = buffer;
-      }
-
-      internal RailState Start(
-        Tick current,
-        RailState currentState)
-      {
-        this.ClearRecords();
-
-        // Bring us up to the last received state in the buffer
-        RailState lastState = currentState.Clone();
-
-        // Need to apply all the deltas in order
-        foreach (RailState.Delta delta in this.buffer.GetLatestFrom(current))
-          lastState.ApplyDelta(delta);
-        this.curRecord =
-          RailState.CreateRecord(
-            this.buffer.Latest.Tick,
-            lastState);
-
-        if (this.cachedOutput == null)
-          this.cachedOutput = lastState.Clone();
-        else
-          this.cachedOutput.OverwriteFrom(lastState);
-
-        return this.curRecord.State;
-      }
-
-      internal void Update(
-        RailState currentState)
-      {
-        if (this.prevRecord != null)
-          RailPool.Free(this.prevRecord);
-        this.prevRecord = this.curRecord;
-
-        this.curRecord =
-          RailState.CreateRecord(
-            this.curRecord.Tick + 1,
-            currentState);
-      }
-
-      /// <summary>
-      /// Interpolates if possible to get a smoothed state.
-      /// </summary>
-      internal RailState GetSmoothed(
-        float frameDelta)
-      {
-        this.cachedOutput.OverwriteFrom(this.curRecord.State);
-
-        if (this.prevRecord != null)
-        {
-          RailEntity.ComputeSmoothed(
-            this.prevRecord.Tick,
-            frameDelta,
-            this.prevRecord,
-            this.curRecord,
-            this.cachedOutput);
-        }
-
-        return this.cachedOutput;
-      }
-
-      private void ClearRecords()
-      {
-        if (this.prevRecord != null)
-          RailPool.Free(this.prevRecord);
-        if (this.curRecord != null)
-          RailPool.Free(this.curRecord);
-
-        this.prevRecord = null;
-        this.prevRecord = null;
-      }
-    }
-#endif
+    #region Pooling
+    IRailPool<RailEntity> IRailPoolable<RailEntity>.Pool { get; set; }
+    void IRailPoolable<RailEntity>.Reset() { this.Reset(); }
     #endregion
 
     #region Creation
@@ -271,7 +44,10 @@ namespace Railgun
     {
       RailEntity entity = RailResource.Instance.CreateEntity(factoryType);
       entity.factoryType = factoryType;
-      entity.State = RailState.Create(factoryType);
+      entity.MainState = RailState.Create(factoryType);
+#if CLIENT
+      entity.AuthState = entity.MainState.Clone();
+#endif
       return entity;
     }
 
@@ -285,77 +61,154 @@ namespace Railgun
 #endif
     #endregion
 
+#if CLIENT
+    private static void ComputeInterpolated(
+      Tick realTick,
+      float frameDelta,
+      RailStateRecord first,
+      RailStateRecord second,
+      RailState destination)
+    {
+      float firstTime = first.Tick.Time;
+      float secondTime = second.Tick.Time;
+      float currentTime = realTick.Time + frameDelta;
+      float t = ((currentTime - firstTime) / (secondTime - firstTime));
+      destination.ApplyInterpolated(first.State, second.State, t);
+    }
+#endif
+
     protected virtual bool ForceUpdates { get { return true; } }
     protected virtual int TicksBeforeFreeze { get { return RailConfig.TICKS_BEFORE_FREEZE; } }
+    protected internal virtual RailConfig.RailUpdateOrder UpdateOrder 
+    {
+      get { return RailConfig.RailUpdateOrder.UpdateNormal; } 
+    }
 
     // Simulation info
-    protected internal RailWorld World { get; internal set; }
-    public IRailController Controller { get { return this.controller; } }
-    public RailState State { get; private set; }
+    public IRailController Controller { get; private set; }
+    public bool IsRemoving { get { return this.RemovedTick.IsValid; } }
+    public RailRoom Room { get; internal set; }
+
+    internal abstract RailState MainState { get; set; }
+
+#if SERVER
+    public bool IsFrozen { get { return false; } }
+#endif
 
 #if CLIENT
-    protected bool IsFrozen { get; private set; }
+    public bool IsFrozen { get; private set; }
+
+    internal IEnumerable<RailCommand> OutgoingCommands { get { return this.outgoingCommands; } }
+
+    // The last local tick we sent our commands to the server
+    internal Tick LastSentCommandTick { get; set; }
+
     private bool CanFreeze { get { return this.TicksBeforeFreeze > 0; } }
-#elif SERVER
-    protected bool IsFrozen { get { return false; } }
+    private RailState AuthState { get; set; }
 #endif
 
     // Synchronization info
     public EntityId Id { get; private set; }
     internal Tick RemovedTick { get; private set; }
 
-    private IRailControllerInternal controller;
-
-    internal virtual void OnSimulateCommand(RailCommand command) { }
-    protected virtual void OnSimulate() { }
+    protected virtual void Revert() { }                                    // Called on controller
+    internal virtual void UpdateControlGeneric(RailCommand toPopulate) { } // Called on controller
+    internal virtual void ApplyControlGeneric(RailCommand toApply) { }     // Called on controller and server
+    protected virtual void PostUpdate() { }                                // Called on controller and server
+    protected virtual void UpdateProxy() { }                               // Called on non-controller client
+    protected virtual void UpdateAuth() { }                                // Called on server
 
     protected virtual void OnControllerChanged() { }
     protected virtual void OnStart() { }
     protected virtual void OnShutdown() { }
 
-    protected virtual void OnFrozen() { }
-    protected virtual void OnUnfrozen() { }
+    protected virtual void OnFrozen() { }                                  // Client only
+    protected virtual void OnUnfrozen() { }                                // Client only
+
+    protected abstract void OnReset();
 
     private int factoryType;
     private bool hasStarted;
+    private bool deferNotifyControllerChanged;
 
 #if SERVER
-    private readonly RailQueueBuffer<RailState.Record> outgoing;
+    private readonly RailDejitterBuffer<RailCommand> incomingCommands;
+    private readonly RailQueueBuffer<RailStateRecord> outgoingStates;
+
+    // The remote (client) tick of the last command we processed
+    private Tick commandAck;
 #endif
 #if CLIENT
-    private readonly RailDejitterBuffer<RailState.Delta> incoming; 
-    private readonly SmoothingBuffer smoothBuffer;
-    private readonly PredictionBuffer predictBuffer;
+    private readonly RailDejitterBuffer<RailStateDelta> incomingStates;
+    private readonly Queue<RailCommand> outgoingCommands;
 
-    private Tick lastDelta;
+    // The tick of the last delta we applied
+    private Tick lastAppliedDeltaTick;
+
+    // Smoothing
+    private RailStateRecord curRecord;
+    private RailStateRecord nextRecord;
+    private RailState cachedSmooth;
+    private bool firstDeltaApplied;
 #endif
 
     internal RailEntity()
     {
-      this.World = null;
-
-      this.Id = EntityId.INVALID;
-      this.State = null;
-
-      this.controller = null;
-      this.hasStarted = false;
-
 #if SERVER
-      this.outgoing =
-        new RailQueueBuffer<RailState.Record>(
+      // We use no divisor for storing commands because commands are sent in
+      // batches that we can use to fill in the holes between send ticks
+      this.incomingCommands =
+        new RailDejitterBuffer<RailCommand>(
+          RailConfig.DEJITTER_BUFFER_LENGTH);
+      this.outgoingStates =
+        new RailQueueBuffer<RailStateRecord>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
 #endif
 #if CLIENT
-      this.incoming =
-        new RailDejitterBuffer<RailState.Delta>(
+      this.incomingStates =
+        new RailDejitterBuffer<RailStateDelta>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
           RailConfig.NETWORK_SEND_RATE);
-      this.smoothBuffer = new SmoothingBuffer(this.incoming);
-      this.predictBuffer = new PredictionBuffer(this.incoming);
-
-      this.lastDelta = Tick.START;
-      this.IsFrozen = false;
+      this.outgoingCommands = 
+        new Queue<RailCommand>();
 #endif
+
+      this.Reset();
+    }
+
+    private void Reset()
+    {
+      this.Room = null;
+
+      this.Id = EntityId.INVALID;
+      this.MainState = null;
+
+      this.Controller = null;
+      this.hasStarted = false;
+
+      // We always notify a controller change at start
+      this.deferNotifyControllerChanged = true;
+
+#if SERVER
+      this.outgoingStates.Clear();
+      this.incomingCommands.Clear();
+#endif
+
+#if CLIENT
+      this.incomingStates.Clear();
+      this.outgoingCommands.Clear();
+
+      this.lastAppliedDeltaTick = Tick.START;
+      this.LastSentCommandTick = Tick.START;
+      this.IsFrozen = true; // Entities start frozen
+
+      this.curRecord = null;
+      this.nextRecord = null;
+      this.cachedSmooth = null;
+      this.firstDeltaApplied = false;
+#endif
+
+      this.OnReset();
     }
 
     internal void AssignId(EntityId id)
@@ -363,154 +216,336 @@ namespace Railgun
       this.Id = id;
     }
 
-    internal void AssignController(IRailControllerInternal controller)
+    internal void AssignController(IRailController controller)
     {
-      this.controller = controller;
-      if (this.hasStarted)
-        this.OnControllerChanged();
+      this.Controller = controller;
+      this.ClearCommands();
+      this.deferNotifyControllerChanged = true;
+
+#if CLIENT
+      RailPool.SafeReplace(ref this.curRecord, null);
+      RailPool.SafeReplace(ref this.nextRecord, null);
+#endif
     }
 
-    private void DoStart()
+    private void Initialize()
     {
       if (this.hasStarted == false)
-      {
-        this.OnControllerChanged();
         this.OnStart();
-      }
       this.hasStarted = true;
     }
 
-    internal void DoShutdown()
+    internal void Cleanup()
     {
       this.OnShutdown();
     }
 
-#if SERVER
-    internal void StoreRecord()
+    private void ClearCommands()
     {
-      RailState.Record record =
-        RailState.CreateRecord(
-          this.World.Tick,
-          this.State, 
-          this.outgoing.Latest);
-      if (record != null)
-        this.outgoing.Store(record);
+#if SERVER
+      this.incomingCommands.Clear();
+#endif
+#if CLIENT
+      this.outgoingCommands.Clear();
+#endif
     }
 
-    internal RailState.Delta ProduceDelta(
+#if SERVER
+    internal void ServerUpdate()
+    {
+      this.Initialize();
+      this.NotifyControllerChanged();
+      this.UpdateAuth();
+
+      RailCommand latest = this.GetLatestCommand();
+      if (latest != null)
+      {
+        this.ApplyControlGeneric(latest);
+        latest.IsNewCommand = false;
+
+        // Use the remote tick rather than the last applied tick
+        // because we might be skipping some commands to keep up
+        this.UpdateCommandAck(this.Controller.RemoteTick);
+      }
+
+      this.PostUpdate();
+    }
+
+    internal void StoreRecord()
+    {
+      RailStateRecord record =
+        RailState.CreateRecord(
+          this.Room.Tick,
+          this.MainState, 
+          this.outgoingStates.Latest);
+      if (record != null)
+        this.outgoingStates.Store(record);
+    }
+
+    internal RailStateDelta ProduceDelta(
       Tick basisTick, 
       IRailController destination)
     {
-      RailState.Record basis = null;
+      RailStateRecord basis = null;
       if (basisTick.IsValid)
-        basis = this.outgoing.LatestAt(basisTick);
+        basis = this.outgoingStates.LatestAt(basisTick);
 
       return RailState.CreateDelta(
         this.Id,
-        this.State,
+        this.MainState,
         basis,
-        (destination == this.controller),
+        (destination == this.Controller),
         (basisTick.IsValid == false),
+        this.commandAck,
         this.RemovedTick,
         this.ForceUpdates);
     }
 
-    internal void UpdateServer()
+    internal void ReceiveCommand(RailCommand command)
     {
-      this.DoStart();
-      IRailControllerInternal controller = this.controller;
-      if ((controller != null) && (controller.LatestCommand != null))
-        this.OnSimulateCommand(this.controller.LatestCommand);
-      this.OnSimulate();
+      this.incomingCommands.Store(command);
+      command.IsNewCommand = true;
     }
 
     internal void MarkForRemove()
     {
       // We'll remove on the next tick since we're probably 
       // already mid-way through evaluating this tick
-      this.RemovedTick = this.World.Tick + 1;
+      this.RemovedTick = this.Room.Tick + 1;
+    }
+
+    private RailCommand GetLatestCommand()
+    {
+      if (this.Controller != null)
+        return this.incomingCommands.GetLatestAt(this.Controller.RemoteTick);
+      return null;
+    }
+
+    private void UpdateCommandAck(Tick latestCommandTick)
+    {
+      bool shouldAck =
+        (this.commandAck.IsValid == false) ||
+        (latestCommandTick > this.commandAck);
+      if (shouldAck)
+        this.commandAck = latestCommandTick;
     }
 #endif
 
 #if CLIENT
-    internal bool HasReadyState(Tick tick)
+    internal void ClientUpdate(Tick localTick)
     {
-      return (this.incoming.GetLatestAt(tick) != null);
+      RailStateDelta curDelta;
+      RailStateDelta nextDelta;
+
+      this.UpdateAuthState(out curDelta, out nextDelta);
+      this.MainState.OverwriteFrom(this.AuthState);
+      this.Initialize();
+
+      if (this.ShouldFreeze())
+      {
+        // If we're freezing, then don't do any updates
+        this.NotifyControllerChanged();
+        this.SetFreeze(true);
+      }
+      else
+      {
+        if (this.Controller == null)
+        {
+          this.UpdateProxied(curDelta, nextDelta);
+
+          // Update control/freeze after we have the necessary proxy data
+          this.NotifyControllerChanged();
+          this.SetFreeze(false);
+        }
+        else
+        {
+          // Update control/freeze before getting commands and predicting
+          this.NotifyControllerChanged();
+          this.SetFreeze(false);
+
+          this.UpdateControl(localTick);
+          this.UpdatePredicted();
+        }
+
+        this.PostUpdate();
+      }
     }
 
-    internal void ReceiveDelta(RailState.Delta delta)
+    internal bool HasReadyState(Tick tick)
     {
+      return (this.incomingStates.GetLatestAt(tick) != null);
+    }
+
+    internal void ReceiveDelta(RailStateDelta delta)
+    {
+      // Make sure to get the immutable data in case we skip this delta
+      if (this.firstDeltaApplied == false)
+      {
+        RailDebug.Assert(delta.HasImmutableData);
+        this.AuthState.ApplyDelta(delta);
+        this.firstDeltaApplied = true;
+      }
+
       if (delta.IsDestroyed)
         this.RemovedTick = delta.RemovedTick;
       else
-        this.incoming.Store(delta);
+        this.incomingStates.Store(delta);
 
-      if ((this.lastDelta.IsValid == false) || (this.lastDelta < delta.Tick))
-        this.lastDelta = delta.Tick;
+      if (delta.HasControllerData)
+        this.CleanCommands(delta.CommandAck);
     }
 
-    internal RailState GetSmoothedState(float frameDelta)
+    private void CleanCommands(Tick ackTick)
     {
-      if (this.controller == null)
-        return this.smoothBuffer.GetSmoothed(frameDelta, this.World.Tick);
-      else
-        return this.predictBuffer.GetSmoothed(frameDelta);
-    }
+      if (ackTick.IsValid == false)
+        return;
 
-    internal void UpdateClient()
-    {
-      this.UpdateSmoothing();
-      this.DoStart();
-      if (this.controller != null)
-        this.UpdatePrediction();
-    }
-
-    private void UpdateSmoothing()
-    {
-      RailState currentState =
-        this.smoothBuffer.Update(this.World.Tick);
-      this.State.OverwriteFrom(currentState);
-    }
-
-    private void UpdatePrediction()
-    {
-      RailState latestState =
-        this.predictBuffer.Start(this.World.Tick, this.State);
-      this.State.OverwriteFrom(latestState);
-
-      foreach (RailCommand command in this.controller.PendingCommands)
+      while (this.outgoingCommands.Count > 0)
       {
-        this.OnSimulateCommand(command);
-        this.OnSimulate();
-        this.predictBuffer.Update(this.State);
+        RailCommand command = this.outgoingCommands.Peek();
+        if (command.ClientTick > ackTick)
+          break;
+        RailPool.Free(this.outgoingCommands.Dequeue());
       }
     }
 
-    internal void UpdateFreeze(Tick actualServerTick)
+    private void UpdateControl(Tick localTick)
     {
-      if (this.CanFreeze && (this.controller == null))
+      RailDebug.Assert(this.Controller != null);
+      if (this.outgoingCommands.Count < RailConfig.COMMAND_BUFFER_COUNT)
       {
-        int delta = actualServerTick - this.lastDelta;
-        bool shouldFreeze = (delta > this.TicksBeforeFreeze);
+        RailCommand command = RailCommand.Create();
 
-        if (shouldFreeze && (this.IsFrozen == false))
-        {
-          this.IsFrozen = true;
-          this.OnFrozen();
-        }
-        else if ((shouldFreeze == false) && this.IsFrozen)
-        {
-          this.IsFrozen = false;
-          this.OnUnfrozen();
-        }
+        command.ClientTick = localTick;
+        command.IsNewCommand = true;
+
+        this.UpdateControlGeneric(command);
+        this.outgoingCommands.Enqueue(command);
       }
-      else if (this.IsFrozen)
+    }
+
+    private void UpdateAuthState(
+      out RailStateDelta curDelta,
+      out RailStateDelta nextDelta)
+    {
+      // Get the deltas from the buffer
+      this.incomingStates.GetRangeAt(
+        this.Room.Tick, 
+        out curDelta, 
+        out nextDelta);
+      if (curDelta == null)
+        return;
+
+      this.AuthState.ApplyDelta(curDelta);
+      if (curDelta.Tick > this.lastAppliedDeltaTick)
+        this.lastAppliedDeltaTick = curDelta.Tick;
+    }
+
+    private void UpdateProxied(
+      RailStateDelta curDelta,
+      RailStateDelta nextDelta)
+    {
+      if (curDelta == null)
+        return;
+
+      // Store the current state as the current record
+      if (this.curRecord == null)
+        this.curRecord = RailState.CreateRecord(curDelta.Tick, this.AuthState);
+      else if (this.curRecord.Tick < curDelta.Tick)
+        this.curRecord.Overwrite(curDelta.Tick, this.AuthState);
+
+      // Try to create a record for the next state as well with nextDelta
+      // Make sure the next record is actually in the future (no time jumps)
+      RailPool.SafeReplace(ref this.nextRecord, null);
+      if ((nextDelta != null) && (nextDelta.Tick > this.curRecord.Tick))
       {
+        if (this.nextRecord == null)
+          this.nextRecord = RailState.CreateRecord(nextDelta.Tick, this.AuthState);
+        else
+          this.nextRecord.Overwrite(nextDelta.Tick, this.AuthState);
+        this.nextRecord.State.ApplyDelta(nextDelta);
+      }
+
+      this.UpdateProxy();
+    }
+
+    private void UpdatePredicted()
+    {
+      // Clear out any smoothing data, as it will be invalid
+      RailPool.SafeReplace(ref this.curRecord, null);
+      RailPool.SafeReplace(ref this.nextRecord, null);
+
+      Tick latestTick = this.incomingStates.Latest.Tick;
+      // Bring the main state up to the latest (apply all deltas)
+      IEnumerable<RailStateDelta> deltas = 
+        this.incomingStates.GetLatestFrom(this.Room.Tick);
+      foreach (var delta in deltas)
+        this.MainState.ApplyDelta(delta);
+      this.Revert();
+
+      // Forward-simulate
+      foreach (RailCommand command in this.outgoingCommands)
+      {
+        this.ApplyControlGeneric(command);
+        command.IsNewCommand = false;
+        latestTick = latestTick + 1;
+      }
+    }
+
+    internal RailState GetInterpolatedState(float frameDelta)
+    {
+      // Because of potential error corrections, it's best to use a damped
+      // follow smoothing technique for prediction rather than interpolation.
+      // In Unity, use Vector3.SmoothDamp with maximum speed set to twice your
+      // pawn's maximum speed and time set to Time.fixedDeltaTime.
+      if (this.Controller != null)
+      {
+        RailDebug.LogWarning(
+          "Interpolation not valid for prediction, use SmoothDamp instead!");
+        return this.MainState;
+      }
+
+      if (this.cachedSmooth == null)
+        this.cachedSmooth = this.MainState.Clone();
+      this.cachedSmooth.OverwriteFrom(this.MainState);
+
+      if (this.nextRecord != null)
+        RailEntity.ComputeInterpolated(
+          this.Room.Tick,
+          frameDelta,
+          this.curRecord,
+          this.nextRecord,
+          this.cachedSmooth);
+
+      return this.cachedSmooth;
+    }
+
+    private bool ShouldFreeze()
+    {
+      if (this.CanFreeze && (this.Controller == null))
+      {
+        int delta = this.Room.Tick - this.lastAppliedDeltaTick;
+        return (delta > this.TicksBeforeFreeze);
+      }
+      return false; 
+    }
+
+    private void SetFreeze(bool isFrozen)
+    {
+      if ((this.IsFrozen == false) && isFrozen)
+        this.OnFrozen();
+      else if (this.IsFrozen && (isFrozen == false))
         this.OnUnfrozen();
-        this.IsFrozen = false;
-      }
+      this.IsFrozen = isFrozen;
     }
 #endif
+
+    private void NotifyControllerChanged()
+    {
+      if (this.deferNotifyControllerChanged)
+        this.OnControllerChanged();
+      this.deferNotifyControllerChanged = false;
+    }
   }
 
   /// <summary>
@@ -519,12 +554,18 @@ namespace Railgun
   public abstract class RailEntity<TState> : RailEntity
     where TState : RailState, new()
   {
-    public new TState State { get { return (TState)base.State; } }
+    internal override RailState MainState
+    {
+      get { return this.State; }
+      set { this.State = (TState)value; }
+    }
+
+    public TState State { get; private set; }
 
 #if CLIENT
-    public new TState GetSmoothedState(float frameDelta) 
-    { 
-      return (TState)base.GetSmoothedState(frameDelta); 
+    public new TState GetInterpolatedState(float frameDelta) 
+    {
+      return (TState)base.GetInterpolatedState(frameDelta); 
     }
 #endif
   }
@@ -536,11 +577,17 @@ namespace Railgun
     where TState : RailState, new()
     where TCommand : RailCommand
   {
-    internal override void OnSimulateCommand(RailCommand command)
+    internal override void UpdateControlGeneric(RailCommand toPopulate)
     {
-      this.OnSimulateCommand((TCommand)command);
+      this.UpdateControl((TCommand)toPopulate);
     }
 
-    protected virtual void OnSimulateCommand(TCommand command) { }
+    internal override void ApplyControlGeneric(RailCommand toApply)
+    {
+      this.ApplyControl((TCommand)toApply);
+    }
+
+    protected virtual void UpdateControl(TCommand toPopulate) { }
+    protected virtual void ApplyControl(TCommand toApply) { }
   }
 }

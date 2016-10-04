@@ -18,42 +18,56 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System.Collections.Generic;
-
 namespace Railgun
 {
   /// <summary>
-  /// Responsible for encoding and decoding packet information.
+  /// Used to differentiate/typesafe state records. Not strictly necessary.
   /// </summary>
-  internal class RailInterpreter
+  internal class RailStateRecord 
+    : IRailTimedValue
+    , IRailPoolable<RailStateRecord>
   {
-    private readonly byte[] bytes;
-    private readonly RailBitBuffer byteBuffer;
+    #region Pooling
+    IRailPool<RailStateRecord> IRailPoolable<RailStateRecord>.Pool { get; set; }
+    void IRailPoolable<RailStateRecord>.Reset() { this.Reset(); }
+    #endregion
 
-    internal RailInterpreter()
+    #region Interface
+    Tick IRailTimedValue.Tick { get { return this.tick; } }
+    #endregion
+
+    internal RailState State { get { return this.state; } }
+    internal Tick Tick { get { return this.tick; } }
+
+    private Tick tick;
+    private RailState state;
+
+    public RailStateRecord()
     {
-      this.bytes = new byte[RailConfig.DATA_BUFFER_SIZE];
-      this.byteBuffer = new RailBitBuffer();
+      this.state = null;
+      this.tick = Tick.INVALID;
     }
 
-    internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
+    public void Initialize(
+      Tick tick,
+      RailState state)
     {
-      this.byteBuffer.Clear();
-
-      packet.Encode(this.byteBuffer);
-
-      int length = this.byteBuffer.Store(this.bytes);
-      RailDebug.Assert(length <= RailConfig.PACKCAP_MESSAGE_TOTAL);
-      peer.EnqueueSend(this.bytes, length);
+      this.state = state;
+      this.tick = tick;
     }
 
-    internal IEnumerable<RailBitBuffer> BeginReads(IRailNetPeer peer)
+    public void Overwrite(
+      Tick tick,
+      RailState state)
     {
-      foreach (int length in peer.ReadReceived(this.bytes))
-      {
-        this.byteBuffer.Load(this.bytes, length);
-        yield return this.byteBuffer;
-      }
+      this.tick = tick;
+      this.state.OverwriteFrom(state);
+    }
+
+    private void Reset()
+    {
+      RailPool.SafeReplace(ref this.state, null);
+      this.tick = Tick.INVALID;
     }
   }
 }

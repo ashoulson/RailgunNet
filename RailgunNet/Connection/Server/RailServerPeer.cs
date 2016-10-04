@@ -20,7 +20,6 @@
 
 #if SERVER
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -29,17 +28,9 @@ namespace Railgun
   /// A peer created by the server representing a connected client.
   /// </summary>
   internal class RailServerPeer : 
-    RailPeer, IRailControllerServer, IRailControllerInternal
+    RailPeer, IRailControllerServer
   {
-    internal event Action<IRailClientPacket> PacketReceived;
-
-    /// <summary>
-    /// The latest usable command in the dejitter buffer.
-    /// </summary>
-    public override RailCommand LatestCommand
-    {
-      get { return this.latestCommand; }
-    }
+    internal event Action<RailServerPeer, IRailClientPacket> PacketReceived;
 
     /// <summary>
     /// Used for setting the scope evaluator heuristics.
@@ -49,39 +40,28 @@ namespace Railgun
       set { this.scope.Evaluator = value; }
     }
 
-    private readonly RailDejitterBuffer<RailCommand> commandBuffer;
+#if SERVER
+    /// <summary>
+    /// Used for up-referencing for performing server functions.
+    /// </summary>
+    public override IRailControllerServer AsServer
+    {
+      get { return this; }
+    }
+#endif
+
     private readonly RailScope scope;
 
     // The latest entity tick acks from the client
     private readonly RailView ackedView;
-
-    // The latest command received from the client
-    private RailCommand latestCommand;
 
     internal RailServerPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(netPeer, interpreter)
     {
-      // We use no divisor for storing commands because commands are sent in
-      // batches that we can use to fill in the holes between send ticks
-      this.commandBuffer =
-        new RailDejitterBuffer<RailCommand>(
-          RailConfig.DEJITTER_BUFFER_LENGTH);
       this.scope = new RailScope();
-
       this.ackedView = new RailView();
-      this.latestCommand = null;
-    }
-
-    internal override int Update(Tick localTick)
-    {
-      int ticks = base.Update(localTick);
-
-      this.latestCommand =
-        this.commandBuffer.GetLatestAt(
-          this.RemoteClock.EstimatedRemote);
-      return ticks;
     }
 
     internal void Shutdown()
@@ -92,37 +72,30 @@ namespace Railgun
     }
 
     internal void SendPacket(
+      Tick localTick,
       IEnumerable<RailEntity> activeEntities,
       IEnumerable<RailEntity> destroyedEntities)
     {
       RailServerPacket packet =
-        base.AllocatePacketSend<RailServerPacket>(this.LocalTick);
-
-      Tick commandAck = Tick.INVALID;
-      if (this.latestCommand != null)
-        commandAck = this.latestCommand.Tick;
+        base.AllocatePacketSend<RailServerPacket>(localTick);
 
       packet.Populate(
-        commandAck,
         this.ProduceDeltas(this.FilterDestroyed(destroyedEntities)),
-        this.ProduceDeltas(this.FilterActive(activeEntities)));
+        this.ProduceDeltas(this.FilterActive(localTick, activeEntities)));
 
       base.SendPacket(packet);
 
-      foreach (RailState.Delta delta in packet.Sent)
-        this.scope.RegisterSent(delta.EntityId, this.LocalTick);
-
-      foreach (RailState.Delta delta in packet.Pending)
-        RailPool.Free(delta);
+      foreach (RailStateDelta delta in packet.Sent)
+        this.scope.RegisterSent(delta.EntityId, localTick);
       RailPool.Free(packet);
     }
 
-    private IEnumerable<RailState.Delta> ProduceDeltas(
+    private IEnumerable<RailStateDelta> ProduceDeltas(
       IEnumerable<RailEntity> entities)
     {
       foreach (RailEntity entity in entities)
       {
-        RailState.Delta delta =
+        RailStateDelta delta =
           entity.ProduceDelta(
             this.ackedView.GetLatest(entity.Id),
             this);
@@ -143,23 +116,22 @@ namespace Railgun
     }
 
     private IEnumerable<RailEntity> FilterActive(
+      Tick localTick,
       IEnumerable<RailEntity> activeEntities)
     {
-      return this.scope.Evaluate(activeEntities, this.LocalTick);
+      return this.scope.Evaluate(localTick, activeEntities);
     }
 
     protected override void ProcessPacket(RailPacket packet)
     {
       base.ProcessPacket(packet);
-
       RailClientPacket clientPacket = (RailClientPacket)packet;
 
       this.ackedView.Integrate(clientPacket.View);
-      foreach (RailCommand command in clientPacket.Commands)
-        this.commandBuffer.Store(command);
 
       if (this.PacketReceived != null)
-        this.PacketReceived.Invoke(clientPacket);
+        this.PacketReceived.Invoke(this, clientPacket);
+      RailPool.Free(clientPacket);
     }
 
     protected override RailPacket AllocateIncoming()

@@ -18,14 +18,28 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Railgun
 {
   public class RailConfig
   {
+    /// <summary>
+    /// Use this to control which entities update relative to one another.
+    /// </summary>
+    public enum RailUpdateOrder
+    {
+      UpdateEarly,
+      UpdateNormal,
+      UpdateLate,
+    }
+
+    // Pre-cache the array for iterating over.
+    internal static RailUpdateOrder[] Orders = new[]
+    {
+      RailUpdateOrder.UpdateEarly,
+      RailUpdateOrder.UpdateNormal,
+      RailUpdateOrder.UpdateLate,
+    };
+
     /// <summary>
     /// The real time in seconds per simulation tick.
     /// </summary>
@@ -56,6 +70,7 @@ namespace Railgun
     /// </summary>
     internal const int TICKS_BEFORE_FREEZE = 20;
 
+    #region Message Sizes
     /// <summary>
     /// Data buffer size used for packet I/O. 
     /// Don't change this without a good reason.
@@ -65,30 +80,45 @@ namespace Railgun
     /// <summary>
     /// The maximum message size that a packet can contain, based on known
     /// MTUs for internet traffic. Don't change this without a good reason.
+    /// 
+    /// If using MiniUDP, this should be equal to NetConfig.MAX_PAYLOAD_SIZE
     /// </summary>
-    internal const int MESSAGE_MAX_SIZE = 1400;
+    internal const int PACKCAP_MESSAGE_TOTAL = 1264;
 
     /// <summary>
-    /// The size to go up to when doing a first pass on packing.
+    /// The max byte size when doing a first pass on packing events.
     /// </summary>
-    internal const int MESSAGE_FIRST_PACK = 400;
+    internal const int PACKCAP_EARLY_EVENTS = 370;
 
     /// <summary>
-    /// Maximum size for a single entity. Used when packing entity events.
+    /// The max byte size when packing commands. (Client-only.)
     /// </summary>
-    internal const int ENTITY_MAX_SIZE = 100;
-
-    #region Encoding Parameters
-    /// <summary>
-    /// Maximum number of entities supported. For best results. Make this
-    /// one less than a power of two (i.e. 64 -> 63, 1024 -> 1023, etc.).
-    /// </summary>
-    internal const int MAX_ENTITY_COUNT = 4094;
+    internal const int PACKCAP_COMMANDS = 670;
 
     /// <summary>
-    /// Maximum tick available. Make this two less than a power of two.
+    /// Maximum bytes for a single entity. Used when packing entity deltas.
     /// </summary>
-    internal const int MAX_TICK = 1048573; // 5.8hrs at 50Hz
+    internal const int MAXSIZE_ENTITY = 100;
+
+    /// <summary>
+    /// Maximum bytes for a single event. 
+    /// </summary>
+    internal const int MAXSIZE_EVENT = 100;
+
+    /// <summary>
+    /// Maximum bytes for a single command update.
+    /// </summary>
+    internal const int MAXSIZE_COMMANDUPDATE = 100;
+
+    /// <summary>
+    /// Number of bits before doing VarInt fallback in compression.
+    /// </summary>
+    internal const int VARINT_FALLBACK_SIZE = 10;
+
+    /// <summary>
+    /// Maximum size for an encoded string.
+    /// </summary>
+    internal const int STRING_LENGTH_MAX = 63;
     #endregion
   }
 }

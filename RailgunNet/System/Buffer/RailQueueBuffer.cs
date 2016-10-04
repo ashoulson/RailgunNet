@@ -23,37 +23,51 @@ using System.Collections.Generic;
 namespace Railgun
 {
   /// <summary>
-  /// Responsible for encoding and decoding packet information.
+  /// A rolling queue that maintains entries in order. Designed to access
+  /// the entry at a given tick, or the most recent entry before it.
   /// </summary>
-  internal class RailInterpreter
+  internal class RailQueueBuffer<T>
+    where T : class, IRailTimedValue, IRailPoolable<T>
   {
-    private readonly byte[] bytes;
-    private readonly RailBitBuffer byteBuffer;
+    internal T Latest { get; private set; }
 
-    internal RailInterpreter()
+    private readonly Queue<T> data;
+    private readonly int capacity;
+
+    public RailQueueBuffer(int capacity)
     {
-      this.bytes = new byte[RailConfig.DATA_BUFFER_SIZE];
-      this.byteBuffer = new RailBitBuffer();
+      this.Latest = null;
+      this.capacity = capacity;
+      this.data = new Queue<T>();
     }
 
-    internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
+    public void Store(T val)
     {
-      this.byteBuffer.Clear();
-
-      packet.Encode(this.byteBuffer);
-
-      int length = this.byteBuffer.Store(this.bytes);
-      RailDebug.Assert(length <= RailConfig.PACKCAP_MESSAGE_TOTAL);
-      peer.EnqueueSend(this.bytes, length);
+      if (this.data.Count >= this.capacity)
+        RailPool.Free(this.data.Dequeue());
+      this.data.Enqueue(val);
+      this.Latest = val;
     }
 
-    internal IEnumerable<RailBitBuffer> BeginReads(IRailNetPeer peer)
+    public T LatestAt(Tick tick)
     {
-      foreach (int length in peer.ReadReceived(this.bytes))
-      {
-        this.byteBuffer.Load(this.bytes, length);
-        yield return this.byteBuffer;
-      }
+      // TODO: Binary Search
+      T retVal = null;
+      foreach (T val in this.data)
+        if (val.Tick <= tick)
+          retVal = val;
+      return retVal;
+    }
+
+    /// <summary>
+    /// Clears the buffer, freeing all contents.
+    /// </summary>
+    public void Clear()
+    {
+      foreach (T val in this.data)
+        RailPool.Free(val);
+      this.data.Clear();
+      this.Latest = null;
     }
   }
 }
