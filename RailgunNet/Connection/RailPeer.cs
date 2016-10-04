@@ -19,24 +19,33 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Railgun
 {
-  internal abstract class RailPeer : IRailControllerInternal
+  internal delegate void EventReceived(RailEvent evnt, RailPeer sender);
+
+  internal abstract class RailPeer : IRailController
   {
-    private const int EVENT_HISTORY_DELAY = 
-      RailConfig.DEJITTER_BUFFER_LENGTH;
+    internal event EventReceived EventReceived;
 
     object IRailController.UserData { get; set; }
 
-    protected Tick LocalTick { get { return this.localTick; } }
+#if SERVER
+    public virtual IRailControllerServer AsServer
+    {
+      get { throw new InvalidOperationException(); }
+    }
+#endif
 
     public IEnumerable<RailEntity> ControlledEntities
     {
       get { return this.controlledEntities; }
+    }
+
+    public Tick RemoteTick
+    {
+      get { return this.remoteClock.EstimatedRemote; }
     }
 
     internal RailClock RemoteClock
@@ -64,59 +73,22 @@ namespace Railgun
     /// </summary>
     private readonly RailInterpreter interpreter;
 
-    /// <summary>
-    /// The current local tick. Used for queuing events.
-    /// </summary>
-    private Tick localTick;
-
     #region Event-Related
     /// <summary>
-    /// The last read reliable event, for acking.
-    /// </summary>
-    private EventId lastReadReliableEventId;
-
-    /// <summary>
-    /// The last read unrelable event, for sequencing.
-    /// </summary>
-    private EventId lastReadUnreliableEventId;
-
-    /// <summary>
     /// Used for uniquely identifying outgoing events.
     /// </summary>
-    private EventId lastQueuedReliableEventId;
-
-    /// <summary>
-    /// Used for uniquely identifying outgoing events.
-    /// </summary>
-    private EventId lastQueuedUnreliableEventId;
+    private SequenceId lastQueuedEventId;
 
     /// <summary>
     /// A rolling queue for outgoing reliable events, in order.
     /// </summary>
-    private readonly Queue<RailEvent> outgoingReliable;
-
-    /// <summary>
-    /// A rolling queue for outgoing unreliable events, in order.
-    /// </summary>
-    private readonly Queue<RailEvent> outgoingUnreliable;
+    private readonly Queue<RailEvent> outgoingEvents;
 
     /// <summary>
     /// A history buffer of received unreliable events.
     /// </summary>
-    private readonly RailExpiringDictionary<EventId, RailEvent> unreliableHistory;
+    private SequenceWindow processedEventHistory;
     #endregion
-
-    // Server-only
-    public virtual RailCommand LatestCommand
-    {
-      get { throw new NotImplementedException(); }
-    }
-
-    // Client-only
-    public virtual IEnumerable<RailCommand> PendingCommands
-    {
-      get { throw new NotImplementedException(); }
-    }
 
     protected abstract RailPacket AllocateIncoming();
     protected abstract RailPacket AllocateOutgoing();
@@ -128,19 +100,12 @@ namespace Railgun
       this.netPeer = netPeer;
       this.interpreter = interpreter;
 
-      this.outgoingReliable = new Queue<RailEvent>();
-      this.outgoingUnreliable = new Queue<RailEvent>();
-      this.unreliableHistory = 
-        new RailExpiringDictionary<EventId, RailEvent>(EventId.Comparer);
-
       this.controlledEntities = new HashSet<RailEntity>();
       this.remoteClock = new RailClock();
 
-      // We pretend that one event has already been transmitted
-      this.lastQueuedReliableEventId = EventId.START.Next;
-      this.lastQueuedUnreliableEventId = EventId.START.Next;
-      this.lastReadReliableEventId = EventId.START;
-      this.lastReadUnreliableEventId = EventId.START;
+      this.outgoingEvents = new Queue<RailEvent>();
+      this.lastQueuedEventId = SequenceId.START.Next;
+      this.processedEventHistory = new SequenceWindow(SequenceId.START);
 
       this.netPeer.MessagesReady += this.OnMessagesReady;
     }
@@ -148,7 +113,7 @@ namespace Railgun
     /// <summary>
     /// Adds an entity to be controlled by this peer.
     /// </summary>
-    public void GrantControl(RailEntity entity)
+    public virtual void GrantControl(RailEntity entity)
     {
       if (entity.Controller == this)
         return;
@@ -162,7 +127,7 @@ namespace Railgun
     /// <summary>
     /// Remove an entity from being controlled by this peer.
     /// </summary>
-    public void RevokeControl(RailEntity entity)
+    public virtual void RevokeControl(RailEntity entity)
     {
       RailDebug.Assert(entity.Controller == this);
       this.controlledEntities.Remove(entity);
@@ -170,11 +135,13 @@ namespace Railgun
       entity.AssignController(null);
     }
 
-    internal virtual int Update(Tick localTick)
+    /// <summary>
+    /// Returns the number of frames we should simulate to sync up with
+    /// the predicted remote peer clock, if any.
+    /// </summary>
+    internal virtual void Update()
     {
-      this.localTick = localTick;
-      this.CleanUnreliable(localTick);
-      return this.remoteClock.Update();
+      this.remoteClock.Update();
     }
 
     protected void SendPacket(RailPacket packet)
@@ -184,7 +151,7 @@ namespace Railgun
 
     protected void OnMessagesReady(IRailNetPeer peer)
     {
-      foreach (BitBuffer buffer in this.interpreter.BeginReads(this.netPeer))
+      foreach (RailBitBuffer buffer in this.interpreter.BeginReads(this.netPeer))
       {
         RailPacket packet = this.AllocateIncoming();
 
@@ -207,8 +174,8 @@ namespace Railgun
       packet.Initialize(
         localTick,
         this.remoteClock.LatestRemote,
-        this.lastReadReliableEventId,
-        this.GetOutgoingEvents(localTick));
+        this.processedEventHistory.Latest,
+        this.FilterOutgoingEvents());
       return (T)packet;
     }
 
@@ -218,152 +185,127 @@ namespace Railgun
     protected virtual void ProcessPacket(RailPacket packet)
     {
       this.remoteClock.UpdateLatest(packet.SenderTick);
-      this.CleanReliable(packet.AckEventId);
-
-      foreach (RailEvent evnt in this.FilterEvents(packet.Events))
-      {
-        if (evnt.Entity != null)
-          evnt.Invoke(evnt.Entity);
-        else
-          evnt.Invoke();
-      }
+      foreach (RailEvent evnt in this.FilterIncomingEvents(packet.Events))
+        this.ProcessEvent(evnt);
+      this.CleanOutgoingEvents(packet.AckEventId);
     }
 
     #region Events
     /// <summary>
     /// Queues an event to send directly to this peer.
     /// </summary>
-    public void QueueReliable(RailEvent evnt)
+    public void QueueEvent(RailEvent evnt, int attempts)
     {
+      // TODO: SCOPING
+
       // All global events are sent reliably
       RailEvent clone = evnt.Clone();
 
-      clone.EventId = this.lastQueuedReliableEventId;
-      clone.Tick = this.localTick;
-      clone.Expiration = Tick.INVALID;
-      clone.IsReliable = true;
+      clone.EventId = this.lastQueuedEventId;
+      clone.Attempts = attempts;
 
-      this.outgoingReliable.Enqueue(clone);
-      this.lastQueuedReliableEventId = 
-        this.lastQueuedReliableEventId.Next;
-      RailPool.Free(evnt);
+      this.outgoingEvents.Enqueue(clone);
+      this.lastQueuedEventId = this.lastQueuedEventId.Next;
     }
 
     /// <summary>
-    /// Queues an event to send directly to this peer.
+    /// Removes any acked or expired outgoing events.
     /// </summary>
-    public void QueueUnreliable(RailEvent evnt, int timeToLive)
+    private void CleanOutgoingEvents(
+      SequenceId ackedEventId)
     {
-      // All global events are sent reliably
-      RailEvent clone = evnt.Clone();
+      if (ackedEventId.IsValid == false)
+        return;
 
-      clone.EventId = this.lastQueuedUnreliableEventId;
-      clone.Tick = this.localTick;
-      clone.Expiration = 
-        this.localTick + 
-        (timeToLive * RailConfig.NETWORK_SEND_RATE);
-      clone.IsReliable = false;
+      while (this.outgoingEvents.Count > 0)
+      {
+        RailEvent top = this.outgoingEvents.Peek();
 
-      this.outgoingUnreliable.Enqueue(clone);
-      this.lastQueuedUnreliableEventId = 
-        this.lastQueuedUnreliableEventId.Next;
-      RailPool.Free(evnt);
+        // Stop if we hit an un-acked reliable event
+        if (top.IsReliable)
+        {
+          if (top.EventId > ackedEventId)
+            break;
+        }
+        // Stop if we hit an unreliable event with remaining attempts
+        else
+        {
+          if (top.Attempts > 0)
+            break;
+        }
+
+        RailPool.Free(this.outgoingEvents.Dequeue());
+      }
     }
 
     /// <summary>
-    /// Interleaves reliable and unreliable events, in order.
+    /// Selects outgoing events to send.
     /// </summary>
-    private IEnumerable<RailEvent> GetOutgoingEvents(Tick localTick)
+    private IEnumerable<RailEvent> FilterOutgoingEvents()
     {
-      return 
-        RailUtil.Interleave(
-          this.outgoingReliable,
-          this.GetNonExpired(localTick));
-    }
+      // The receiving client can only store SequenceWindow.HISTORY_LENGTH
+      // events in its received buffer, and will skip any events older than
+      // its latest received minus that history length, including reliable
+      // events. In order to make sure we don't force the client to skip a
+      // reliable event, we will throttle the outgoing events if we've been
+      // sending them too fast. For example, if we have a reliable event
+      // with ID 3 pending, the highest ID we can send would be ID 67. If we
+      // send an event with ID 68, then the client may ignore ID 3 when it
+      // comes in for being too old, even though it's reliable. 
+      //
+      // In practice this shouldn't be a problem unless we're sending way 
+      // more events than is reasonable(/possible) in a single packet, or 
+      // something is wrong with reliable event acking.
 
-    /// <summary>
-    /// Returns all non-expired outgoing unreliable events.
-    /// </summary>
-    private IEnumerable<RailEvent> GetNonExpired(Tick localTick)
-    {
-      foreach (RailEvent evnt in this.outgoingUnreliable)
-        if (evnt.Expiration >= localTick)
+      SequenceId firstReliable = SequenceId.INVALID;
+      foreach (RailEvent evnt in this.outgoingEvents)
+      {
+        if (evnt.IsReliable)
+        {
+          if (firstReliable.IsValid == false)
+            firstReliable = evnt.EventId;
+          RailDebug.Assert(firstReliable <= evnt.EventId);
+        }
+
+        if (firstReliable.IsValid)
+        {
+          if (SequenceWindow.AreInRange(firstReliable, evnt.EventId) == false)
+          {
+            string current = "Throttling events due to unacked reliable\n";
+            foreach (RailEvent evnt2 in this.outgoingEvents)
+              current += evnt2.EventId + " ";
+            RailDebug.LogWarning(current);
+            break;
+          }
+        }
+
+        if (evnt.CanSend)
+        {
           yield return evnt;
+        }
+      }
     }
 
     /// <summary>
     /// Gets all events that we haven't processed yet, in order with no gaps.
     /// </summary>
-    private IEnumerable<RailEvent> FilterEvents(
+    private IEnumerable<RailEvent> FilterIncomingEvents(
       IEnumerable<RailEvent> events)
     {
       foreach (RailEvent evnt in events)
-      {
-        if (evnt.IsReliable && this.FilterReliable(evnt))
+        if (this.processedEventHistory.IsNewId(evnt.EventId))
           yield return evnt;
-        if ((evnt.IsReliable == false) && this.FilterUnreliable(evnt))
-          yield return evnt;
-      }
     }
 
     /// <summary>
-    /// Logs the reliable event in the history.
+    /// Handles the execution of an incoming event.
     /// </summary>
-    private bool FilterReliable(RailEvent evnt)
+    private void ProcessEvent(RailEvent evnt)
     {
-      bool isExpected =
-        (this.lastReadReliableEventId.IsValid == false) ||
-        (this.lastReadReliableEventId.Next == evnt.EventId);
-
-      if (isExpected)
-      {
-        this.lastReadReliableEventId = this.lastReadReliableEventId.Next;
-        return true;
-      }
-      return false;
-    }
-
-    /// <summary>
-    /// Logs the unreliable event in the history.
-    /// </summary>
-    private bool FilterUnreliable(RailEvent evnt)
-    {
-      return this.unreliableHistory.Store(evnt);
-    }
-
-    /// <summary>
-    /// Removes any acked outgoing reliable events.
-    /// </summary>
-    private void CleanReliable(EventId ackedId)
-    {
-      if (ackedId.IsValid == false)
-        return;
-
-      while (this.outgoingReliable.Count > 0)
-      {
-        RailEvent top = this.outgoingReliable.Peek();
-        if (top.EventId > ackedId)
-          break;
-        RailPool.Free(this.outgoingReliable.Dequeue());
-      }
-    }
-
-    private void CleanUnreliable(Tick localTick)
-    {
-      if (localTick.IsValid == false)
-        return;
-
-      while (this.outgoingUnreliable.Count > 0)
-      {
-        RailEvent top = this.outgoingUnreliable.Peek();
-        if (top.Expiration > localTick)
-          break;
-        RailPool.Free(this.outgoingUnreliable.Dequeue());
-      }
-
-      // Also clear out the history for some past tick number
-      int delay = RailPeer.EVENT_HISTORY_DELAY;
-      this.unreliableHistory.Expire(Tick.ClampSubtract(localTick, delay));
+      if (this.EventReceived != null)
+        this.EventReceived.Invoke(evnt, this);
+      this.processedEventHistory =
+        this.processedEventHistory.Store(evnt.EventId);
     }
     #endregion
   }

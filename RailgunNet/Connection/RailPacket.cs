@@ -18,22 +18,23 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
 using System.Collections.Generic;
 
 namespace Railgun
 {
   interface IRailPacket
   {
-    void Encode(BitBuffer buffer);
+    void Encode(RailBitBuffer buffer);
   }
 
-  internal abstract class RailPacket : IRailPacket
+  internal abstract class RailPacket 
+    : IRailPoolable<RailPacket>
+    , IRailPacket
   {
-    /// <summary>
-    /// Minimum number of reliable events to send.
-    /// </summary>
-    internal const int MIN_EVENT_SEND = 3;
+    #region Pooling
+    IRailPool<RailPacket> IRailPoolable<RailPacket>.Pool { get; set; }
+    void IRailPoolable<RailPacket>.Reset() { this.Reset(); }
+    #endregion
 
     /// <summary>
     /// The latest tick from the sender.
@@ -48,7 +49,7 @@ namespace Railgun
     /// <summary>
     /// The last global reliable event id the sender received.
     /// </summary>
-    internal EventId AckEventId { get { return this.ackEventId; } }
+    internal SequenceId AckEventId { get { return this.ackEventId; } }
 
     /// <summary>
     /// Global reliable events from the sender, in order.
@@ -57,7 +58,7 @@ namespace Railgun
 
     private Tick senderTick;
     private Tick ackTick;
-    private EventId ackEventId;
+    private SequenceId ackEventId;
 
     private readonly List<RailEvent> pendingEvents;
     private readonly List<RailEvent> events;
@@ -68,39 +69,41 @@ namespace Railgun
     {
       this.senderTick = Tick.INVALID;
       this.ackTick = Tick.INVALID;
-      this.ackEventId = EventId.INVALID;
+      this.ackEventId = SequenceId.INVALID;
 
       this.pendingEvents = new List<RailEvent>();
       this.events = new List<RailEvent>();
-
       this.eventsWritten = 0;
     }
 
     internal void Initialize(
       Tick senderTick,
       Tick ackTick,
-      EventId ackEventId,
+      SequenceId ackEventId,
       IEnumerable<RailEvent> events)
     {
       this.senderTick = senderTick;
       this.ackTick = ackTick;
       this.ackEventId = ackEventId;
       this.pendingEvents.AddRange(events);
+      this.eventsWritten = 0;
     }
 
     protected virtual void Reset()
     {
       this.senderTick = Tick.INVALID;
       this.ackTick = Tick.INVALID;
-      this.ackEventId = EventId.INVALID;
+      this.ackEventId = SequenceId.INVALID;
 
       this.pendingEvents.Clear();
       this.events.Clear();
-
       this.eventsWritten = 0;
     }
 
     #region Encoding/Decoding
+    protected abstract void EncodePayload(RailBitBuffer buffer, int reservedBytes);
+    protected abstract void DecodePayload(RailBitBuffer buffer);
+
     /// <summary>
     /// After writing the header we write the packet data in three passes.
     /// The first pass is a fill of events up to a percentage of the packet.
@@ -108,29 +111,38 @@ namespace Railgun
     /// remaining packet space. If more space is available, we will try
     /// to fill it with any remaining events, up to the maximum packet size.
     /// </summary>
-    public void Encode(BitBuffer buffer)
+    public void Encode(RailBitBuffer buffer)
     {
       // Write: [Header]
       this.EncodeHeader(buffer);
 
+      // Write: [Events] (Early Pack)
+      this.EncodeEvents(buffer, RailConfig.PACKCAP_EARLY_EVENTS);
+
       // Write: [Payload]
-      this.EncodePayload(buffer);
+      this.EncodePayload(buffer, 1); // Leave one byte for the event count
+
+      // Write: [Events] (Fill Pack)
+      this.EncodeEvents(buffer, RailConfig.PACKCAP_MESSAGE_TOTAL);
     }
 
-    internal void Decode(BitBuffer buffer)
+    internal void Decode(RailBitBuffer buffer)
     {
-      // Write: [Header]
+      // Read: [Header]
       this.DecodeHeader(buffer);
 
-      // Write: [Payload]
+      // Read: [Events] (Early Pack)
+      this.DecodeEvents(buffer);
+
+      // Read: [Payload]
       this.DecodePayload(buffer);
+
+      // Read: [Events] (Fill Pack)
+      this.DecodeEvents(buffer);
     }
 
-    protected abstract void EncodePayload(BitBuffer buffer);
-    protected abstract void DecodePayload(BitBuffer buffer);
-
     #region Header
-    private void EncodeHeader(BitBuffer buffer)
+    private void EncodeHeader(RailBitBuffer buffer)
     {
       // Write: [LocalTick]
       buffer.WriteTick(this.senderTick);
@@ -138,11 +150,11 @@ namespace Railgun
       // Write: [AckTick]
       buffer.WriteTick(this.ackTick);
 
-      // Write: [AckEventId]
-      buffer.WriteEventId(this.ackEventId);
+      // Write: [AckReliableEventId]
+      buffer.WriteSequenceId(this.ackEventId);
     }
 
-    private void DecodeHeader(BitBuffer buffer)
+    private void DecodeHeader(RailBitBuffer buffer)
     {
       // Read: [LocalTick]
       this.senderTick = buffer.ReadTick();
@@ -150,63 +162,45 @@ namespace Railgun
       // Read: [AckTick]
       this.ackTick = buffer.ReadTick();
 
-      // Read: [AckEventId]
-      this.ackEventId = buffer.ReadEventId();
+      // Read: [AckReliableEventId]
+      this.ackEventId = buffer.ReadSequenceId();
     }
 
     #endregion
 
     #region Events
-    ///// <summary>
-    ///// Writes as many events as possible up to maxSize and returns the number
-    ///// of events written in the batch. Also increments the total counter.
-    ///// </summary>
-    //private void PartialEncodeEvents(
-    //  BitBuffer buffer, 
-    //  int keyReserve, 
-    //  int maxSize)
-    //{
-    //  // Count slot is already reserved prior to calling
-      
-    //  IEnumerable<RailEvent> packed =
-    //    buffer.PackToSize<RailEvent>(
-    //      keyReserve,
-    //      RailPacket.KEY_ROLLBACK,
-    //      RailEncoders.EventCount,
-    //      this.GetWritableEvents(),
-    //      maxSize,
-    //      this.WriteEvent);
+    /// <summary>
+    /// Writes as many events as possible up to maxSize and returns the number
+    /// of events written in the batch. Also increments the total counter.
+    /// </summary>
+    private void EncodeEvents(
+      RailBitBuffer buffer,
+      int maxSize)
+    {
+      this.eventsWritten +=
+        buffer.PackToSize(
+          maxSize,
+          RailConfig.MAXSIZE_EVENT,
+          this.GetNextEvents(),
+          (evnt) => evnt.Encode(buffer, this.senderTick),
+          (evnt) => evnt.RegisterSent());
+    }
 
-    //  foreach (RailEvent evnt in packed)
-    //    this.eventsWritten++;
-    //}
+    private void DecodeEvents(
+      RailBitBuffer buffer)
+    {
+      IEnumerable<RailEvent> decoded =
+        buffer.UnpackAll(
+          () => RailEvent.Decode(buffer, this.SenderTick));
+      foreach (RailEvent evnt in decoded)
+        this.events.Add(evnt);
+    }
 
-    //private void PartialDecodeEvents(
-    //  BitBuffer buffer, 
-    //  int count,
-    //  IRailLookup<EntityId, RailEntity> entityLookup)
-    //{
-    //  // Read: [Events]
-    //  for (int i = 0; i < count; i++)
-    //  {
-    //    RailEvent read = 
-    //      RailEvent.Decode(buffer, this.senderTick, entityLookup);
-    //    if (read != null)
-    //      this.events.Add(read);
-    //  }
-    //}
-
-    //private IEnumerable<RailEvent> GetWritableEvents()
-    //{
-    //  while (this.eventsWritten < this.pendingEvents.Count)
-    //    yield return this.pendingEvents[this.eventsWritten];
-    //}
-
-    //private void WriteEvent(BitBuffer buffer, RailEvent evnt)
-    //{
-    //  // Write: [Event]
-    //  evnt.Encode(buffer, this.senderTick);
-    //}
+    private IEnumerable<RailEvent> GetNextEvents()
+    {
+      for (int i = this.eventsWritten; i < this.pendingEvents.Count; i++)
+        yield return this.pendingEvents[i];
+    }
     #endregion
     #endregion
   }

@@ -19,11 +19,7 @@
 */
 
 #if CLIENT
-using System;
-using System.Collections;
 using System.Collections.Generic;
-
-using System.Linq;
 
 namespace Railgun
 {
@@ -51,10 +47,9 @@ namespace Railgun
     public RailClient()
     {
       RailConnection.IsServer = false;
-      this.World.Initialize(Tick.INVALID);
       this.serverPeer = null;
-
       this.localTick = Tick.START;
+      this.Room.Initialize(Tick.INVALID);
 
       this.pendingEntities = 
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
@@ -69,52 +64,46 @@ namespace Railgun
       RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
       this.serverPeer = new RailClientPeer(netPeer, this.Interpreter);
       this.serverPeer.PacketReceived += this.OnPacketReceived;
+      this.serverPeer.EventReceived += base.OnEventReceived;
     }
 
     public override void Update()
     {
       if (this.serverPeer != null)
       {
-        this.UpdateCommands();
-        this.UpdateWorld(this.serverPeer.Update(this.localTick));
+        this.DoStart();
+        this.serverPeer.Update();
+        this.UpdateRoom(
+          this.localTick,
+          this.serverPeer.RemoteClock.EstimatedRemote);
 
         if (this.localTick.IsSendTick)
-          this.serverPeer.SendPacket();
-
-        this.localTick = this.localTick.GetNext();
+          this.serverPeer.SendPacket(
+            this.localTick,
+            this.serverPeer.ControlledEntities); // TODO: Sort me by most recently sent
+        this.localTick++;
       }
     }
 
-    #region Local Updating
     /// <summary>
-    /// Polls the command generator to produce a command and adds it to the
-    /// rolling outgoing command queue.
+    /// Queues an event to broadcast to all clients.
+    /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
+    /// to send the event reliable-ordered (infinite retries).
     /// </summary>
-    private void UpdateCommands()
+    public void QueueEvent(RailEvent evnt, int attempts = 3)
     {
-      if (this.serverPeer != null)
-      {
-        RailCommand command = RailCommand.Create();
-        command.Populate();
-        command.Tick = this.localTick;
-
-        this.serverPeer.QueueCommand(command);
-      }
+      this.serverPeer.QueueEvent(evnt, attempts);
     }
 
+#region Local Updating
     /// <summary>
-    /// Updates the world a number of ticks. If we have entities waiting to be
+    /// Updates the room a number of ticks. If we have entities waiting to be
     /// added, this function will check them and add them if applicable.
     /// </summary>
-    private void UpdateWorld(int numTicks)
+    private void UpdateRoom(Tick localTick, Tick serverTick)
     {
-      for (; numTicks > 0; numTicks--)
-      {
-        Tick serverTick = 
-          (this.serverPeer.RemoteClock.EstimatedRemote - numTicks) + 1;
-        this.UpdatePendingEntities(serverTick);
-        this.World.UpdateClient(serverTick);
-      }
+      this.UpdatePendingEntities(serverTick);
+      this.Room.ClientUpdate(localTick, serverTick);
     }
 
     /// <summary>
@@ -127,7 +116,7 @@ namespace Railgun
       {
         if (entity.HasReadyState(serverTick))
         {
-          this.World.AddEntity(entity);
+          this.Room.AddEntity(entity);
           this.toRemove.Add(entity);
         }
       }
@@ -136,25 +125,21 @@ namespace Railgun
         this.pendingEntities.Remove(entity.Id);
       this.toRemove.Clear();
     }
-    #endregion
+#endregion
 
-    #region Packet Receive
+#region Packet Receive
     private void OnPacketReceived(IRailServerPacket packet)
     {
-      foreach (RailState.Delta delta in packet.Deltas)
+      foreach (RailStateDelta delta in packet.Deltas)
         this.ProcessDelta(delta);
-
-      // Don't freeze removed entities
-      foreach (RailEntity entity in this.World.Entities)
-        entity.UpdateFreeze(packet.ServerTick);
     }
 
-    private void ProcessDelta(RailState.Delta delta)
+    private void ProcessDelta(RailStateDelta delta)
     {
       RailEntity entity;
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
       {
-        entity = RailEntity.Create(delta.FactoryType);
+        entity = delta.ProduceEntity();
         entity.AssignId(delta.EntityId);
         this.pendingEntities.Add(entity.Id, entity);
         this.knownEntities.Add(entity.Id, entity);
@@ -164,7 +149,7 @@ namespace Railgun
       this.UpdateControlStatus(entity, delta);
     }
 
-    private void UpdateControlStatus(RailEntity entity, RailState.Delta delta)
+    private void UpdateControlStatus(RailEntity entity, RailStateDelta delta)
     {
       if (delta.HasControllerData)
       {
@@ -177,7 +162,7 @@ namespace Railgun
           this.serverPeer.RevokeControl(entity);
       }
     }
-    #endregion
+#endregion
   }
 }
 #endif

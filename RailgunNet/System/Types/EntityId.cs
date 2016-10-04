@@ -18,41 +18,44 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
 {
   public static class EntityIdExtensions
   {
-    public static void WriteEntityId(this BitBuffer buffer, EntityId eventId)
+    public static void WriteEntityId(this RailBitBuffer buffer, EntityId entityId)
     {
-      buffer.WriteInt(eventId.Pack());
+      entityId.Write(buffer);
     }
 
-    public static EntityId ReadEntityId(this BitBuffer buffer)
+    public static EntityId ReadEntityId(this RailBitBuffer buffer)
     {
-      return EntityId.Unpack(buffer.ReadInt());
+      return EntityId.Read(buffer);
     }
 
-    public static EntityId PeekEntityId(this BitBuffer buffer)
+    public static EntityId PeekEntityId(this RailBitBuffer buffer)
     {
-      return EntityId.Unpack(buffer.PeekInt());
+      return EntityId.Peek(buffer);
     }
   }
 
   public struct EntityId
   {
     #region Encoding/Decoding
-    internal int Pack()
+    internal void Write(RailBitBuffer buffer)
     {
-      return this.idValue;
+      buffer.WriteUInt(this.idValue);
     }
 
-    internal static EntityId Unpack(int value)
+    internal static EntityId Read(RailBitBuffer buffer)
     {
-      return new EntityId(value);
+      return new EntityId(buffer.ReadUInt());
+    }
+
+    internal static EntityId Peek(RailBitBuffer buffer)
+    {
+      return new EntityId(buffer.PeekUInt());
     }
     #endregion
 
@@ -65,11 +68,12 @@ namespace Railgun
 
       public int GetHashCode(EntityId x)
       {
-        return x.idValue;
+        return (int)x.idValue;
       }
     }
 
-    internal static readonly EntityId INVALID = new EntityId(0);
+    public static readonly EntityId INVALID = new EntityId(0);
+    internal static readonly EntityId START = new EntityId(1);
     internal static readonly EntityIdComparer Comparer = new EntityIdComparer();
 
     public bool IsValid 
@@ -77,9 +81,9 @@ namespace Railgun
       get { return this.idValue > 0; } 
     }
 
-    private readonly int idValue;
+    private readonly uint idValue;
 
-    private EntityId(int idValue)
+    private EntityId(uint idValue)
     {
       this.idValue = idValue;
     }
@@ -91,7 +95,7 @@ namespace Railgun
 
     public override int GetHashCode()
     {
-      return this.idValue;
+      return (int)this.idValue;
     }
 
     public override bool Equals(object obj)

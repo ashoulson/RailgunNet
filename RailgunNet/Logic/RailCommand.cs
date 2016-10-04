@@ -18,10 +18,6 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Railgun
 {
   /// <summary>
@@ -30,40 +26,46 @@ namespace Railgun
   public abstract class RailCommand : 
     IRailPoolable<RailCommand>, IRailTimedValue
   {
+    #region Pooling
+    IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
+    void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
+    #endregion
+
     internal static RailCommand Create()
     {
       return RailResource.Instance.CreateCommand();
     }
 
     #region Interface
-    IRailPool<RailCommand> IRailPoolable<RailCommand>.Pool { get; set; }
-    void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
-    Tick IRailTimedValue.Tick { get { return this.Tick; } }
+    Tick IRailTimedValue.Tick { get { return this.ClientTick; } }
     #endregion
 
     internal abstract void SetDataFrom(RailCommand other);
 
-    internal Tick Tick { get; set; }
+    /// <summary>
+    /// The client's local tick (not server predicted) at the time of sending.
+    /// </summary>
+    public Tick ClientTick { get; internal set; }    // Synchronized
 
-    protected abstract void EncodeData(BitBuffer buffer);
-    protected abstract void DecodeData(BitBuffer buffer);
+    protected abstract void EncodeData(RailBitBuffer buffer);
+    protected abstract void DecodeData(RailBitBuffer buffer);
     protected abstract void ResetData();
 
-    protected internal abstract void Populate();
+    public bool IsNewCommand { get; internal set; }
 
-    protected internal void Reset()
+    private void Reset()
     {
-      this.Tick = Tick.INVALID;
+      this.ClientTick = Tick.INVALID;
       this.ResetData();
     }
 
     #region Encode/Decode/etc.
 #if CLIENT
     internal void Encode(
-      BitBuffer buffer)
+      RailBitBuffer buffer)
     {
-      // Write: [Tick]
-      buffer.WriteTick(this.Tick);
+      // Write: [SenderTick]
+      buffer.WriteTick(this.ClientTick);
 
       // Write: [Command Data]
       this.EncodeData(buffer);
@@ -72,12 +74,12 @@ namespace Railgun
 
 #if SERVER
     internal static RailCommand Decode(
-      BitBuffer buffer)
+      RailBitBuffer buffer)
     {
       RailCommand command = RailCommand.Create();
 
-      // Read: [Tick]
-      command.Tick = buffer.ReadTick();
+      // Read: [SenderTick]
+      command.ClientTick = buffer.ReadTick();
 
       // Read: [Command Data]
       command.DecodeData(buffer);
@@ -87,7 +89,6 @@ namespace Railgun
 #endif
     #endregion
   }
-
 
   /// <summary>
   /// This is the class to override to attach user-defined data to an entity.

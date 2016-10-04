@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30501.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RailgunNet", "RailgunNet\RailgunNet.csproj", "{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RailgunNet", "RailgunNet\RailgunNet.csproj", "{71FADA64-87B4-4EE9-B36C-7593E3115D84}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,16 +14,16 @@ Global
 		Release Server|Any CPU = Release Server|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Debug Client|Any CPU.ActiveCfg = Debug Client|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Debug Client|Any CPU.Build.0 = Debug Client|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Debug Master|Any CPU.ActiveCfg = Debug Master|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Debug Master|Any CPU.Build.0 = Debug Master|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Debug Server|Any CPU.ActiveCfg = Debug Server|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Debug Server|Any CPU.Build.0 = Debug Server|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Release Client|Any CPU.ActiveCfg = Release Client|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Release Client|Any CPU.Build.0 = Release Client|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Release Server|Any CPU.ActiveCfg = Release Server|Any CPU
-		{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}.Release Server|Any CPU.Build.0 = Release Server|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Debug Client|Any CPU.ActiveCfg = Debug Client|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Debug Client|Any CPU.Build.0 = Debug Client|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Debug Master|Any CPU.ActiveCfg = Debug Master|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Debug Master|Any CPU.Build.0 = Debug Master|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Debug Server|Any CPU.ActiveCfg = Debug Server|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Debug Server|Any CPU.Build.0 = Debug Server|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Release Client|Any CPU.ActiveCfg = Release Client|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Release Client|Any CPU.Build.0 = Release Client|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Release Server|Any CPU.ActiveCfg = Release Server|Any CPU
+		{71FADA64-87B4-4EE9-B36C-7593E3115D84}.Release Server|Any CPU.Build.0 = Release Server|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

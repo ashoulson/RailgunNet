@@ -19,7 +19,6 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -29,11 +28,11 @@ namespace Railgun
     private class MasterInstance
     {
       // Read-only data structures, don't need to be thread-local
-      internal Dictionary<int, IRailFactory<RailEntity>> EntityFactories { get; private set; }
+      internal Dictionary<int, IRailPool<RailEntity>> EntityFactories { get; private set; }
       internal Dictionary<Type, int> EntityTypeToKey { get; private set; }
       internal Dictionary<Type, int> EventTypeToKey { get; private set; }
-      internal IntCompressor EventTypeCompressor { get; private set; }
-      internal IntCompressor EntityTypeCompressor { get; private set; }
+      internal RailIntCompressor EventTypeCompressor { get; private set; }
+      internal RailIntCompressor EntityTypeCompressor { get; private set; }
 
       // Mutable pools, need to be cloned per-thread
       private IRailPool<RailCommand> commandPool;
@@ -42,7 +41,7 @@ namespace Railgun
 
       internal MasterInstance()
       {
-        this.EntityFactories = new Dictionary<int, IRailFactory<RailEntity>>();
+        this.EntityFactories = new Dictionary<int, IRailPool<RailEntity>>();
         this.EntityTypeToKey = new Dictionary<Type, int>();
         this.EventTypeToKey = new Dictionary<Type, int>();
         this.EntityTypeCompressor = null;
@@ -67,17 +66,17 @@ namespace Railgun
 
           IRailPool<RailState> statePool =
             RailRegistry.CreatePool<RailState>(stateType);
-          IRailFactory<RailEntity> entityFactory =
-            RailRegistry.CreateFactory<RailEntity>(entityType);
+          IRailPool<RailEntity> entityPool =
+            RailRegistry.CreatePool<RailEntity>(entityType);
 
           int typeKey = this.statePools.Count + 1; // 0 is an invalid type
           this.statePools.Add(typeKey, statePool);
-          this.EntityFactories.Add(typeKey, entityFactory);
+          this.EntityFactories.Add(typeKey, entityPool);
           this.EntityTypeToKey.Add(entityType, typeKey);
         }
 
         this.EntityTypeCompressor =
-          new IntCompressor(0, this.EntityFactories.Count + 1);
+          new RailIntCompressor(0, this.EntityFactories.Count + 1);
       }
 
       private void RegisterEvents()
@@ -95,7 +94,7 @@ namespace Railgun
         }
 
         this.EventTypeCompressor =
-          new IntCompressor(0, this.eventPools.Count + 1);
+          new RailIntCompressor(0, this.eventPools.Count + 1);
       }
 
       private void RegisterCommand()
@@ -136,7 +135,7 @@ namespace Railgun
     {
       get
       {
-        lock(RailResource.masterLock)
+        lock (RailResource.masterLock)
         {
           if (RailResource.master == null)
             RailResource.master = new MasterInstance();
@@ -165,9 +164,9 @@ namespace Railgun
     }
 
     // Taken from the master
-    public IntCompressor EventTypeCompressor { get; private set; }
-    public IntCompressor EntityTypeCompressor { get; private set; }
-    private Dictionary<int, IRailFactory<RailEntity>> entityFactories;
+    public RailIntCompressor EventTypeCompressor { get; private set; }
+    public RailIntCompressor EntityTypeCompressor { get; private set; }
+    private Dictionary<int, IRailPool<RailEntity>> entityFactories;
     private Dictionary<Type, int> entityTypeToKey;
     private Dictionary<Type, int> eventTypeToKey;
 
@@ -175,8 +174,13 @@ namespace Railgun
     private IRailPool<RailCommand> commandPool;
     private Dictionary<int, IRailPool<RailState>> statePools;
     private Dictionary<int, IRailPool<RailEvent>> eventPools;
+
     private IRailPool<RailServerPacket> serverPacketPool;
     private IRailPool<RailClientPacket> clientPacketPool;
+
+    private IRailPool<RailStateDelta> deltaPool;
+    private IRailPool<RailStateRecord> recordPool;
+    private IRailPool<RailCommandUpdate> commandUpdatePool;
 
     private RailResource()
     {
@@ -193,8 +197,13 @@ namespace Railgun
       this.commandPool = master.CloneCommandPool();
       this.statePools = master.CloneStatePools();
       this.eventPools = master.CloneEventPools();
+
       this.serverPacketPool = new RailPool<RailServerPacket>();
       this.clientPacketPool = new RailPool<RailClientPacket>();
+
+      this.deltaPool = new RailPool<RailStateDelta>();
+      this.recordPool = new RailPool<RailStateRecord>();
+      this.commandUpdatePool = new RailPool<RailCommandUpdate>();
     }
 
     #region Allocation
@@ -226,6 +235,21 @@ namespace Railgun
     public RailClientPacket CreateClientPacket()
     {
       return this.clientPacketPool.Allocate();
+    }
+
+    public RailStateDelta CreateDelta()
+    {
+      return this.deltaPool.Allocate();
+    }
+
+    public RailStateRecord CreateRecord()
+    {
+      return this.recordPool.Allocate();
+    }
+
+    public RailCommandUpdate CreateCommandUpdate()
+    {
+      return this.commandUpdatePool.Allocate();
     }
 
     #region Typed

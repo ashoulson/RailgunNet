@@ -18,32 +18,53 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
 {
-  public interface IRailController
+  public struct BitArray32
   {
-#if SERVER
-    IRailControllerServer AsServer { get; }
-#endif
+    public const int LENGTH = 32;
 
-    object UserData { get; set; }
-    Tick RemoteTick { get; }
-    IEnumerable<RailEntity> ControlledEntities { get; }
+    public uint Bits { get { return this.bitField; } }
 
-    void QueueEvent(RailEvent evnt, int attempts = 3);
+    private readonly uint bitField;
+
+    public static BitArray32 operator <<(BitArray32 a, int b)
+    {
+      return new BitArray32((uint)(a.bitField << b));
+    }
+
+    public static BitArray32 operator >>(BitArray32 a, int b)
+    {
+      return new BitArray32((uint)(a.bitField >> b));
+    }
+
+    private BitArray32(uint bitField)
+    {
+      this.bitField = bitField;
+    }
+
+    public BitArray32 Store(int value)
+    {
+      RailDebug.Assert(value < LENGTH);
+      return new BitArray32((uint)(this.bitField | (1U << value)));
+    }
+
+    public BitArray32 Remove(int value)
+    {
+      RailDebug.Assert(value < LENGTH);
+      return new BitArray32((uint)(this.bitField & ~(1U << value)));
+    }
+
+    public IEnumerable<int> GetValues()
+    {
+      return BitArrayHelpers.GetValues(this.bitField);
+    }
+
+    public bool Contains(int value)
+    {
+      return BitArrayHelpers.Contains(value, this.bitField, LENGTH);
+    }
   }
-
-#if SERVER
-  public interface IRailControllerServer : IRailController
-  {
-    void GrantControl(RailEntity entity);
-    void RevokeControl(RailEntity entity);
-
-    RailScopeEvaluator ScopeEvaluator { set; }
-  }
-#endif
 }

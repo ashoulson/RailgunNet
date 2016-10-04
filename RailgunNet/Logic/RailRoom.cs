@@ -19,13 +19,28 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailWorld
+  public class RailRoom
   {
+    /// <summary>
+    /// Fired before all entities have updated, for updating global logic.
+    /// </summary>
+    public event Action<Tick> PreRoomUpdate;
+
+    /// <summary>
+    /// Fired after all entities have updated, for updating global logic.
+    /// </summary>
+    public event Action<Tick> PostRoomUpdate;
+
+    public object UserData { get; set; }
+
+    /// <summary>
+    /// The current synchronized tick. On clients this will be the predicted
+    /// server tick. On the server this will be the authoritative tick.
+    /// </summary>
     public Tick Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities 
     { 
@@ -40,7 +55,7 @@ namespace Railgun
       return this.entities.TryGetValue(id, out value);
     }
 
-    internal RailWorld()
+    internal RailRoom()
     {
       this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.Tick = Tick.INVALID;
@@ -55,26 +70,44 @@ namespace Railgun
     internal void AddEntity(RailEntity entity)
     {
       this.entities.Add(entity.Id, entity);
-      entity.World = this;
+      entity.Room = this;
     }
 
-    internal void RemoveEntity(EntityId entityId)
+    private void RemoveEntity(EntityId entityId)
     {
       RailEntity entity;
       if (this.entities.TryGetValue(entityId, out entity))
       {
         this.entities.Remove(entityId);
-        entity.World = null;
-        entity.DoShutdown();
+        entity.Room = null;
+        entity.Cleanup();
       }
     }
-    
+
 #if SERVER
-    internal void UpdateServer()
+    internal void ServerUpdate()
     {
       this.Tick = this.Tick.GetNext();
-      foreach (RailEntity entity in this.entities.Values)
-        entity.UpdateServer();
+
+      if (this.PreRoomUpdate != null)
+        this.PreRoomUpdate.Invoke(this.Tick);
+
+      foreach (RailEntity entity in this.GetAllEntities())
+      {
+        Tick removedTick = entity.RemovedTick;
+        if (removedTick.IsValid && (removedTick <= this.Tick))
+          this.toRemove.Add(entity.Id);
+        else
+          entity.ServerUpdate();
+      }
+
+      // Cleanup all entities marked for removal
+      foreach (EntityId id in this.toRemove)
+        this.RemoveEntity(id);
+      this.toRemove.Clear();
+
+      if (this.PostRoomUpdate != null)
+        this.PostRoomUpdate.Invoke(this.Tick);
     }
 
     internal void StoreStates()
@@ -84,22 +117,40 @@ namespace Railgun
     }
 #endif
 #if CLIENT
-    internal void UpdateClient(Tick serverTick)
+    internal void ClientUpdate(Tick localTick, Tick estimatedServerTick)
     {
-      this.Tick = serverTick;
-      foreach (RailEntity entity in this.entities.Values)
+      this.Tick = estimatedServerTick;
+
+      if (this.PreRoomUpdate != null)
+        this.PreRoomUpdate.Invoke(this.Tick);
+
+      // Perform regular update cadence and mark entities for removal
+      foreach (RailEntity entity in this.GetAllEntities())
       {
-        Tick destroyedTick = entity.RemovedTick;
-        if (destroyedTick.IsValid && (destroyedTick <= serverTick))
+        Tick removedTick = entity.RemovedTick;
+        if (removedTick.IsValid && (removedTick <= this.Tick))
           this.toRemove.Add(entity.Id);
         else
-          entity.UpdateClient();
+          entity.ClientUpdate(localTick);
       }
 
+      // Cleanup all entities marked for removal
       foreach (EntityId id in this.toRemove)
         this.RemoveEntity(id);
       this.toRemove.Clear();
+
+      if (this.PostRoomUpdate != null)
+        this.PostRoomUpdate.Invoke(this.Tick);
     }
 #endif
+
+    private IEnumerable<RailEntity> GetAllEntities()
+    {
+      // TODO: This makes multiple full passes, could probably optimize
+      foreach (RailConfig.RailUpdateOrder order in RailConfig.Orders)
+        foreach (RailEntity entity in this.entities.Values)
+          if (entity.UpdateOrder == order)
+            yield return entity;
+    }
   }
 }

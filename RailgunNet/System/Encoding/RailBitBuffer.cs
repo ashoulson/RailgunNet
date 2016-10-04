@@ -19,7 +19,6 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
@@ -28,7 +27,7 @@ namespace Railgun
   /// <summary>
   /// A first-in-first-out (FIFO) bit encoding buffer.
   /// </summary>
-  public class BitBuffer
+  public class RailBitBuffer
   {
     private static int FindHighestBitPosition(byte data)
     {
@@ -39,6 +38,29 @@ namespace Railgun
         shiftCount++;
       }
       return shiftCount;
+    }
+
+    private static byte ToASCII(char character)
+    {
+      byte value = 0;
+
+      try
+      {
+        value = Convert.ToByte(character);
+      }
+      catch (OverflowException)
+      {
+        RailDebug.LogMessage("Cannot convert to simple ASCII: " + character);
+        return 0;
+      }
+
+      if (value > 127)
+      {
+        RailDebug.LogMessage("Cannot convert to simple ASCII: " + character);
+        return 0;
+      }
+
+      return value;
     }
 
     private const int GROW_FACTOR = 2;
@@ -73,7 +95,7 @@ namespace Railgun
     /// <summary>
     /// Capacity is in data chunks: uint = 4 bytes
     /// </summary>
-    public BitBuffer(int capacity = BitBuffer.DEFAULT_CAPACITY)
+    public RailBitBuffer(int capacity = RailBitBuffer.DEFAULT_CAPACITY)
     {
       this.chunks = new uint[capacity];
       this.readPos = 0;
@@ -81,7 +103,7 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Clears the buffer and overwrites all stored bits to zero.
+    /// Clears the buffer (does not overwrite values, but doesn't need to).
     /// </summary>
     public void Clear()
     {
@@ -126,7 +148,7 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Reads the next numBits from the buffer.
+    /// Peeks at the next numBits from the buffer.
     /// </summary>
     public uint Peek(int numBits)
     {
@@ -193,7 +215,7 @@ namespace Railgun
         this.chunks[i] = chunk;
       }
 
-      int positionInByte = BitBuffer.FindHighestBitPosition(data[length - 1]);
+      int positionInByte = RailBitBuffer.FindHighestBitPosition(data[length - 1]);
 
       // Take one off the position to backtrack from the sentinel bit
       this.writePos = ((length - 1) * 8) + (positionInByte - 1);
@@ -228,8 +250,8 @@ namespace Railgun
     private void ExpandArray()
     {
       int newCapacity =
-        (this.chunks.Length * BitBuffer.GROW_FACTOR) +
-        BitBuffer.MIN_GROW;
+        (this.chunks.Length * RailBitBuffer.GROW_FACTOR) +
+        RailBitBuffer.MIN_GROW;
 
       uint[] newChunks = new uint[newCapacity];
       Array.Copy(this.chunks, newChunks, this.chunks.Length);
@@ -241,7 +263,7 @@ namespace Railgun
     /// Packs all elements of an enumerable.
     /// Max 255 elements.
     /// </summary>
-    public void PackAll<T>(
+    public byte PackAll<T>(
       IEnumerable<T> elements,
       Action<T> encode)
     {
@@ -263,30 +285,34 @@ namespace Railgun
 
       // Deferred Write: [Count]
       this.Insert(countPosition, 8, count);
+      return count;
     }
 
     /// <summary>
-    /// Packs all elements of an enumerable up to a given size.
+    /// Packs all elements of an enumerable up to a given size. 
     /// Max 255 elements.
     /// </summary>
-    public void PackToSize<T>(
+    public byte PackToSize<T>(
       int maxTotalBytes,
       int maxIndividualBytes,
       IEnumerable<T> elements,
       Action<T> encode,
       Action<T> packed = null)
     {
+      const int MAX_SIZE = 255;
+      const int SIZE_BITS = 8;
+
       maxTotalBytes -= 1; // Sentinel bit can blow this up
       byte count = 0;
 
       // Reserve: [Count]
-      int countPosition = this.writePos;
-      this.Write(8, 0);
+      int countWritePos = this.writePos;
+      this.Write(SIZE_BITS, 0);
 
       // Write: [Elements]
       foreach (T val in elements)
       {
-        if (count == 255)
+        if (count == MAX_SIZE)
           break;
         int rollback = this.writePos;
         int startByteSize = this.ByteSize;
@@ -315,7 +341,8 @@ namespace Railgun
       }
 
       // Deferred Write: [Count]
-      this.Insert(countPosition, 8, count);
+      this.Insert(countWritePos, SIZE_BITS, count);
+      return count;
     }
 
     /// <summary>
@@ -449,6 +476,37 @@ namespace Railgun
     public bool PeekBool()
     {
       return (this.Peek(1) > 0);
+    }
+    #endregion
+
+    #region String
+    // 7 bits for 0-127 on the simple ASCII table
+    private const int ASCII_BITS = 7;
+    private static readonly int STRING_LENGTH_BITS = 
+      RailUtil.Log2(RailConfig.STRING_LENGTH_MAX);
+
+    public void WriteString(string value)
+    {
+      if (value == null)
+        throw new ArgumentNullException("value");
+
+      uint length = (uint)value.Length;
+      RailDebug.Assert(length <= RailConfig.STRING_LENGTH_MAX, value);
+      if (value.Length > RailConfig.STRING_LENGTH_MAX)
+        length = RailConfig.STRING_LENGTH_MAX;
+
+      this.Write(RailBitBuffer.STRING_LENGTH_BITS, length);
+      for (int i = 0; i < length; i++)
+        this.Write(RailBitBuffer.ASCII_BITS, RailBitBuffer.ToASCII(value[i]));
+    }
+
+    public string ReadString()
+    {
+      StringBuilder builder = new StringBuilder("");
+      uint length = this.Read(RailBitBuffer.STRING_LENGTH_BITS);
+      for (int i = 0; i < length; i++)
+        builder.Append((char)this.Read(RailBitBuffer.ASCII_BITS));
+      return builder.ToString();
     }
     #endregion
     #endregion

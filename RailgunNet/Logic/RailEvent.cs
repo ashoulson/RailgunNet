@@ -19,8 +19,6 @@
 */
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace Railgun
 {
@@ -28,9 +26,16 @@ namespace Railgun
   /// States are attached to entities and contain user-defined data. They are
   /// responsible for encoding and decoding that data, and delta-compression.
   /// </summary>
-  public abstract class RailEvent : 
-    IRailPoolable<RailEvent>, IRailKeyedValue<EventId>, IRailTimedValue
+  public abstract class RailEvent
+    : IRailPoolable<RailEvent>
   {
+    public const int SEND_RELIABLE = -1;
+
+    #region Pooling
+    IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
+    void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
+    #endregion
+
     public static T Create<T>(RailEntity entity)
       where T : RailEvent
     {
@@ -38,7 +43,6 @@ namespace Railgun
         throw new ArgumentNullException("entity");
 
       T evnt = RailEvent.Create<T>();
-      evnt.Entity = entity;
       evnt.EntityId = entity.Id;
       return evnt;
     }
@@ -57,14 +61,7 @@ namespace Railgun
       return evnt;
     }
 
-    #region Interface
-    IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
-    void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
-    EventId IRailKeyedValue<EventId>.Key { get { return this.EventId; } }
-    Tick IRailTimedValue.Tick { get { return this.Tick; } }
-    #endregion
-
-    private static IntCompressor FactoryTypeCompressor
+    private static RailIntCompressor FactoryTypeCompressor
     {
       get { return RailResource.Instance.EventTypeCompressor; }
     }
@@ -72,26 +69,27 @@ namespace Railgun
     // Settings
     protected virtual bool CanSendToFrozen { get { return false; } }
 
-    // Synchronized
-    internal EventId EventId { get; set; }
-    internal Tick Tick { get; set; }
-    internal bool IsReliable { get; set; }
+    // Bindings
+    public IRailController Sender { get; internal set; }
 
-    // Entity targeting
+    // Synchronized
+    internal SequenceId EventId { get; set; }
     internal EntityId EntityId { get; private set; }
-    internal RailEntity Entity { get; private set; }
 
     // Local only
-    internal Tick Expiration { get; set; }
+    internal int Attempts { get; set; }
+
+    internal bool IsReliable { get { return (this.Attempts == RailEvent.SEND_RELIABLE); } }
+    internal bool CanSend { get { return ((this.Attempts > 0) || this.IsReliable); } }
 
     internal abstract void SetDataFrom(RailEvent other);
 
-    protected abstract void EncodeData(BitBuffer buffer);
-    protected abstract void DecodeData(BitBuffer buffer);
+    protected abstract void EncodeData(RailBitBuffer buffer, Tick packetTick);
+    protected abstract void DecodeData(RailBitBuffer buffer, Tick packetTick);
     protected abstract void ResetData();
 
-    protected internal virtual void Invoke() { }
-    protected internal virtual void Invoke(RailEntity entity) { }
+    protected internal virtual void Invoke(RailRoom room, IRailController sender) { }
+    protected internal virtual void Invoke(RailRoom room, IRailController sender, RailEntity entity) { }
 
     private int factoryType;
 
@@ -99,106 +97,83 @@ namespace Railgun
     {
       RailEvent clone = RailEvent.Create(this.factoryType);
       clone.EventId = this.EventId;
-      clone.Tick = this.Tick;
-      clone.IsReliable = this.IsReliable;
-      clone.Entity = this.Entity;
       clone.EntityId = this.EntityId;
-      clone.Expiration = this.Expiration;
+      clone.Attempts = this.Attempts;
       clone.SetDataFrom(this);
       return clone;
     }
 
-    protected internal void Reset()
+    private void Reset()
     {
-      this.EventId = EventId.INVALID;
-      this.Tick = Tick.INVALID;
-      this.IsReliable = false;
-      this.Entity = null;
+      this.EventId = SequenceId.INVALID;
       this.EntityId = EntityId.INVALID;
-      this.Expiration = Tick.INVALID;
+      this.Attempts = 0;
       this.ResetData();
     }
 
-    #region Encode/Decode/etc.
-    internal void Encode(BitBuffer buffer, Tick packetSenderTick)
+    internal void RegisterSent()
     {
-      EntityId entityId = EntityId.INVALID;
-      if (this.Entity != null)
-        entityId = this.Entity.Id;
+      if (this.Attempts > 0)
+        this.Attempts--;
+    }
 
+    #region Encode/Decode/etc.
+    /// <summary>
+    /// Note that the packetTick may not be the tick this event was created on
+    /// if we're re-trying to send this event in subsequent packets. This tick
+    /// is intended for use in tick diffs for compression.
+    /// </summary>
+    internal void Encode(
+      RailBitBuffer buffer,
+      Tick packetTick)
+    {
       // Write: [EventType]
       buffer.WriteInt(RailEvent.FactoryTypeCompressor, this.factoryType);
 
-      // Write: [IsReliable]
-      buffer.WriteBool(this.IsReliable);
-
-      if (this.IsReliable)
-      {
-        // Write: [Tick]
-        buffer.WriteTick(this.Tick);
-      }
-      else
-      {
-        // Write: [TickSpan]
-        TickSpan span = TickSpan.Create(packetSenderTick, this.Tick);
-        RailDebug.Assert(span.IsInRange);
-        buffer.WriteTickSpan(span);
-      }
-
       // Write: [EventId]
-      buffer.WriteEventId(this.EventId);
+      buffer.WriteSequenceId(this.EventId);
 
-      // Write: [EntityId]
-      buffer.WriteEntityId(entityId);
+      // Write: [HasEntityId]
+      buffer.WriteBool(this.EntityId.IsValid);
+
+      if (this.EntityId.IsValid)
+      {
+        // Write: [EntityId]
+        buffer.WriteEntityId(this.EntityId);
+      }
 
       // Write: [EventData]
-      this.EncodeData(buffer);
+      this.EncodeData(buffer, packetTick);
     }
 
+    /// <summary>
+    /// Note that the packetTick may not be the tick this event was created on
+    /// if we're re-trying to send this event in subsequent packets. This tick
+    /// is intended for use in tick diffs for compression.
+    /// </summary>
     internal static RailEvent Decode(
-      BitBuffer buffer, 
-      Tick packetSenderTick)
+      RailBitBuffer buffer,
+      Tick packetTick)
     {
       // Read: [EventType]
       int factoryType = buffer.ReadInt(RailEvent.FactoryTypeCompressor);
 
       RailEvent evnt = RailEvent.Create(factoryType);
 
-      // Read: [IsReliable]
-      evnt.IsReliable = buffer.ReadBool();
-
-      if (evnt.IsReliable)
-      {
-        // Read: [Tick]
-        evnt.Tick = buffer.ReadTick();
-      }
-      else
-      {
-        // Read: [TickSpan]
-        TickSpan span = buffer.ReadTickSpan();
-        RailDebug.Assert(span.IsInRange);
-        evnt.Tick = Tick.Create(packetSenderTick, span);
-      }
-
       // Read: [EventId]
-      evnt.EventId = buffer.ReadEventId();
+      evnt.EventId = buffer.ReadSequenceId();
 
-      // Read: [EntityId]
-      EntityId entityId = buffer.ReadEntityId();
+      // Read: [HasEntityId]
+      bool hasEntityId = buffer.ReadBool();
+
+      if (hasEntityId)
+      {
+        // Read: [EntityId]
+        evnt.EntityId = buffer.ReadEntityId();
+      }
 
       // Read: [EventData]
-      evnt.DecodeData(buffer);
-
-      // Dereference the entity Id and make sure everything is valid
-      if (entityId.IsValid)
-      {
-        // TODO: REENABLE FOR ENTITY DEREFERENCE
-        //if (entityLookup.TryGet(entityId, out evnt.entity) == false)
-        //  return null;
-        // TODO: REENABLE FOR FREEZING
-        //if ((evnt.CanSendToFrozenEntities == false) && evnt.entity.IsFrozen)
-        //  return null;
-      }
+      evnt.DecodeData(buffer, packetTick);
 
       return evnt;
     }

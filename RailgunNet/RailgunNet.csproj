@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{2F6BDFFF-CF4E-4C97-9ECB-04A4E4282660}</ProjectGuid>
+    <ProjectGuid>{71FADA64-87B4-4EE9-B36C-7593E3115D84}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Railgun</RootNamespace>
@@ -13,7 +13,7 @@
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Client Debug|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Client|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -21,10 +21,11 @@
     <DefineConstants>TRACE;DEBUG;CLIENT</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\ClientDebug\RailgunNet.xml</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Client Release|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Client|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\ClientRelease\</OutputPath>
@@ -32,26 +33,28 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Server Debug|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Server|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>bin\ServerDebug\</OutputPath>
     <DefineConstants>TRACE;DEBUG;SERVER</DefineConstants>
-    <DocumentationFile>bin\ServerDebug\RailgunNet.XML</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
     <NoWarn>1591</NoWarn>
     <DebugType>full</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Server Release|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Server|AnyCPU' ">
     <OutputPath>bin\ServerRelease\</OutputPath>
     <DefineConstants>SERVER</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Master Debug|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Master|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>bin\MasterDebug\</OutputPath>
     <DefineConstants>TRACE;DEBUG;CLIENT, SERVER</DefineConstants>
-    <DocumentationFile>bin\MasterDebug\RailgunNet.XML</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
     <NoWarn>1591</NoWarn>
     <DebugType>full</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -63,11 +66,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="Connection\RailPackedList.cs" />
     <Compile Include="Logic\RailState.cs" />
-    <Compile Include="System\Encoding\BitBuffer.cs" />
-    <Compile Include="System\Encoding\Compressors\IntCompressor.cs" />
-    <Compile Include="Util\DataStructures\Interfaces\IRailKeyedValue.cs" />
-    <Compile Include="Util\DataStructures\RailExpiringDictionary.cs" />
+    <Compile Include="Logic\Wrappers\RailCommandUpdate.cs" />
+    <Compile Include="Logic\Wrappers\RailStateDelta.cs" />
+    <Compile Include="Logic\Wrappers\RailStateRecord.cs" />
+    <Compile Include="System\Encoding\RailBitBuffer.cs" />
+    <Compile Include="System\Encoding\Compressors\RailIntCompressor.cs" />
+    <Compile Include="System\Types\BitArray\BitArray16.cs" />
+    <Compile Include="System\Types\BitArray\BitArray32.cs" />
+    <Compile Include="System\Types\BitArray\BitArray64.cs" />
+    <Compile Include="System\Types\BitArray\BitArray8.cs" />
+    <Compile Include="System\Types\BitArray\BitArrayHelpers.cs" />
+    <Compile Include="System\Types\FixedByteBuffer8.cs" />
+    <Compile Include="System\Types\Window.cs" />
+    <Compile Include="System\Types\SequenceId.cs" />
     <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
@@ -78,36 +91,39 @@
     <Compile Include="Connection\Server\RailServerPacket.cs" />
     <Compile Include="Logic\RailView.cs" />
     <Compile Include="System\RailRegistry.cs" />
-    <Compile Include="Util\DataStructures\Generic\Heap.cs" />
-    <Compile Include="Util\DataStructures\RailQueueBuffer.cs" />
-    <Compile Include="Util\Pooling\RailFactory.cs" />
+    <Compile Include="Util\Debug\RailDebug.cs" />
+    <Compile Include="Tools\RailDelayList.cs" />
+    <Compile Include="System\Buffer\RailQueueBuffer.cs" />
     <Compile Include="Logic\RailEvent.cs" />
     <Compile Include="System\Types\EntityId.cs" />
-    <Compile Include="System\Types\EventId.cs" />
-    <Compile Include="System\Types\TickSpan.cs" />
     <Compile Include="System\Types\Tick.cs" />
-    <Compile Include="Util\DataStructures\Interfaces\IRailTimedValue.cs" />
+    <Compile Include="System\Buffer\Interfaces\IRailTimedValue.cs" />
     <Compile Include="RailClock.cs" />
     <Compile Include="Connection\Client\RailClient.cs" />
     <Compile Include="Connection\Traffic\IRailNetPeer.cs" />
     <Compile Include="Connection\Server\RailServer.cs" />
     <Compile Include="RailConfig.cs" />
     <Compile Include="System\RailResource.cs" />
-    <Compile Include="Util\RailDebug.cs" />
-    <Compile Include="Util\Pooling\RailPool.cs" />
-    <Compile Include="Util\RailUtil.cs" />
-    <Compile Include="Util\RailMath.cs" />
-    <Compile Include="Util\DataStructures\RailDejitterBuffer.cs" />
+    <Compile Include="System\Buffer\RailDejitterBuffer.cs" />
     <Compile Include="Logic\RailCommand.cs" />
     <Compile Include="Connection\Client\RailClientPacket.cs" />
     <Compile Include="Logic\RailEntity.cs" />
     <Compile Include="Connection\Traffic\RailInterpreter.cs" />
-    <Compile Include="Logic\RailWorld.cs" />
-    <Compile Include="System\Encoding\Compressors\FloatCompressor.cs" />
+    <Compile Include="Logic\RailRoom.cs" />
+    <Compile Include="System\Encoding\Compressors\RailFloatCompressor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="System\Buffer\RailRollingBuffer.cs" />
+    <Compile Include="Util\Pooling\IRailPoolable.cs" />
+    <Compile Include="Util\Pooling\RailPool.cs" />
+    <Compile Include="Util\RailList.cs" />
+    <Compile Include="Util\RailUtil.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

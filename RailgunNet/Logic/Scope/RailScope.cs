@@ -19,8 +19,6 @@
 */
 
 #if SERVER
-using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -63,14 +61,14 @@ namespace Railgun
     }
 
     internal IEnumerable<RailEntity> Evaluate(
-      IEnumerable<RailEntity> entities,
-      Tick latestTick)
+      Tick localTick,
+      IEnumerable<RailEntity> entities)
     {
       this.entries.Clear();
       float priority; 
 
       foreach (RailEntity entity in entities)
-        if (this.GetPriority(entity, latestTick, out priority))
+        if (this.GetPriority(entity, localTick, out priority))
           this.entries.Add(new KeyValuePair<float, RailEntity>(priority, entity));
 
       this.entries.Sort(RailScope.Comparer);

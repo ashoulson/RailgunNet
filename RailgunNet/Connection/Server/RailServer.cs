@@ -20,7 +20,6 @@
 
 #if SERVER
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -57,12 +56,12 @@ namespace Railgun
     /// <summary>
     /// Used for creating new entities and assigning them unique ids.
     /// </summary>
-    private EntityId nextEntityId;
+    private EntityId nextEntityId = EntityId.START;
 
     public RailServer() : base()
     {
       RailConnection.IsServer = true;
-      this.World.Initialize(Tick.START);
+      this.Room.Initialize(Tick.START);
 
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
       this.destroyedEntities = new Dictionary<EntityId, RailEntity>();
@@ -76,6 +75,8 @@ namespace Railgun
       if (this.clients.ContainsKey(peer) == false)
       {
         RailServerPeer client = new RailServerPeer(peer, this.Interpreter);
+        client.EventReceived += base.OnEventReceived;
+        client.PacketReceived += this.OnPacketReceived;
         this.clients.Add(peer, client);
 
         if (this.ControllerJoined != null)
@@ -108,18 +109,17 @@ namespace Railgun
     /// </summary>
     public override void Update()
     {
+      this.DoStart();
+
       foreach (RailServerPeer client in this.clients.Values)
-        client.Update(this.World.Tick);
+        client.Update();
 
-      this.World.UpdateServer();
+      this.Room.ServerUpdate();
 
-      if (this.World.Tick.IsSendTick)
+      if (this.Room.Tick.IsSendTick)
       {
+        this.Room.StoreStates();
         this.BroadcastPackets();
-
-        // Store only after everything else, this lets us keep the full
-        // history for reference for as long as we need to process it
-        this.World.StoreStates();
       }
     }
 
@@ -131,7 +131,7 @@ namespace Railgun
       T entity = RailEntity.Create<T>();
       entity.AssignId(this.nextEntityId);
       this.nextEntityId = this.nextEntityId.GetNext();
-      this.World.AddEntity(entity);
+      this.Room.AddEntity(entity);
       return (T)entity;
     }
 
@@ -140,9 +140,18 @@ namespace Railgun
     /// </summary>
     public void DestroyEntity(RailEntity entity)
     {
-      entity.MarkForRemove();
-      this.World.RemoveEntity(entity.Id);
-      this.destroyedEntities.Add(entity.Id, entity);
+      if (entity.Controller != null)
+      {
+        IRailControllerServer serverController = 
+          (IRailControllerServer)entity.Controller;
+        serverController.RevokeControl(entity);
+      }
+
+      if (entity.IsRemoving == false)
+      {
+        entity.MarkForRemove();
+        this.destroyedEntities.Add(entity.Id, entity);
+      }
     }
 
     /// <summary>
@@ -152,9 +161,54 @@ namespace Railgun
     {
       foreach (RailServerPeer clientPeer in this.clients.Values)
         clientPeer.SendPacket(
-          this.World.Entities,
+          this.Room.Tick,
+          this.Room.Entities,
           this.destroyedEntities.Values);
     }
+
+    #region Packet Receive
+    private void OnPacketReceived(
+      RailServerPeer peer,
+      IRailClientPacket packet)
+    {
+      foreach (RailCommandUpdate update in packet.CommandUpdates)
+        this.ProcessCommandUpdate(peer, update);
+    }
+
+    private void ProcessCommandUpdate(
+      RailServerPeer peer, 
+      RailCommandUpdate update)
+    {
+      RailEntity entity;
+      if (this.Room.TryGet(update.EntityId, out entity))
+      {
+        if (entity.Controller == peer)
+        {
+          foreach (RailCommand command in update.Commands)
+            entity.ReceiveCommand(command);
+        }
+        else
+        {
+          // Can't send commands to that entity, so dump them
+          foreach (RailCommand command in update.Commands)
+            RailPool.Free(command);
+        }
+      }
+    }
+    #endregion
+
+    #region Broadcast
+    /// <summary>
+    /// Queues an event to broadcast to all clients.
+    /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
+    /// to send the event reliable-ordered (infinite retries).
+    /// </summary>
+    public void QueueEventBroadcast(RailEvent evnt, int attempts = 3)
+    {
+      foreach (RailServerPeer clientPeer in this.clients.Values)
+        clientPeer.QueueEvent(evnt, attempts);
+    }
+    #endregion
   }
 }
 #endif

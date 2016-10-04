@@ -18,14 +18,12 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Railgun
 {
-  internal interface IRailTimedValue
+  public interface IRailPoolable<T>
+    where T : IRailPoolable<T>
   {
-    Tick Tick { get; }
+    IRailPool<T> Pool { get; set; }
+    void Reset();
   }
 }

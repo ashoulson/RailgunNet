@@ -18,10 +18,6 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Railgun
 {
   /// <summary>
@@ -31,8 +27,8 @@ namespace Railgun
   {
     public const int INVALID_TICK = -1;
 
-    private const int DELAY_MIN = 2;
-    private const int DELAY_MAX = 8;
+    private const int DELAY_MIN = 3;
+    private const int DELAY_MAX = 9;
 
     private int remoteRate;
     private int delayDesired;
@@ -72,7 +68,7 @@ namespace Railgun
         this.latestRemote = latestTick;
       if (this.estimatedRemote.IsValid == false)
         this.estimatedRemote = 
-          Tick.ClampSubtract(this.latestRemote, this.delayDesired);
+          Tick.Subtract(this.latestRemote, this.delayDesired);
 
       if (latestTick > this.latestRemote)
       {
@@ -83,38 +79,41 @@ namespace Railgun
     }
 
     // See http://www.gamedev.net/topic/652186-de-jitter-buffer-on-both-the-client-and-server/
-    public int Update()
+    public void Update()
     {
       if (this.shouldTick == false)
-        return 0;
+        return; // 0;
 
       this.estimatedRemote = this.estimatedRemote + 1;
       if (this.shouldUpdateEstimate == false)
-        return 1;
+        return; // 1;
 
       int delta = this.latestRemote - this.estimatedRemote;
 
       if (this.ShouldSnapTick(delta))
       {
         // Reset
+        RailDebug.LogMessage("Reset");
         this.estimatedRemote = this.latestRemote - this.delayDesired;
-        return 0;
+        return; // 0;
       }
       else if (delta > this.delayMax)
       {
         // Jump 1
+        RailDebug.LogMessage("Jump 1");
         this.estimatedRemote = this.estimatedRemote + 1;
-        return 2;
+        return; // 2;
       }
       else if (delta < this.delayMin)
       {
         // Stall 1
+        RailDebug.LogMessage("Stall 1");
         this.estimatedRemote = this.estimatedRemote - 1;
-        return 0;
+        return; // 0;
       }
 
       this.shouldUpdateEstimate = false;
-      return 1;
+      return; // 1;
     }
       
     private bool ShouldSnapTick(float delta)

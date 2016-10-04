@@ -19,8 +19,6 @@
 */
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace Railgun
 {
@@ -30,20 +28,55 @@ namespace Railgun
   /// </summary>
   public abstract class RailConnection
   {
+    public event Action Started;
+
     public static bool IsServer { get; protected set; }
 
-    public RailWorld World { get { return this.world; } }
+    public RailRoom Room { get { return this.room; } }
     internal RailInterpreter Interpreter { get { return this.interpreter; } }
 
-    private readonly RailWorld world;
+    private readonly RailRoom room;
     private readonly RailInterpreter interpreter;
+    private bool hasStarted;
 
     public abstract void Update();
 
     protected RailConnection()
     {
-      this.world = new RailWorld();
+      this.room = new RailRoom();
       this.interpreter = new RailInterpreter();
+      this.hasStarted = false;
+    }
+
+    internal void OnEventReceived(RailEvent evnt, RailPeer sender)
+    {
+      if (evnt.EntityId.IsValid)
+      {
+        RailEntity entity = null;
+        this.Room.TryGet(evnt.EntityId, out entity);
+
+#if SERVER
+        // Entity events can only be executed on controlled entities
+        bool safeToExecute = (entity != null) && (entity.Controller == sender);
+#elif CLIENT
+        bool safeToExecute = (entity != null);
+#endif
+
+        if (safeToExecute)
+          evnt.Invoke(this.room, sender, entity);
+      }
+      else
+      {
+        evnt.Invoke(this.room, sender);
+      }
+    }
+
+    protected void DoStart()
+    {
+      if (this.hasStarted == false)
+        if (this.Started != null)
+          this.Started.Invoke();
+      this.hasStarted = true;
     }
   }
 }
