@@ -83,7 +83,7 @@ namespace Railgun
     /// 
     /// If using MiniUDP, this should be equal to NetConfig.MAX_PAYLOAD_SIZE
     /// </summary>
-    internal const int PACKCAP_MESSAGE_TOTAL = 1264;
+    internal const int PACKCAP_MESSAGE_TOTAL = 1200;
 
     /// <summary>
     /// The max byte size when doing a first pass on packing events.
