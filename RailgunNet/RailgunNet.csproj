@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\ClientDebug\</OutputPath>
+    <OutputPath>bin\DebugClient\</OutputPath>
     <DefineConstants>TRACE;DEBUG;CLIENT</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -26,16 +26,17 @@
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Client|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
+    <DebugType>none</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\ClientRelease\</OutputPath>
+    <OutputPath>bin\ReleaseClient\</OutputPath>
     <DefineConstants>TRACE;CLIENT</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Server|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\ServerDebug\</OutputPath>
+    <OutputPath>bin\DebugServer\</OutputPath>
     <DefineConstants>TRACE;DEBUG;SERVER</DefineConstants>
     <DocumentationFile>
     </DocumentationFile>
@@ -46,12 +47,13 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Server|AnyCPU' ">
-    <OutputPath>bin\ServerRelease\</OutputPath>
+    <OutputPath>bin\ReleaseServer\</OutputPath>
     <DefineConstants>SERVER</DefineConstants>
+    <NoWarn>1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Master|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\MasterDebug\</OutputPath>
+    <OutputPath>bin\DebugMaster\</OutputPath>
     <DefineConstants>TRACE;DEBUG;CLIENT, SERVER</DefineConstants>
     <DocumentationFile>
     </DocumentationFile>
