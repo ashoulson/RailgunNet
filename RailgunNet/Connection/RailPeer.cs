@@ -107,7 +107,7 @@ namespace Railgun
       this.lastQueuedEventId = SequenceId.START.Next;
       this.processedEventHistory = new SequenceWindow(SequenceId.START);
 
-      this.netPeer.MessagesReady += this.OnMessagesReady;
+      this.netPeer.PayloadReceived += this.OnPayloadReceived;
     }
 
     /// <summary>
@@ -149,19 +149,17 @@ namespace Railgun
       this.interpreter.SendPacket(this.netPeer, packet);
     }
 
-    protected void OnMessagesReady(IRailNetPeer peer)
+    protected void OnPayloadReceived(IRailNetPeer peer, byte[] buffer, int length)
     {
-      foreach (RailBitBuffer buffer in this.interpreter.BeginReads(this.netPeer))
-      {
-        RailPacket packet = this.AllocateIncoming();
+      RailBitBuffer bitBuffer = this.interpreter.LoadData(buffer, length);
+      RailPacket packet = this.AllocateIncoming();
 
-        packet.Decode(buffer);
-
-        if (buffer.IsFinished)
-          this.ProcessPacket(packet);
-        else
-          RailDebug.LogError("Bad packet read, discarding...");
-      }
+      packet.Decode(bitBuffer);
+      if (bitBuffer.IsFinished)
+        this.ProcessPacket(packet);
+      else
+        RailDebug.LogError("Bad packet read, discarding...");
+      // TODO: Free packet?
     }
 
     /// <summary>

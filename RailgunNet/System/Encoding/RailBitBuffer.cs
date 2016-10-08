@@ -198,9 +198,7 @@ namespace Railgun
     /// </summary>
     public void Load(byte[] data, int length)
     {
-      int numChunks = (length >> 2) + 1;
-      RailDebug.Assert(data.Length >= numChunks * 4, "Buffer too small");
-
+      int numChunks = (length / 4) + 1;
       if (this.chunks.Length < numChunks)
         this.chunks = new uint[numChunks];
 

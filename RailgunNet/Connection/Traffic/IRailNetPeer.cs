@@ -22,15 +22,20 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public delegate void NetPeerEvent(IRailNetPeer peer);
+  public delegate void RailNetPeerEvent(
+    IRailNetPeer peer, 
+    byte[] data, 
+    int length);
 
   public interface IRailNetPeer
   {
-    event NetPeerEvent MessagesReady;
+    event RailNetPeerEvent PayloadReceived;
 
-    object UserData { get; set; }
+    /// <summary>
+    /// Used for attaching arbitrary player data.
+    /// </summary>
+    object PlayerData { get; set; }
 
-    IEnumerable<int> ReadReceived(byte[] buffer);
-    void EnqueueSend(byte[] buffer, int length);
+    void SendPayload(byte[] buffer, int length);
   }
 }

@@ -28,32 +28,27 @@ namespace Railgun
   internal class RailInterpreter
   {
     private readonly byte[] bytes;
-    private readonly RailBitBuffer byteBuffer;
+    private readonly RailBitBuffer bitBuffer;
 
     internal RailInterpreter()
     {
       this.bytes = new byte[RailConfig.DATA_BUFFER_SIZE];
-      this.byteBuffer = new RailBitBuffer();
+      this.bitBuffer = new RailBitBuffer();
     }
 
     internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
     {
-      this.byteBuffer.Clear();
-
-      packet.Encode(this.byteBuffer);
-
-      int length = this.byteBuffer.Store(this.bytes);
+      this.bitBuffer.Clear();
+      packet.Encode(this.bitBuffer);
+      int length = this.bitBuffer.Store(this.bytes);
       RailDebug.Assert(length <= RailConfig.PACKCAP_MESSAGE_TOTAL);
-      peer.EnqueueSend(this.bytes, length);
+      peer.SendPayload(this.bytes, length);
     }
 
-    internal IEnumerable<RailBitBuffer> BeginReads(IRailNetPeer peer)
+    internal RailBitBuffer LoadData(byte[] buffer, int length)
     {
-      foreach (int length in peer.ReadReceived(this.bytes))
-      {
-        this.byteBuffer.Load(this.bytes, length);
-        yield return this.byteBuffer;
-      }
+      this.bitBuffer.Load(this.bytes, length);
+      return this.bitBuffer;
     }
   }
 }
