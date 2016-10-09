@@ -44,7 +44,7 @@ namespace Railgun
         this.EntityFactories = new Dictionary<int, IRailPool<RailEntity>>();
         this.EntityTypeToKey = new Dictionary<Type, int>();
         this.EventTypeToKey = new Dictionary<Type, int>();
-        this.EntityTypeCompressor = null;
+        this.EventTypeCompressor = null;
         this.EntityTypeCompressor = null;
 
         this.commandPool = null;
