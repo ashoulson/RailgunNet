@@ -20,71 +20,52 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 
 namespace Railgun
 {
-  public class RegisterCommandAttribute : Attribute
+  public class RailRegistry
   {
-  }
-
-  public class RegisterEntityAttribute : Attribute
-  {
-    public Type StateType { get { return this.stateType; } }
-
-    private readonly Type stateType;
-
-    public RegisterEntityAttribute(Type stateType)
+    internal Type CommandType { get { return this.commandType; } }
+    internal IEnumerable<Type> EventTypes { get { return this.eventTypes; } }
+    internal IEnumerable<KeyValuePair<Type, Type>> EntityTypes
     {
-      this.stateType = stateType;
-    }
-  }
-
-  public class RegisterEventAttribute : Attribute
-  {
-  }
-
-  internal static class RailRegistry
-  {
-    public static IRailPool<T> CreatePool<T>(
-      Type derivedType)
-      where T : IRailPoolable<T>
-    {
-      Type factoryType = typeof(RailPool<,>);
-      Type specific = 
-        factoryType.MakeGenericType(typeof(T), derivedType);
-      ConstructorInfo ci = specific.GetConstructor(Type.EmptyTypes);
-      return (IRailPool<T>)ci.Invoke(new object[] { });
+      get { return this.entityTypes; }
     }
 
-    public static IList<KeyValuePair<Type, T>> FindAll<T>()
-      where T : Attribute
+    private Type commandType;
+    private List<Type> eventTypes;
+    private List<KeyValuePair<Type, Type>> entityTypes;
+
+    public RailRegistry()
     {
-      List<KeyValuePair<Type, T>> found = new List<KeyValuePair<Type, T>>();
-
-      foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-        foreach (KeyValuePair<Type, T> pair in RailRegistry.Find<T>(assembly))
-          found.Add(pair);
-
-      // Sort by name in case different builds order the types differently
-      found.OrderBy(x => x.Key.FullName);
-      return found;
+      this.commandType = null;
+      this.eventTypes = new List<Type>();
+      this.entityTypes = new List<KeyValuePair<Type, Type>>();
     }
 
-    private static IEnumerable<KeyValuePair<Type, T>> Find<T>(
-      Assembly assembly)
-      where T : Attribute
+    public void SetCommandType<TCommand>()
+      where TCommand : RailCommand
     {
-      foreach (Type type in assembly.GetTypes())
-      {
-        object[] attributes = type.GetCustomAttributes(typeof(T), false);
-        if (attributes.Length > 0)
-        {
-          T attribute = (T)attributes[0];
-          yield return new KeyValuePair<Type, T>(type, attribute);
-        }
-      }
+      this.commandType = typeof(TCommand);
+    }
+
+    public void AddEventType<TEvent>()
+      where TEvent : RailEvent
+    {
+      this.eventTypes.Add(typeof(TEvent));
+    }
+
+    public void AddEntityType<TEntity, TState>()
+      where TEntity : RailEntity
+      where TState : RailState
+    {
+      this.entityTypes.Add(
+        new KeyValuePair<Type, Type>(typeof(TEntity), typeof(TState)));
+    }
+
+    public void Register()
+    {
+      RailResource.Initialize(this);
     }
   }
 }

@@ -47,7 +47,7 @@ namespace Railgun
 
     internal RailBitBuffer LoadData(byte[] buffer, int length)
     {
-      this.bitBuffer.Load(this.bytes, length);
+      this.bitBuffer.Load(buffer, length);
       return this.bitBuffer;
     }
   }

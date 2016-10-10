@@ -88,16 +88,11 @@ namespace Railgun
     public IRailController Controller { get; private set; }
     public bool IsRemoving { get { return this.RemovedTick.IsValid; } }
     public RailRoom Room { get; internal set; }
+    public bool IsFrozen { get; private set; }
 
     internal abstract RailState MainState { get; set; }
 
-#if SERVER
-    public bool IsFrozen { get { return false; } }
-#endif
-
 #if CLIENT
-    public bool IsFrozen { get; private set; }
-
     internal IEnumerable<RailCommand> OutgoingCommands { get { return this.outgoingCommands; } }
 
     // The last local tick we sent our commands to the server
@@ -192,15 +187,16 @@ namespace Railgun
 #if SERVER
       this.outgoingStates.Clear();
       this.incomingCommands.Clear();
+      this.IsFrozen = false; // Entities are never frozen on server
 #endif
 
 #if CLIENT
       this.incomingStates.Clear();
       this.outgoingCommands.Clear();
+      this.IsFrozen = true; // Entities start frozen on client
 
       this.lastAppliedDeltaTick = Tick.START;
       this.LastSentCommandTick = Tick.START;
-      this.IsFrozen = true; // Entities start frozen
 
       this.curRecord = null;
       this.nextRecord = null;
