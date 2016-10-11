@@ -150,7 +150,9 @@ namespace Railgun
       foreach (KeyValuePair<float, RailEntity> entry in this.entryList)
       { 
         RailViewEntry latest = this.ackedByClient.GetLatest(entry.Value.Id);
-        this.activeList.Add(entry.Value.ProduceDelta(latest.Tick, target));
+        RailStateDelta delta = entry.Value.ProduceDelta(latest.Tick, target);
+        if (delta != null)
+          this.activeList.Add(delta);
       }
     }
 
