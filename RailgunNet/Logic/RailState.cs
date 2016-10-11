@@ -65,8 +65,8 @@ namespace Railgun
 
 #if SERVER
     /// <summary>
-    /// Creates a delta between a state and a record. If forced is set to
-    /// false, this function will return null if there is no change between
+    /// Creates a delta between a state and a record. If forceUpdate is set 
+    /// to false, this function will return null if there is no change between
     /// the current and basis.
     /// </summary>
     internal static RailStateDelta CreateDelta(
@@ -76,11 +76,9 @@ namespace Railgun
       bool includeControllerData,
       bool includeImmutableData,
       Tick commandAck,
-      Tick removedTick,
-      bool forced = false)
+      Tick removedTick)
     {
       bool shouldReturn =
-        forced ||
         includeControllerData ||
         includeImmutableData ||
         removedTick.IsValid;
@@ -109,10 +107,9 @@ namespace Railgun
       // We don't need to include a tick when sending -- it's in the packet
       RailState recordState = current.Clone();
       RailStateDelta delta = RailResource.Instance.CreateDelta();
-      delta.Initialize(Tick.INVALID, entityId, deltaState);
+      delta.Initialize(Tick.INVALID, entityId, deltaState, false);
       return delta;
     }
-#endif
 
     /// <summary>
     /// Creates a record of the current state, taking the latest record (if
@@ -134,11 +131,11 @@ namespace Railgun
           return null;
       }
 
-      RailState recordState = current.Clone();
       RailStateRecord record = RailResource.Instance.CreateRecord();
-      record.Initialize(tick, recordState);
+      record.Overwrite(tick, current);
       return record;
     }
+#endif
     #endregion
 
     private static RailIntCompressor FactoryTypeCompressor
@@ -249,47 +246,53 @@ namespace Railgun
       // Write: [EntityId]
       buffer.WriteEntityId(delta.EntityId);
 
-      // Write: [FactoryType]
-      RailState state = delta.State;
-      buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
+      // Write: [IsFrozen]
+      buffer.WriteBool(delta.IsFrozen);
 
-      // Write: [IsRemoved]
-      buffer.WriteBool(state.RemovedTick.IsValid);
-
-      if (state.RemovedTick.IsValid)
+      if (delta.IsFrozen == false)
       {
-        // Write: [RemovedTick]
-        buffer.WriteTick(state.RemovedTick);
+        // Write: [FactoryType]
+        RailState state = delta.State;
+        buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
 
-        // End Write
-      }
-      else
-      {
-        // Write: [HasControllerData]
-        buffer.WriteBool(state.HasControllerData);
+        // Write: [IsRemoved]
+        buffer.WriteBool(state.RemovedTick.IsValid);
 
-        // Write: [HasImmutableData]
-        buffer.WriteBool(state.HasImmutableData);
-
-        // Write: [Flags]
-        buffer.Write(state.FlagBits, state.Flags);
-
-        // Write: [Mutable Data]
-        state.EncodeMutableData(buffer, state.Flags);
-
-        if (state.HasControllerData)
+        if (state.RemovedTick.IsValid)
         {
-          // Write: [Controller Data]
-          state.EncodeControllerData(buffer);
+          // Write: [RemovedTick]
+          buffer.WriteTick(state.RemovedTick);
 
-          // Write: [Command Ack]
-          buffer.WriteTick(state.CommandAck);
+          // End Write
         }
-
-        if (state.HasImmutableData)
+        else
         {
-          // Write: [Immutable Data]
-          state.EncodeImmutableData(buffer);
+          // Write: [HasControllerData]
+          buffer.WriteBool(state.HasControllerData);
+
+          // Write: [HasImmutableData]
+          buffer.WriteBool(state.HasImmutableData);
+
+          // Write: [Flags]
+          buffer.Write(state.FlagBits, state.Flags);
+
+          // Write: [Mutable Data]
+          state.EncodeMutableData(buffer, state.Flags);
+
+          if (state.HasControllerData)
+          {
+            // Write: [Controller Data]
+            state.EncodeControllerData(buffer);
+
+            // Write: [Command Ack]
+            buffer.WriteTick(state.CommandAck);
+          }
+
+          if (state.HasImmutableData)
+          {
+            // Write: [Immutable Data]
+            state.EncodeImmutableData(buffer);
+          }
         }
       }
     }
@@ -299,55 +302,63 @@ namespace Railgun
       RailBitBuffer buffer, 
       Tick packetTick)
     {
-      // Write: [EntityId]
+      RailStateDelta delta = RailResource.Instance.CreateDelta();
+      RailState state = null;
+
+      // Read: [EntityId]
       EntityId entityId = buffer.ReadEntityId();
 
-      // Read: [FactoryType]
-      int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
-      RailState state = RailState.Create(factoryType);
+      // Read: [IsFrozen]
+      bool isFrozen = buffer.ReadBool();
 
-      // Read: [IsRemoved]
-      bool isRemoved = buffer.ReadBool();
-
-      if (isRemoved)
+      if (isFrozen == false)
       {
-        // Read: [DestroyedTick]
-        state.RemovedTick = buffer.ReadTick();
+        // Read: [FactoryType]
+        int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
+        state = RailState.Create(factoryType);
 
-        // End Read
-      }
-      else
-      {
-        // Read: [HasControllerData]
-        state.HasControllerData = buffer.ReadBool();
+        // Read: [IsRemoved]
+        bool isRemoved = buffer.ReadBool();
 
-        // Read: [HasImmutableData]
-        state.HasImmutableData = buffer.ReadBool();
-
-        // Read: [Flags]
-        state.Flags = buffer.Read(state.FlagBits);
-
-        // Read: [Mutable Data]
-        state.DecodeMutableData(buffer, state.Flags);
-
-        if (state.HasControllerData)
+        if (isRemoved)
         {
-          // Read: [Controller Data]
-          state.DecodeControllerData(buffer);
+          // Read: [DestroyedTick]
+          state.RemovedTick = buffer.ReadTick();
 
-          // Read: [Command Ack]
-          state.CommandAck = buffer.ReadTick();
+          // End Read
         }
-
-        if (state.HasImmutableData)
+        else
         {
-          // Read: [Immutable Data]
-          state.DecodeImmutableData(buffer);
+          // Read: [HasControllerData]
+          state.HasControllerData = buffer.ReadBool();
+
+          // Read: [HasImmutableData]
+          state.HasImmutableData = buffer.ReadBool();
+
+          // Read: [Flags]
+          state.Flags = buffer.Read(state.FlagBits);
+
+          // Read: [Mutable Data]
+          state.DecodeMutableData(buffer, state.Flags);
+
+          if (state.HasControllerData)
+          {
+            // Read: [Controller Data]
+            state.DecodeControllerData(buffer);
+
+            // Read: [Command Ack]
+            state.CommandAck = buffer.ReadTick();
+          }
+
+          if (state.HasImmutableData)
+          {
+            // Read: [Immutable Data]
+            state.DecodeImmutableData(buffer);
+          }
         }
       }
 
-      RailStateDelta delta = RailResource.Instance.CreateDelta();
-      delta.Initialize(packetTick, entityId, state);
+      delta.Initialize(packetTick, entityId, state, isFrozen);
       return delta;
     }
 #endif

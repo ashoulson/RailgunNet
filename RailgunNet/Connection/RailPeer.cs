@@ -43,7 +43,7 @@ namespace Railgun
       get { return this.controlledEntities; }
     }
 
-    public Tick RemoteTick
+    public Tick EstimatedRemoteTick
     {
       get { return this.remoteClock.EstimatedRemote; }
     }

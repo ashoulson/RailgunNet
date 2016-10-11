@@ -120,8 +120,9 @@ namespace Railgun
         this.view.GetOrdered(),
         (pair) =>
         {
-          buffer.WriteEntityId(pair.Key); // Write: [EntityId]
-          buffer.WriteTick(pair.Value);   // Write: [Tick]
+          buffer.WriteEntityId(pair.Key);        // Write: [EntityId]
+          buffer.WriteTick(pair.Value.Tick);     // Write: [Tick]
+          buffer.WriteBool(pair.Value.IsFrozen); // Write: [IsFrozen]
         });
 #endif
     }
@@ -145,13 +146,15 @@ namespace Railgun
 
     public void DecodeView(RailBitBuffer buffer)
     {
-      IEnumerable<KeyValuePair<EntityId, Tick>> decoded =
+      IEnumerable<KeyValuePair<EntityId, RailViewEntry>> decoded =
         buffer.UnpackAll(
           () =>
           {
-            return new KeyValuePair<EntityId, Tick>(
+            return new KeyValuePair<EntityId, RailViewEntry>(
               buffer.ReadEntityId(),  // Read: [EntityId] 
-              buffer.ReadTick());     // Read: [Tick]
+              new RailViewEntry(
+                buffer.ReadTick(),    // Read: [Tick]
+                buffer.ReadBool()));  // Read: [IsFrozen]
           });
 
       foreach (var pair in decoded)

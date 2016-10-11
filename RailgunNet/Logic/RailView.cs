@@ -22,39 +22,60 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
+  internal struct RailViewEntry
+  {
+    internal static readonly RailViewEntry INVALID = 
+      new RailViewEntry(Tick.INVALID, true);
+
+    internal bool IsValid { get { return this.tick.IsValid; } }
+    internal Tick Tick { get { return this.tick; } }
+    internal bool IsFrozen { get { return this.isFrozen; } }
+
+    private readonly Tick tick;
+    private readonly bool isFrozen;
+
+    public RailViewEntry(Tick tick, bool isFrozen)
+    {
+      this.tick = tick;
+      this.isFrozen = isFrozen;
+    }
+  }
+
   internal class RailView
   {
     private class ViewComparer :
-      Comparer<KeyValuePair<EntityId, Tick>>
+      Comparer<KeyValuePair<EntityId, RailViewEntry>>
     {
       private static readonly Comparer<Tick> Comparer = Tick.Comparer;
 
       public override int Compare(
-        KeyValuePair<EntityId, Tick> x, 
-        KeyValuePair<EntityId, Tick> y)
+        KeyValuePair<EntityId, RailViewEntry> x, 
+        KeyValuePair<EntityId, RailViewEntry> y)
       {
-        return ViewComparer.Comparer.Compare(x.Value, y.Value);
+        return ViewComparer.Comparer.Compare(x.Value.Tick, y.Value.Tick);
       }
     }
 
     private static readonly ViewComparer Comparer = new ViewComparer();
 
-    private Dictionary<EntityId, Tick> latestUpdates;
+    private readonly Dictionary<EntityId, RailViewEntry> latestUpdates;
+    private readonly List<KeyValuePair<EntityId, RailViewEntry>> sortList;
 
     public RailView()
     {
-      this.latestUpdates = new Dictionary<EntityId, Tick>();
+      this.latestUpdates = new Dictionary<EntityId, RailViewEntry>();
+      this.sortList = new List<KeyValuePair<EntityId, RailViewEntry>>();
     }
 
     /// <summary>
     /// Returns the latest tick the peer has acked for this entity ID.
     /// </summary>
-    public Tick GetLatest(EntityId id)
+    public RailViewEntry GetLatest(EntityId id)
     {
-      Tick result;
+      RailViewEntry result;
       if (this.latestUpdates.TryGetValue(id, out result))
         return result;
-      return Tick.INVALID;
+      return RailViewEntry.INVALID;
     }
 
     public void Clear()
@@ -63,20 +84,29 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Records an acked tick from the peer for a given entity ID.
+    /// Records an acked status from the peer for a given entity ID.
     /// </summary>
-    public void RecordUpdate(EntityId id, Tick tick)
+    internal void RecordUpdate(EntityId entityId, Tick tick, bool isFrozen)
     {
-      Tick currentTick;
-      if (this.latestUpdates.TryGetValue(id, out currentTick))
-        if (currentTick > tick)
+      this.RecordUpdate(entityId, new RailViewEntry(tick, isFrozen));
+    }
+
+    /// <summary>
+    /// Records an acked status from the peer for a given entity ID.
+    /// </summary>
+    internal void RecordUpdate(EntityId entityId, RailViewEntry entry)
+    {
+      RailViewEntry currentEntry;
+      if (this.latestUpdates.TryGetValue(entityId, out currentEntry))
+        if (currentEntry.Tick > entry.Tick)
           return;
-      this.latestUpdates[id] = tick;
+
+      this.latestUpdates[entityId] = entry;
     }
 
     public void Integrate(RailView other)
     {
-      foreach (KeyValuePair<EntityId, Tick> pair in other.latestUpdates)
+      foreach (KeyValuePair<EntityId, RailViewEntry> pair in other.latestUpdates)
         this.RecordUpdate(pair.Key, pair.Value);
     }
 
@@ -85,13 +115,13 @@ namespace Railgun
     /// we send the most recent updated entities since they're the most likely
     /// to actually matter to the server/client scope.
     /// </summary>
-    public IEnumerable<KeyValuePair<EntityId, Tick>> GetOrdered()
+    public IEnumerable<KeyValuePair<EntityId, RailViewEntry>> GetOrdered()
     {
-      List<KeyValuePair<EntityId, Tick>> values =
-        new List<KeyValuePair<EntityId, Tick>>(this.latestUpdates);
-      values.Sort(RailView.Comparer);
-      values.Reverse();
-      return values;
+      this.sortList.Clear();
+      this.sortList.AddRange(this.latestUpdates);
+      this.sortList.Sort(RailView.Comparer);
+      this.sortList.Reverse();
+      return this.sortList;
     }
   }
 }

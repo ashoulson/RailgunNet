@@ -34,7 +34,7 @@ namespace Railgun
       int ticksSinceSend,
       out float priority)
     {
-      priority = 1.0f;
+      priority = 0.0f;
       return true;
     }
   }

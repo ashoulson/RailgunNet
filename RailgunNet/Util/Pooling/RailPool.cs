@@ -45,6 +45,13 @@ namespace Railgun
         RailPool.Free(destination);
       destination = obj;
     }
+
+    public static void DrainQueue<T>(Queue<T> queue)
+      where T : IRailPoolable<T>
+    {
+      while (queue.Count > 0)
+        RailPool.Free(queue.Dequeue());
+    }
   }
 
   public class RailPool<T> : IRailPool<T>

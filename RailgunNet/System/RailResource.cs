@@ -173,8 +173,10 @@ namespace Railgun
     private IRailPool<RailClientPacket> clientPacketPool;
 
     private IRailPool<RailStateDelta> deltaPool;
-    private IRailPool<RailStateRecord> recordPool;
     private IRailPool<RailCommandUpdate> commandUpdatePool;
+#if SERVER
+    private IRailPool<RailStateRecord> recordPool;
+#endif
 
     private RailResource()
     {
@@ -198,11 +200,13 @@ namespace Railgun
       this.clientPacketPool = new RailPool<RailClientPacket>();
 
       this.deltaPool = new RailPool<RailStateDelta>();
-      this.recordPool = new RailPool<RailStateRecord>();
       this.commandUpdatePool = new RailPool<RailCommandUpdate>();
+#if SERVER
+      this.recordPool = new RailPool<RailStateRecord>();
+#endif
     }
 
-    #region Allocation
+#region Allocation
     public RailEntity CreateEntity(int factoryType)
     {
       return this.entityFactories[factoryType].Allocate();
@@ -238,17 +242,19 @@ namespace Railgun
       return this.deltaPool.Allocate();
     }
 
-    public RailStateRecord CreateRecord()
-    {
-      return this.recordPool.Allocate();
-    }
-
     public RailCommandUpdate CreateCommandUpdate()
     {
       return this.commandUpdatePool.Allocate();
     }
 
-    #region Typed
+#if SERVER
+    public RailStateRecord CreateRecord()
+    {
+      return this.recordPool.Allocate();
+    }
+#endif
+
+#region Typed
     public int GetEntityFactoryType<T>() 
       where T : RailEntity
     {
@@ -260,7 +266,7 @@ namespace Railgun
     {
       return this.eventTypeToKey[typeof(T)];
     }
-    #endregion
-    #endregion
+#endregion
+#endregion
   }
 }

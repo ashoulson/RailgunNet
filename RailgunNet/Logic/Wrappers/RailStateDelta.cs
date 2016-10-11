@@ -33,6 +33,15 @@ namespace Railgun
     Tick IRailTimedValue.Tick { get { return this.tick; } }
     #endregion
 
+    internal static RailStateDelta CreateFrozen(Tick tick, EntityId entityId)
+    {
+      RailStateDelta delta = RailResource.Instance.CreateDelta();
+      delta.Initialize(tick, entityId, null, true);
+      return delta;
+    }
+
+    internal bool IsFrozen { get; set; }
+
     internal RailState State { get { return this.state; } }
     internal EntityId EntityId { get { return this.entityId; } }
     internal Tick Tick { get { return this.tick; } }
@@ -55,18 +64,18 @@ namespace Railgun
     public void Initialize(
       Tick tick,
       EntityId entityId,
-      RailState state)
+      RailState state,
+      bool isFrozen)
     {
       this.state = state;
       this.tick = tick;
       this.entityId = entityId;
+      this.IsFrozen = isFrozen;
     }
 
     public RailStateDelta()
     {
-      this.state = null;
-      this.tick = Tick.INVALID;
-      this.entityId = EntityId.INVALID;
+      this.Reset();
     }
 
     private void Reset()
@@ -74,6 +83,7 @@ namespace Railgun
       RailPool.SafeReplace(ref this.state, null);
       this.tick = Tick.INVALID;
       this.entityId = EntityId.INVALID;
+      this.IsFrozen = false;
     }
   }
 }

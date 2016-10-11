@@ -52,16 +52,12 @@ namespace Railgun
 
     private readonly RailScope scope;
 
-    // The latest entity tick acks from the client
-    private readonly RailView ackedView;
-
     internal RailServerPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(netPeer, interpreter)
     {
       this.scope = new RailScope();
-      this.ackedView = new RailView();
     }
 
     internal void Shutdown()
@@ -73,53 +69,17 @@ namespace Railgun
 
     internal void SendPacket(
       Tick localTick,
-      IEnumerable<RailEntity> activeEntities,
-      IEnumerable<RailEntity> destroyedEntities)
+      IEnumerable<RailEntity> active,
+      IEnumerable<RailEntity> destroyed)
     {
       RailServerPacket packet =
         base.AllocatePacketSend<RailServerPacket>(localTick);
-
-      packet.Populate(
-        this.ProduceDeltas(this.FilterDestroyed(destroyedEntities)),
-        this.ProduceDeltas(this.FilterActive(localTick, activeEntities)));
-
+      this.scope.PopulateDeltas(this, localTick, packet, active, destroyed);
       base.SendPacket(packet);
 
       foreach (RailStateDelta delta in packet.Sent)
-        this.scope.RegisterSent(delta.EntityId, localTick);
+        this.scope.RegisterSent(delta.EntityId, localTick, delta.IsFrozen);
       RailPool.Free(packet);
-    }
-
-    private IEnumerable<RailStateDelta> ProduceDeltas(
-      IEnumerable<RailEntity> entities)
-    {
-      foreach (RailEntity entity in entities)
-      {
-        RailStateDelta delta =
-          entity.ProduceDelta(
-            this.ackedView.GetLatest(entity.Id),
-            this);
-        if (delta != null)
-          yield return delta;
-      }
-    }
-
-    private IEnumerable<RailEntity> FilterDestroyed(
-      IEnumerable<RailEntity> destroyedEntities)
-    {
-      foreach (RailEntity entity in destroyedEntities)
-      {
-        Tick latest = this.ackedView.GetLatest(entity.Id);
-        if (latest.IsValid && (latest < entity.RemovedTick))
-          yield return entity;
-      }
-    }
-
-    private IEnumerable<RailEntity> FilterActive(
-      Tick localTick,
-      IEnumerable<RailEntity> activeEntities)
-    {
-      return this.scope.Evaluate(localTick, activeEntities);
     }
 
     protected override void ProcessPacket(RailPacket packet)
@@ -127,7 +87,7 @@ namespace Railgun
       base.ProcessPacket(packet);
       RailClientPacket clientPacket = (RailClientPacket)packet;
 
-      this.ackedView.Integrate(clientPacket.View);
+      this.scope.IntegrateAcked(clientPacket.View);
 
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(this, clientPacket);

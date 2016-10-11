@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+#if SERVER
 namespace Railgun
 {
   /// <summary>
@@ -36,6 +37,7 @@ namespace Railgun
     Tick IRailTimedValue.Tick { get { return this.tick; } }
     #endregion
 
+    internal bool IsValid { get { return this.tick.IsValid; } }
     internal RailState State { get { return this.state; } }
     internal Tick Tick { get { return this.tick; } }
 
@@ -48,26 +50,29 @@ namespace Railgun
       this.tick = Tick.INVALID;
     }
 
-    public void Initialize(
-      Tick tick,
-      RailState state)
-    {
-      this.state = state;
-      this.tick = tick;
-    }
-
     public void Overwrite(
       Tick tick,
       RailState state)
     {
+      RailDebug.Assert(tick.IsValid);
+
       this.tick = tick;
-      this.state.OverwriteFrom(state);
+      if (this.state == null)
+        this.state = state.Clone();
+      else
+        this.state.OverwriteFrom(state);
+    }
+
+    public void Invalidate()
+    {
+      this.tick = Tick.INVALID;
     }
 
     private void Reset()
     {
-      RailPool.SafeReplace(ref this.state, null);
       this.tick = Tick.INVALID;
+      RailPool.SafeReplace(ref this.state, null);
     }
   }
 }
+#endif

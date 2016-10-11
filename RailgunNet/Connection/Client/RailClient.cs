@@ -73,9 +73,7 @@ namespace Railgun
       {
         this.DoStart();
         this.serverPeer.Update();
-        this.UpdateRoom(
-          this.localTick,
-          this.serverPeer.RemoteClock.EstimatedRemote);
+        this.UpdateRoom(this.localTick, this.serverPeer.EstimatedRemoteTick);
 
         if (this.localTick.IsSendTick)
           this.serverPeer.SendPacket(
@@ -100,10 +98,12 @@ namespace Railgun
     /// Updates the room a number of ticks. If we have entities waiting to be
     /// added, this function will check them and add them if applicable.
     /// </summary>
-    private void UpdateRoom(Tick localTick, Tick serverTick)
+    private void UpdateRoom(
+      Tick localTick, 
+      Tick estimatedServerTick)
     {
-      this.UpdatePendingEntities(serverTick);
-      this.Room.ClientUpdate(localTick, serverTick);
+      this.UpdatePendingEntities(estimatedServerTick);
+      this.Room.ClientUpdate(localTick, estimatedServerTick);
     }
 
     /// <summary>
@@ -139,6 +139,10 @@ namespace Railgun
       RailEntity entity;
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
       {
+        RailDebug.Assert(delta.IsFrozen == false, "Frozen unknown entity");
+        if (delta.IsFrozen)
+          return;
+          
         entity = delta.ProduceEntity();
         entity.AssignId(delta.EntityId);
         this.pendingEntities.Add(entity.Id, entity);
@@ -151,6 +155,10 @@ namespace Railgun
 
     private void UpdateControlStatus(RailEntity entity, RailStateDelta delta)
     {
+      // Can't infer anything if the delta is an empty frozen update
+      if (delta.IsFrozen)
+        return;
+
       if (delta.HasControllerData)
       {
         if (entity.Controller == null)

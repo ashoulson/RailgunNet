@@ -70,7 +70,7 @@ namespace Railgun
       RailServerPacket serverPacket = (RailServerPacket)packet;
 
       foreach (RailStateDelta delta in serverPacket.Deltas)
-        this.localView.RecordUpdate(delta.EntityId, packet.SenderTick);
+        this.localView.RecordUpdate(delta.EntityId, packet.SenderTick, delta.IsFrozen);
 
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(serverPacket);

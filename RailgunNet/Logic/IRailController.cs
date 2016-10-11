@@ -31,7 +31,7 @@ namespace Railgun
 #endif
 
     object UserData { get; set; }
-    Tick RemoteTick { get; }
+    Tick EstimatedRemoteTick { get; }
     IEnumerable<RailEntity> ControlledEntities { get; }
 
     void QueueEvent(RailEvent evnt, int attempts = 3);

@@ -80,10 +80,12 @@ namespace Railgun
 
 #if SERVER
     internal void Populate(
-      IEnumerable<RailStateDelta> destroyedDeltas,
-      IEnumerable<RailStateDelta> activeDeltas)
+      IEnumerable<RailStateDelta> activeDeltas,
+      IEnumerable<RailStateDelta> frozenDeltas,
+      IEnumerable<RailStateDelta> destroyedDeltas)
     {
       this.deltas.AddPending(destroyedDeltas);
+      this.deltas.AddPending(frozenDeltas);
       this.deltas.AddPending(activeDeltas);
     }
 #endif

@@ -27,17 +27,17 @@ namespace Railgun
     /// </summary>
     public enum RailUpdateOrder
     {
-      UpdateEarly,
-      UpdateNormal,
-      UpdateLate,
+      Early,
+      Normal,
+      Late,
     }
 
     // Pre-cache the array for iterating over.
     internal static RailUpdateOrder[] Orders = new[]
     {
-      RailUpdateOrder.UpdateEarly,
-      RailUpdateOrder.UpdateNormal,
-      RailUpdateOrder.UpdateLate,
+      RailUpdateOrder.Early,
+      RailUpdateOrder.Normal,
+      RailUpdateOrder.Late,
     };
 
     /// <summary>

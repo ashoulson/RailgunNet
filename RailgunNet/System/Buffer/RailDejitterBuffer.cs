@@ -205,6 +205,25 @@ namespace Railgun
       return found.OrderBy(val => val.Tick, Tick.Comparer);
     }
 
+    /// <summary>
+    /// Finds all items with ticks in the inclusive range [start, end]
+    /// </summary>
+    public IEnumerable<T> GetRange(Tick start, Tick end)
+    {
+      List<T> found = new List<T>(this.data.Length);
+      if (start == Tick.INVALID)
+        return found;
+
+      for (int i = 0; i < this.data.Length; i++)
+      {
+        T val = this.data[i];
+        if ((val != null) && (val.Tick >= start) && (val.Tick <= end))
+          found.Add(val);
+      }
+
+      return found.OrderBy(val => val.Tick, Tick.Comparer);
+    }
+
     public bool Contains(Tick tick)
     {
       if (tick == Tick.INVALID)
