@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+using System;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -44,9 +45,9 @@ namespace Railgun
     {
       RailEntity entity = RailResource.Instance.CreateEntity(factoryType);
       entity.factoryType = factoryType;
-      entity.MainState = RailState.Create(factoryType);
+      entity.StateBase = RailState.Create(factoryType);
 #if CLIENT
-      entity.authState = entity.MainState.Clone();
+      entity.AuthStateBase = entity.StateBase.Clone();
 #endif
       return entity;
     }
@@ -87,7 +88,7 @@ namespace Railgun
     public bool IsFrozen { get; private set; }
     public IRailController Controller { get; private set; }
     public RailRoom Room { get; internal set; }
-    internal abstract RailState MainState { get; set; }
+    internal abstract RailState StateBase { get; set; }
 
     // Synchronization info
     public EntityId Id { get; private set; }
@@ -106,14 +107,26 @@ namespace Railgun
 #endif
 
 #if CLIENT
+    /// <summary>
+    /// The tick of the last authoritative state.
+    /// </summary>
+    public Tick AuthTick { get { return this.authTick; } }
+
+    /// <summary>
+    /// The tick of the next authoritative state. May be invalid.
+    /// </summary>
+    public Tick NextTick { get { return this.nextTick; } }
+
+    internal abstract RailState AuthStateBase { get; set; }
+    internal abstract RailState NextStateBase { get; set; }
     internal IEnumerable<RailCommand> OutgoingCommands { get { return this.outgoingCommands; } }
     internal Tick LastSentCommandTick { get; set; } // The last local tick we sent our commands to the server
 
     private readonly RailDejitterBuffer<RailStateDelta> incomingStates;
     private readonly Queue<RailCommand> outgoingCommands;
 
-    private RailState authState;
     private Tick authTick;
+    private Tick nextTick;
     private bool shouldBeFrozen;
 #endif
 
@@ -145,8 +158,6 @@ namespace Railgun
       this.Room = null;
 
       this.Id = EntityId.INVALID;
-      this.MainState = null;
-
       this.Controller = null;
       this.hasStarted = false;
 
@@ -159,7 +170,6 @@ namespace Railgun
       this.outgoingStates.Clear();
       this.incomingCommands.Clear();
 #endif
-
 #if CLIENT
       this.LastSentCommandTick = Tick.START;
       this.IsFrozen = true; // Entities start frozen on client
@@ -168,11 +178,31 @@ namespace Railgun
       this.incomingStates.Clear();
       RailPool.DrainQueue(this.outgoingCommands);
 
-      RailPool.SafeReplace(ref this.authState, null);
       this.authTick = Tick.START;
+      this.nextTick = Tick.INVALID;
 #endif
 
+      this.ResetStates();
       this.OnReset();
+    }
+
+    private void ResetStates()
+    {
+
+      if (this.StateBase != null)
+        RailPool.Free(this.StateBase);
+#if CLIENT
+      if (this.AuthStateBase != null)
+        RailPool.Free(this.AuthStateBase);
+      if (this.NextStateBase != null)
+        RailPool.Free(this.NextStateBase);
+#endif
+
+      this.StateBase = null;
+#if CLIENT
+      this.AuthStateBase = null;
+      this.NextStateBase = null;
+#endif
     }
 
     internal void AssignId(EntityId id)
@@ -235,7 +265,7 @@ namespace Railgun
       RailStateRecord record =
         RailState.CreateRecord(
           this.Room.Tick,
-          this.MainState, 
+          this.StateBase, 
           this.outgoingStates.Latest);
       if (record != null)
         this.outgoingStates.Store(record);
@@ -255,7 +285,7 @@ namespace Railgun
 
       return RailState.CreateDelta(
         this.Id,
-        this.MainState,
+        this.StateBase,
         basis,
         includeControllerData,
         includeImmutableData,
@@ -298,7 +328,7 @@ namespace Railgun
     internal void ClientUpdate(Tick localTick)
     {
       this.UpdateAuthState();
-      this.MainState.OverwriteFrom(this.authState);
+      this.StateBase.OverwriteFrom(this.AuthStateBase);
       this.Initialize();
 
       this.NotifyControllerChanged();
@@ -384,7 +414,7 @@ namespace Railgun
         if (this.authTick == Tick.START)
           RailDebug.Assert(delta.HasImmutableData);
         if (delta.IsFrozen == false)
-          this.authState.ApplyDelta(delta);
+          this.AuthStateBase.ApplyDelta(delta);
         this.shouldBeFrozen = delta.IsFrozen;
         this.authTick = delta.Tick;
       }
@@ -394,9 +424,9 @@ namespace Railgun
     {
       // Bring the main state up to the latest (apply all deltas)
       IEnumerable<RailStateDelta> deltas = 
-        this.incomingStates.GetLatestFrom(this.authTick);
+        this.incomingStates.GetRange(this.authTick);
       foreach (var delta in deltas)
-        this.MainState.ApplyDelta(delta);
+        this.StateBase.ApplyDelta(delta);
       this.Revert();
 
       // Forward-simulate
@@ -431,13 +461,43 @@ namespace Railgun
   public abstract class RailEntity<TState> : RailEntity
     where TState : RailState, new()
   {
-    internal override RailState MainState
+    internal override RailState StateBase
     {
       get { return this.State; }
       set { this.State = (TState)value; }
     }
 
+#if CLIENT
+    internal override RailState AuthStateBase
+    {
+      get { return this.AuthState; }
+      set { this.AuthState = (TState)value; }
+    }
+
+    internal override RailState NextStateBase
+    {
+      get { return this.nextState; }
+      set { this.nextState = (TState)value; }
+    }
+#endif
+
     public TState State { get; private set; }
+
+#if CLIENT
+    private TState nextState;
+
+    public TState AuthState { get; private set; }
+    public TState NextState
+    {
+      get
+      {
+        // Only return if we have a valid next state assigned
+        if (this.NextTick.IsValid)
+          return this.nextState;
+        return null;
+      }
+    }
+#endif
   }
 
   /// <summary>

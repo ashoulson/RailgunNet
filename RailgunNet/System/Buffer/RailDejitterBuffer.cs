@@ -30,6 +30,11 @@ namespace Railgun
   internal class RailDejitterBuffer<T>
     where T : class, IRailTimedValue, IRailPoolable<T>
   {
+    private static int Compare(T x, T y)
+    {
+      return Tick.Comparer.Compare(x.Tick, y.Tick);
+    }
+
     // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
     // key by 2 so as to avoid wasting space in the frame buffer
@@ -50,6 +55,7 @@ namespace Railgun
 
     private T[] data;
     private int latestIdx;
+    private List<T> returnList; // A reusable list for returning results
 
     internal IEnumerable<T> Values
     {
@@ -63,6 +69,7 @@ namespace Railgun
 
     public RailDejitterBuffer(int capacity, int divisor = 1)
     {
+      this.returnList = new List<T>();
       this.divisor = divisor;
       this.data = new T[capacity / divisor];
       this.latestIdx = -1;
@@ -129,7 +136,7 @@ namespace Railgun
     /// 
     /// Runs in O(n).
     /// </summary>
-    public void GetRangeAt(
+    public void GetFirstAfter(
       Tick currentTick,
       out T current,
       out T next)
@@ -189,39 +196,41 @@ namespace Railgun
     /// <summary>
     /// Finds all items at or later than the given tick, in order.
     /// </summary>
-    public IEnumerable<T> GetLatestFrom(Tick tick)
+    public IList<T> GetRange(Tick start)
     {
-      List<T> found = new List<T>(this.data.Length);
-      if (tick == Tick.INVALID)
-        return found;
+      this.returnList.Clear();
+      if (start == Tick.INVALID)
+        return this.returnList;
 
       for (int i = 0; i < this.data.Length; i++)
       {
-        T next = this.data[i];
-        if ((next != null) && (next.Tick >= tick))
-          found.Add(next);
+        T val = this.data[i];
+        if ((val != null) && (val.Tick >= start))
+          this.returnList.Add(val);
       }
 
-      return found.OrderBy(val => val.Tick, Tick.Comparer);
+      this.returnList.Sort(RailDejitterBuffer<T>.Compare);
+      return this.returnList;
     }
 
     /// <summary>
     /// Finds all items with ticks in the inclusive range [start, end]
     /// </summary>
-    public IEnumerable<T> GetRange(Tick start, Tick end)
+    public IList<T> GetRange(Tick start, Tick end)
     {
-      List<T> found = new List<T>(this.data.Length);
+      this.returnList.Clear();
       if (start == Tick.INVALID)
-        return found;
+        return this.returnList;
 
       for (int i = 0; i < this.data.Length; i++)
       {
         T val = this.data[i];
         if ((val != null) && (val.Tick >= start) && (val.Tick <= end))
-          found.Add(val);
+          this.returnList.Add(val);
       }
 
-      return found.OrderBy(val => val.Tick, Tick.Comparer);
+      this.returnList.Sort(RailDejitterBuffer<T>.Compare);
+      return this.returnList;
     }
 
     public bool Contains(Tick tick)
