@@ -34,21 +34,10 @@ namespace Railgun
   /// </summary>
   internal class RailClientPacket 
     : RailPacket
-    , IRailPoolable<RailClientPacket>
 #if SERVER
     , IRailClientPacket
 #endif
   {
-    #region Pooling
-    IRailPool<RailClientPacket> IRailPoolable<RailClientPacket>.Pool { get; set; }
-    void IRailPoolable<RailClientPacket>.Reset() { this.Reset(); }
-    #endregion
-
-    internal static RailClientPacket Create()
-    {
-      return RailResource.Instance.CreateClientPacket();
-    }
-
     #region Interface
 #if SERVER
     IEnumerable<RailCommandUpdate> IRailClientPacket.CommandUpdates { get { return this.commandUpdates.Received; } }
@@ -72,7 +61,7 @@ namespace Railgun
       this.commandUpdates = new RailPackedListC2S<RailCommandUpdate>();
     }
 
-    protected override void Reset()
+    internal override void Reset()
     {
       base.Reset();
 

@@ -451,7 +451,8 @@ namespace Railgun
       }
 
       // If there was a next state, update the next state
-      if (next != null)
+      bool canGetNext = (this.shouldBeFrozen == false);
+      if (canGetNext && (next != null) && (next.IsFrozen == false))
       {
         this.NextStateBase.OverwriteFrom(this.AuthStateBase);
         this.NextStateBase.ApplyDelta(next);

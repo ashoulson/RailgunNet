@@ -50,16 +50,6 @@ namespace Railgun
       a = temp;
     }
 
-    public static int ExpandArray<T>(ref T[] oldArray, int minIncrease = 1)
-    {
-      // TODO: Revisit this using next-largest primes like built-in lists do
-      int newCapacity = (oldArray.Length * 2) + minIncrease;
-      T[] newArray = new T[newCapacity];
-      Array.Copy(oldArray, newArray, oldArray.Length);
-      oldArray = newArray;
-      return newCapacity;
-    }
-
     public static bool GetFlag(byte field, byte flag)
     {
       return ((field & flag) > 0);

@@ -169,9 +169,6 @@ namespace Railgun
     private Dictionary<int, IRailPool<RailState>> statePools;
     private Dictionary<int, IRailPool<RailEvent>> eventPools;
 
-    private IRailPool<RailServerPacket> serverPacketPool;
-    private IRailPool<RailClientPacket> clientPacketPool;
-
     private IRailPool<RailStateDelta> deltaPool;
     private IRailPool<RailCommandUpdate> commandUpdatePool;
 #if SERVER
@@ -195,9 +192,6 @@ namespace Railgun
       this.commandPool = master.CloneCommandPool();
       this.statePools = master.CloneStatePools();
       this.eventPools = master.CloneEventPools();
-
-      this.serverPacketPool = new RailPool<RailServerPacket>();
-      this.clientPacketPool = new RailPool<RailClientPacket>();
 
       this.deltaPool = new RailPool<RailStateDelta>();
       this.commandUpdatePool = new RailPool<RailCommandUpdate>();
@@ -225,16 +219,6 @@ namespace Railgun
     public RailEvent CreateEvent(int factoryType)
     {
       return this.eventPools[factoryType].Allocate();
-    }
-
-    public RailServerPacket CreateServerPacket()
-    {
-      return this.serverPacketPool.Allocate();
-    }
-
-    public RailClientPacket CreateClientPacket()
-    {
-      return this.clientPacketPool.Allocate();
     }
 
     public RailStateDelta CreateDelta()

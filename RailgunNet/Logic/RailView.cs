@@ -117,6 +117,8 @@ namespace Railgun
     /// </summary>
     public IEnumerable<KeyValuePair<EntityId, RailViewEntry>> GetOrdered()
     {
+      // TODO: If we have an entity frozen, we probably shouldn't constantly
+      //       send view acks for it unless we're getting requests to freeze.
       this.sortList.Clear();
       this.sortList.AddRange(this.latestUpdates);
       this.sortList.Sort(RailView.Comparer);

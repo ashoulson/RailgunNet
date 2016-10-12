@@ -51,13 +51,11 @@ namespace Railgun
     public void Clear()
     {
 #if CLIENT
-      foreach (T value in this.received)
-        RailPool.Free(value);
+      // We don't free the received values as they will be passed elsewhere
       this.received.Clear();
 #endif
 #if SERVER
-      foreach (T value in this.pending)
-        RailPool.Free(value);
+      this.FreeOutgoing();
       this.pending.Clear();
       this.sent.Clear();
 #endif
@@ -97,6 +95,14 @@ namespace Railgun
         encode,
         (val) => this.sent.Add(val));
     }
+
+    public void FreeOutgoing()
+    {
+      foreach (T value in this.pending)
+        RailPool.Free(value);
+      foreach (T value in this.sent)
+        RailPool.Free(value);
+    }
 #endif
   }
 
@@ -117,6 +123,7 @@ namespace Railgun
     public RailPackedListC2S()
     {
 #if SERVER
+      // We don't free the received values as they will be passed elsewhere
       this.received = new List<T>();
 #endif
 #if CLIENT
@@ -128,13 +135,10 @@ namespace Railgun
     public void Clear()
     {
 #if SERVER
-      foreach (T value in this.received)
-        RailPool.Free(value);
       this.received.Clear();
 #endif
 #if CLIENT
-      foreach (T value in this.pending)
-        RailPool.Free(value);
+      this.FreeOutgoing();
       this.pending.Clear();
       this.sent.Clear();
 #endif
@@ -173,6 +177,14 @@ namespace Railgun
         this.pending,
         encode,
         (val) => this.sent.Add(val));
+    }
+
+    public void FreeOutgoing()
+    {
+      foreach (T value in this.pending)
+        RailPool.Free(value);
+      foreach (T value in this.sent)
+        RailPool.Free(value);
     }
 #endif
   }

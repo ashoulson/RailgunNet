@@ -35,21 +35,10 @@ namespace Railgun
   /// </summary>
   internal class RailServerPacket
     : RailPacket 
-    , IRailPoolable<RailServerPacket>
 #if CLIENT
     , IRailServerPacket
 #endif
   {
-    #region Pooling
-    IRailPool<RailServerPacket> IRailPoolable<RailServerPacket>.Pool { get; set; }
-    void IRailPoolable<RailServerPacket>.Reset() { this.Reset(); }
-    #endregion
-
-    internal static RailServerPacket Create()
-    {
-      return RailResource.Instance.CreateServerPacket();
-    }
-
     #region Interface
 #if CLIENT
     Tick IRailServerPacket.ServerTick { get { return this.SenderTick; } }
@@ -71,7 +60,7 @@ namespace Railgun
       this.deltas = new RailPackedListS2C<RailStateDelta>();
     }
 
-    protected override void Reset()
+    internal override void Reset()
     {
       base.Reset();
 

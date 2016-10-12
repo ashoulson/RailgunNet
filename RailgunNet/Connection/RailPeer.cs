@@ -90,12 +90,14 @@ namespace Railgun
     private SequenceWindow processedEventHistory;
     #endregion
 
-    protected abstract RailPacket AllocateIncoming();
-    protected abstract RailPacket AllocateOutgoing();
+    protected readonly RailPacket reusableIncoming;
+    protected readonly RailPacket reusableOutgoing;
 
-    internal RailPeer(
+    protected RailPeer(
       IRailNetPeer netPeer,
-      RailInterpreter interpreter)
+      RailInterpreter interpreter,
+      RailPacket reusableIncoming,
+      RailPacket reusableOutgoing)
     {
       this.netPeer = netPeer;
       this.interpreter = interpreter;
@@ -104,6 +106,8 @@ namespace Railgun
       this.remoteClock = new RailClock();
 
       this.outgoingEvents = new Queue<RailEvent>();
+      this.reusableIncoming = reusableIncoming;
+      this.reusableOutgoing = reusableOutgoing;
       this.lastQueuedEventId = SequenceId.START.Next;
       this.processedEventHistory = new SequenceWindow(SequenceId.START);
 
@@ -152,29 +156,30 @@ namespace Railgun
     protected void OnPayloadReceived(IRailNetPeer peer, byte[] buffer, int length)
     {
       RailBitBuffer bitBuffer = this.interpreter.LoadData(buffer, length);
-      RailPacket packet = this.AllocateIncoming();
-
-      packet.Decode(bitBuffer);
+      this.reusableIncoming.Decode(bitBuffer);
       if (bitBuffer.IsFinished)
-        this.ProcessPacket(packet);
+        this.ProcessPacket(this.reusableIncoming);
       else
         RailDebug.LogError("Bad packet read, discarding...");
-      // TODO: Free packet?
+      this.reusableIncoming.Reset();
     }
 
     /// <summary>
     /// Allocates a packet and writes common boilerplate information to it.
+    /// Make sure to call OnSent() afterwards.
     /// </summary>
-    protected T AllocatePacketSend<T>(Tick localTick)
+    protected T PrepareSend<T>(Tick localTick)
       where T : RailPacket
     {
-      RailPacket packet = this.AllocateOutgoing();
-      packet.Initialize(
+      // It would be best to reset after rather than before, but that's
+      // error prone as it would require a second post-send function call.
+      this.reusableOutgoing.Reset();
+      this.reusableOutgoing.Initialize(
         localTick,
         this.remoteClock.LatestRemote,
         this.processedEventHistory.Latest,
         this.FilterOutgoingEvents());
-      return (T)packet;
+      return (T)this.reusableOutgoing;
     }
 
     /// <summary>
@@ -194,7 +199,7 @@ namespace Railgun
     /// </summary>
     public void QueueEvent(RailEvent evnt, int attempts)
     {
-      // TODO: SCOPING
+      // TODO: Event scoping
 
       // All global events are sent reliably
       RailEvent clone = evnt.Clone();
@@ -306,5 +311,21 @@ namespace Railgun
         this.processedEventHistory.Store(evnt.EventId);
     }
     #endregion
+  }
+
+  internal class RailPeer<TIncoming, TOugtoing> : RailPeer
+    where TIncoming : RailPacket, new()
+    where TOugtoing : RailPacket, new()
+  {
+    internal RailPeer(
+      IRailNetPeer netPeer,
+      RailInterpreter interpreter)
+      : base(
+          netPeer,
+          interpreter,
+          new TIncoming(),
+          new TOugtoing())
+    {
+    }
   }
 }

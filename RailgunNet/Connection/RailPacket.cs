@@ -89,7 +89,7 @@ namespace Railgun
       this.eventsWritten = 0;
     }
 
-    protected virtual void Reset()
+    internal virtual void Reset()
     {
       this.senderTick = Tick.INVALID;
       this.ackTick = Tick.INVALID;

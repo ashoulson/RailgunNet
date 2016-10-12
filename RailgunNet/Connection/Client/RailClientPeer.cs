@@ -28,7 +28,7 @@ namespace Railgun
   /// The peer created by the client representing the server.
   /// </summary>
   internal class RailClientPeer
-    : RailPeer
+    : RailPeer<RailServerPacket, RailClientPacket>
   {
     internal event Action<IRailServerPacket> PacketReceived;
 
@@ -49,9 +49,7 @@ namespace Railgun
       Tick localTick,
       IEnumerable<RailEntity> controlledEntities)
     {
-      RailClientPacket packet =
-        base.AllocatePacketSend<RailClientPacket>(localTick);
-
+      RailClientPacket packet = base.PrepareSend<RailClientPacket>(localTick);
       packet.Populate(
         this.ProduceCommandUpdates(controlledEntities), 
         this.localView);
@@ -61,20 +59,18 @@ namespace Railgun
 
       foreach (RailCommandUpdate commandUpdate in packet.Sent)
         commandUpdate.Entity.LastSentCommandTick = localTick;
-      RailPool.Free(packet);
     }
 
     protected override void ProcessPacket(RailPacket packet)
     {
       base.ProcessPacket(packet);
-      RailServerPacket serverPacket = (RailServerPacket)packet;
 
+      RailServerPacket serverPacket = (RailServerPacket)packet;
       foreach (RailStateDelta delta in serverPacket.Deltas)
         this.localView.RecordUpdate(
           delta.EntityId, 
           packet.SenderTick, 
           delta.IsFrozen);
-
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(serverPacket);
     }
@@ -100,16 +96,6 @@ namespace Railgun
         commandUpdate.Entity = entity;
         yield return commandUpdate;
       }
-    }
-
-    protected override RailPacket AllocateIncoming()
-    {
-      return RailServerPacket.Create();
-    }
-
-    protected override RailPacket AllocateOutgoing()
-    {
-      return RailClientPacket.Create();
     }
   }
 }

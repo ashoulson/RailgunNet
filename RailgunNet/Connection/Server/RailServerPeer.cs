@@ -27,8 +27,9 @@ namespace Railgun
   /// <summary>
   /// A peer created by the server representing a connected client.
   /// </summary>
-  internal class RailServerPeer : 
-    RailPeer, IRailControllerServer
+  internal class RailServerPeer
+    : RailPeer<RailClientPacket, RailServerPacket>
+    , IRailControllerServer
   {
     internal event Action<RailServerPeer, IRailClientPacket> PacketReceived;
 
@@ -72,36 +73,22 @@ namespace Railgun
       IEnumerable<RailEntity> active,
       IEnumerable<RailEntity> destroyed)
     {
-      RailServerPacket packet =
-        base.AllocatePacketSend<RailServerPacket>(localTick);
+      RailServerPacket packet = base.PrepareSend<RailServerPacket>(localTick);
       this.scope.PopulateDeltas(this, localTick, packet, active, destroyed);
       base.SendPacket(packet);
 
       foreach (RailStateDelta delta in packet.Sent)
         this.scope.RegisterSent(delta.EntityId, localTick, delta.IsFrozen);
-      RailPool.Free(packet);
     }
 
     protected override void ProcessPacket(RailPacket packet)
     {
       base.ProcessPacket(packet);
+
       RailClientPacket clientPacket = (RailClientPacket)packet;
-
       this.scope.IntegrateAcked(clientPacket.View);
-
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(this, clientPacket);
-      RailPool.Free(clientPacket);
-    }
-
-    protected override RailPacket AllocateIncoming()
-    {
-      return RailClientPacket.Create();
-    }
-
-    protected override RailPacket AllocateOutgoing()
-    {
-      return RailServerPacket.Create();
     }
   }
 }
