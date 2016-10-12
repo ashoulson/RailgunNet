@@ -105,7 +105,6 @@ namespace Railgun
       deltaState.CommandAck = commandAck;
 
       // We don't need to include a tick when sending -- it's in the packet
-      RailState recordState = current.Clone();
       RailStateDelta delta = RailResource.Instance.CreateDelta();
       delta.Initialize(Tick.INVALID, entityId, deltaState, false);
       return delta;

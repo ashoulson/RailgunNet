@@ -108,6 +108,8 @@ namespace Railgun
 #endif
 
 #if CLIENT
+    public bool IsControlled { get { return (this.Controller != null); } }
+
     /// <summary>
     /// The tick of the last authoritative state.
     /// </summary>
@@ -363,6 +365,7 @@ namespace Railgun
         }
         else
         {
+          this.nextTick = Tick.INVALID;
           this.UpdateControlled(localTick);
           this.UpdatePredicted();
         }
@@ -467,7 +470,7 @@ namespace Railgun
     private void UpdatePredicted()
     {
       // Bring the main state up to the latest (apply all deltas)
-      IEnumerable<RailStateDelta> deltas = 
+      IList<RailStateDelta> deltas = 
         this.incomingStates.GetRange(this.authTick);
       foreach (var delta in deltas)
         this.StateBase.ApplyDelta(delta);
@@ -514,8 +517,8 @@ namespace Railgun
 #if CLIENT
     internal override RailState AuthStateBase
     {
-      get { return this.AuthState; }
-      set { this.AuthState = (TState)value; }
+      get { return this.authState; }
+      set { this.authState = (TState)value; }
     }
 
     internal override RailState NextStateBase
@@ -528,13 +531,35 @@ namespace Railgun
     public TState State { get; private set; }
 
 #if CLIENT
+    private TState authState;
     private TState nextState;
 
-    public TState AuthState { get; private set; }
+    /// <summary>
+    /// Returns the current dejittered authoritative state from the server.
+    /// Will return null if the entity is locally controlled (use State).
+    /// </summary>
+    public TState AuthState
+    {
+      get
+      {
+        // Not valid if we're controlling
+        if (this.IsControlled)
+          return null;
+        return this.authState;
+      }
+    }
+
+    /// <summary>
+    /// Returns the next dejittered authoritative state from the server. Will 
+    /// return null none is available or if the entity is locally controlled.
+    /// </summary>
     public TState NextState
     {
       get
       {
+        // Not valid if we're controlling
+        if (this.IsControlled)
+          return null;
         // Only return if we have a valid next state assigned
         if (this.NextTick.IsValid)
           return this.nextState;

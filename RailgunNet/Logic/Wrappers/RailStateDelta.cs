@@ -40,11 +40,10 @@ namespace Railgun
       return delta;
     }
 
-    internal bool IsFrozen { get; set; }
-
-    internal RailState State { get { return this.state; } }
-    internal EntityId EntityId { get { return this.entityId; } }
     internal Tick Tick { get { return this.tick; } }
+    internal EntityId EntityId { get { return this.entityId; } }
+    internal RailState State { get { return this.state; } }
+    internal bool IsFrozen { get; set; }
 
     internal bool HasControllerData { get { return this.state.HasControllerData; } }
     internal bool HasImmutableData { get { return this.state.HasImmutableData; } }
@@ -52,8 +51,8 @@ namespace Railgun
     internal Tick CommandAck { get { return this.state.CommandAck; } }
     internal Tick RemovedTick { get { return this.state.RemovedTick; } }
 
-    private EntityId entityId;
     private Tick tick;
+    private EntityId entityId;
     private RailState state;
 
     internal RailEntity ProduceEntity()
@@ -67,9 +66,9 @@ namespace Railgun
       RailState state,
       bool isFrozen)
     {
-      this.state = state;
       this.tick = tick;
       this.entityId = entityId;
+      this.state = state;
       this.IsFrozen = isFrozen;
     }
 
@@ -80,9 +79,9 @@ namespace Railgun
 
     private void Reset()
     {
-      RailPool.SafeReplace(ref this.state, null);
       this.tick = Tick.INVALID;
       this.entityId = EntityId.INVALID;
+      RailPool.SafeReplace(ref this.state, null);
       this.IsFrozen = false;
     }
   }

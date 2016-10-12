@@ -30,7 +30,7 @@ namespace Railgun
     IRailPool<T> Clone();
   }
 
-  public static class RailPool
+  public class RailPool
   {
     public static void Free<T>(T obj)
       where T : IRailPoolable<T>
@@ -54,22 +54,27 @@ namespace Railgun
     }
   }
 
-  public class RailPool<T> : IRailPool<T>
-    where T : IRailPoolable<T>, new()
+  internal abstract class RailPoolBase<T> : IRailPool<T>
+    where T : IRailPoolable<T>
   {
     private readonly Stack<T> freeList;
 
-    public RailPool()
+    public abstract IRailPool<T> Clone();
+    protected abstract T Create();
+
+    public RailPoolBase()
     {
       this.freeList = new Stack<T>();
     }
 
     public T Allocate()
     {
+      T obj;
       if (this.freeList.Count > 0)
-        return this.freeList.Pop();
+        obj = this.freeList.Pop();
+      else
+        obj = this.Create();
 
-      T obj = new T();
       obj.Pool = this;
       obj.Reset();
       return obj;
@@ -80,86 +85,37 @@ namespace Railgun
       RailDebug.Assert(obj.Pool == this);
 
       obj.Reset();
+      obj.Pool = null; // Prevent multiple frees
       this.freeList.Push(obj);
     }
+  }
 
-    public IRailPool<T> Clone()
+  internal class RailPool<T> : RailPoolBase<T>
+    where T : IRailPoolable<T>, new()
+  {
+    protected override T Create()
+    {
+      return new T();
+    }
+
+    public override IRailPool<T> Clone()
     {
       return new RailPool<T>();
     }
   }
 
-  public class RailPool<TBase, TDerived> : IRailPool<TBase>
+  internal class RailPool<TBase, TDerived> : RailPoolBase<TBase>
     where TBase : IRailPoolable<TBase>
     where TDerived : TBase, new()
   {
-    private readonly Stack<TBase> freeList;
-
-    public RailPool()
+    protected override TBase Create()
     {
-      this.freeList = new Stack<TBase>();
+      return new TDerived();
     }
 
-    public TBase Allocate()
-    {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
-
-      TBase obj = new TDerived();
-      obj.Pool = this;
-      obj.Reset();
-      return obj;
-    }
-
-    public void Deallocate(TBase obj)
-    {
-      RailDebug.Assert(obj.Pool == this);
-
-      obj.Reset();
-      this.freeList.Push(obj);
-    }
-
-    public IRailPool<TBase> Clone()
+    public override IRailPool<TBase> Clone()
     {
       return new RailPool<TBase, TDerived>();
-    }
-  }
-
-  public class RailPoolSpecial<TBase, TDerived> : IRailPool<TBase>
-    where TBase : IRailPoolable<TBase>
-    where TDerived : TBase
-  {
-    private readonly Stack<TBase> freeList;
-    private readonly Func<TDerived> constructor;
-
-    public RailPoolSpecial(Func<TDerived> constructor)
-    {
-      this.freeList = new Stack<TBase>();
-      this.constructor = constructor;
-    }
-
-    public TBase Allocate()
-    {
-      if (this.freeList.Count > 0)
-        return this.freeList.Pop();
-
-      TBase obj = this.constructor.Invoke();
-      obj.Pool = this;
-      obj.Reset();
-      return obj;
-    }
-
-    public void Deallocate(TBase obj)
-    {
-      RailDebug.Assert(obj.Pool == this);
-
-      obj.Reset();
-      this.freeList.Push(obj);
-    }
-
-    public IRailPool<TBase> Clone()
-    {
-      return new RailPoolSpecial<TBase, TDerived>(this.constructor);
     }
   }
 }
