@@ -177,13 +177,10 @@ namespace Railgun
       get { return (this.tickValue > 0); }
     }
 
-    public float Time
+    public float ToTime(float tickDeltaTime)
     {
-      get
-      {
-        RailDebug.Assert(this.IsValid);
-        return (float)(this.tickValue - 1) * RailConfig.FIXED_DELTA_TIME;
-      }
+      RailDebug.Assert(this.IsValid);
+      return (float)(this.tickValue - 1) * tickDeltaTime;
     }
     #endregion
 

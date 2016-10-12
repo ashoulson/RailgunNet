@@ -41,11 +41,6 @@ namespace Railgun
     };
 
     /// <summary>
-    /// The real time in seconds per simulation tick.
-    /// </summary>
-    public const float FIXED_DELTA_TIME = 0.02f;
-
-    /// <summary>
     /// Network send rate in frames/packet.
     /// </summary>
     public const int NETWORK_SEND_RATE = 2;
@@ -81,7 +76,7 @@ namespace Railgun
     /// The maximum message size that a packet can contain, based on known
     /// MTUs for internet traffic. Don't change this without a good reason.
     /// 
-    /// If using MiniUDP, this should be equal to NetConfig.MAX_PAYLOAD_SIZE
+    /// If using MiniUDP, this should be equal to NetConfig.DATA_MAXIMUM
     /// </summary>
     internal const int PACKCAP_MESSAGE_TOTAL = 1200;
 

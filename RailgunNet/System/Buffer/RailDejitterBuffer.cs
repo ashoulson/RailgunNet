@@ -86,36 +86,30 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Stores a value. Note that this function does not enforce time 
-    /// constraints. It is possible to replace a value with an older one.
+    /// Stores a value. Will not replace a stored value with an older one.
     /// </summary>
-    public void Store(T value)
+    public bool Store(T value)
     {
       int index = this.TickToIndex(value.Tick);
+      bool store = false;
 
-      bool updateLatest = false;
       if (this.latestIdx < 0)
       {
-        this.latestIdx = index;
+        store = true;
       }
       else
       {
         T latest = this.data[this.latestIdx];
         if (value.Tick >= latest.Tick)
-        {
-          this.latestIdx = index;
-        }
-        else if (index == this.latestIdx)
-        {
-          // We're replacing the latest element with an older one, will
-          // need to find a new one after we do the insertion
-          updateLatest = true;
-        }
+          store = true;
       }
 
-      RailPool.SafeReplace(ref this.data[index], value);
-      if (updateLatest)
-        this.UpdateLatest();
+      if (store)
+      {
+        RailPool.SafeReplace(ref this.data[index], value);
+        this.latestIdx = index;
+      }
+      return store;
     }
 
     public T Get(Tick tick)
@@ -215,18 +209,35 @@ namespace Railgun
 
     /// <summary>
     /// Finds all items with ticks in the inclusive range [start, end]
+    /// and also returns the value immediately following (if one exists)
     /// </summary>
-    public IList<T> GetRange(Tick start, Tick end)
+    public IList<T> GetRangeAndNext(Tick start, Tick end, out T next)
     {
+      next = null;
       this.returnList.Clear();
       if (start == Tick.INVALID)
         return this.returnList;
 
+      Tick lowest = Tick.INVALID;
       for (int i = 0; i < this.data.Length; i++)
       {
         T val = this.data[i];
-        if ((val != null) && (val.Tick >= start) && (val.Tick <= end))
-          this.returnList.Add(val);
+        if (val != null)
+        {
+          if ((val.Tick >= start) && (val.Tick <= end))
+          {
+            this.returnList.Add(val);
+          }
+
+          if (val.Tick > end)
+          {
+            if ((lowest == Tick.INVALID || val.Tick < lowest))
+            {
+              next = val;
+              lowest = val.Tick;
+            }
+          }
+        }
       }
 
       this.returnList.Sort(RailDejitterBuffer<T>.Compare);
@@ -254,30 +265,6 @@ namespace Railgun
 
       value = this.Get(tick);
       return (value != null);
-    }
-
-    /// <summary>
-    /// Finds the absolute latest value in the buffer. O(n)
-    /// </summary>
-    private void UpdateLatest()
-    {
-      Tick retTick = Tick.INVALID;
-      int newIndex = -1;
-
-      for (int i = 0; i < this.data.Length; i++)
-      {
-        T value = this.data[i];
-        if (value != null)
-        {
-          if ((newIndex < 0) || (value.Tick > retTick))
-          {
-            newIndex = i;
-            retTick = value.Tick;
-          }
-        }
-      }
-
-      this.latestIdx = newIndex;
     }
 
     private int TickToIndex(Tick tick)

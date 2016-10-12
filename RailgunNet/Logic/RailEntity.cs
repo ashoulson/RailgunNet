@@ -48,6 +48,7 @@ namespace Railgun
       entity.StateBase = RailState.Create(factoryType);
 #if CLIENT
       entity.AuthStateBase = entity.StateBase.Clone();
+      entity.NextStateBase = entity.StateBase.Clone();
 #endif
       return entity;
     }
@@ -295,8 +296,10 @@ namespace Railgun
 
     internal void ReceiveCommand(RailCommand command)
     {
-      this.incomingCommands.Store(command);
-      command.IsNewCommand = true;
+      if (this.incomingCommands.Store(command))
+        command.IsNewCommand = true;
+      else
+        RailPool.Free(command);
     }
 
     internal void MarkForRemove()
@@ -325,6 +328,24 @@ namespace Railgun
     }
 #endif
 #if CLIENT
+    public float ComputeInterpolation(
+      float tickDeltaTime,
+      float timeSinceTick)
+    {
+      if (this.nextTick == Tick.INVALID)
+        throw new InvalidOperationException("Next state is invalid");
+
+      float curTime = this.authTick.ToTime(tickDeltaTime);
+      float nextTime = this.nextTick.ToTime(tickDeltaTime);
+      float showTime = this.Room.Tick.ToTime(tickDeltaTime) + timeSinceTick;
+
+      float progress = showTime - curTime;
+      float span = nextTime - curTime;
+      if (span <= 0.0f)
+        return 0.0f;
+      return progress / span;
+    }
+
     internal void ClientUpdate(Tick localTick)
     {
       this.UpdateAuthState();
@@ -357,22 +378,27 @@ namespace Railgun
 
     internal void ReceiveDelta(RailStateDelta delta)
     {
+      bool stored = false;
       if (delta.IsFrozen)
       {
         // Frozen deltas have no state data, so we need to treat them
         // separately when doing checks based on state content
-        this.incomingStates.Store(delta);
+        stored = this.incomingStates.Store(delta);
       }
       else
       {
         if (delta.IsDestroyed)
           this.RemovedTick = delta.RemovedTick;
         else
-          this.incomingStates.Store(delta);
+          stored = this.incomingStates.Store(delta);
 
         if (delta.HasControllerData)
           this.CleanCommands(delta.CommandAck);
       }
+
+      // We never stored it, so free the delta
+      if (stored == false)
+        RailPool.Free(delta);
     }
 
     private void CleanCommands(Tick ackTick)
@@ -407,8 +433,13 @@ namespace Railgun
     private void UpdateAuthState()
     {
       // Apply all un-applied deltas to the auth state
+      RailStateDelta next;
       IEnumerable<RailStateDelta> toApply =
-        this.incomingStates.GetRange(this.authTick, this.Room.Tick);
+        this.incomingStates.GetRangeAndNext(
+          this.authTick, 
+          this.Room.Tick,
+          out next);
+
       foreach (RailStateDelta delta in toApply)
       {
         if (this.authTick == Tick.START)
@@ -417,6 +448,18 @@ namespace Railgun
           this.AuthStateBase.ApplyDelta(delta);
         this.shouldBeFrozen = delta.IsFrozen;
         this.authTick = delta.Tick;
+      }
+
+      // If there was a next state, update the next state
+      if (next != null)
+      {
+        this.NextStateBase.OverwriteFrom(this.AuthStateBase);
+        this.NextStateBase.ApplyDelta(next);
+        this.nextTick = next.Tick;
+      }
+      else
+      {
+        this.nextTick = Tick.INVALID;
       }
     }
 
