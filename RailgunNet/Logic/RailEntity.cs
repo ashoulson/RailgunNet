@@ -120,6 +120,12 @@ namespace Railgun
     /// </summary>
     public Tick NextTick { get { return this.nextTick; } }
 
+    /// <summary>
+    /// Returns the number of ticks ahead we are, for extrapolation.
+    /// Note that this does not take client-side prediction into account.
+    /// </summary>
+    public int TicksAhead { get { return this.Room.Tick - this.authTick; } }
+
     internal abstract RailState AuthStateBase { get; set; }
     internal abstract RailState NextStateBase { get; set; }
     internal IEnumerable<RailCommand> OutgoingCommands { get { return this.outgoingCommands; } }
