@@ -51,7 +51,7 @@
     <DefineConstants>SERVER</DefineConstants>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Master|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unrestricted|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>bin\DebugMaster\</OutputPath>
     <DefineConstants>TRACE;DEBUG;CLIENT, SERVER</DefineConstants>
