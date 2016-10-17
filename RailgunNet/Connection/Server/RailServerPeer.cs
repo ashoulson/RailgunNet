@@ -33,6 +33,8 @@ namespace Railgun
   {
     internal event Action<RailServerPeer, IRailClientPacket> PacketReceived;
 
+    public string Identifier { get; set; }
+
     /// <summary>
     /// Used for setting the scope evaluator heuristics.
     /// </summary>

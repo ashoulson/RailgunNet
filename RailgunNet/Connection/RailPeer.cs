@@ -156,12 +156,12 @@ namespace Railgun
     protected void OnPayloadReceived(IRailNetPeer peer, byte[] buffer, int length)
     {
       RailBitBuffer bitBuffer = this.interpreter.LoadData(buffer, length);
+      this.reusableIncoming.Reset();
       this.reusableIncoming.Decode(bitBuffer);
       if (bitBuffer.IsFinished)
         this.ProcessPacket(this.reusableIncoming);
       else
         RailDebug.LogError("Bad packet read, discarding...");
-      this.reusableIncoming.Reset();
     }
 
     /// <summary>

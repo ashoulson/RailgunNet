@@ -144,6 +144,8 @@ namespace Railgun
     #region Header
     private void EncodeHeader(RailBitBuffer buffer)
     {
+      RailDebug.Assert(this.senderTick.IsValid);
+
       // Write: [LocalTick]
       buffer.WriteTick(this.senderTick);
 

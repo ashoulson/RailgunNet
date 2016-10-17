@@ -70,11 +70,12 @@ namespace Railgun
     /// <summary>
     /// Wraps an incoming connection in a peer and stores it.
     /// </summary>
-    public void AddPeer(IRailNetPeer peer)
+    public void AddPeer(IRailNetPeer peer, string identifier)
     {
       if (this.clients.ContainsKey(peer) == false)
       {
         RailServerPeer client = new RailServerPeer(peer, this.Interpreter);
+        client.Identifier = identifier;
         client.EventReceived += base.OnEventReceived;
         client.PacketReceived += this.OnPacketReceived;
         this.clients.Add(peer, client);
@@ -138,7 +139,7 @@ namespace Railgun
     /// <summary>
     /// Removes an entity from the world and destroys it.
     /// </summary>
-    public void DestroyEntity(RailEntity entity)
+    public void RemoveEntity(RailEntity entity)
     {
       if (entity.Controller != null)
       {

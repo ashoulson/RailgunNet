@@ -36,7 +36,7 @@ namespace Railgun
     internal static RailStateDelta CreateFrozen(Tick tick, EntityId entityId)
     {
       RailStateDelta delta = RailResource.Instance.CreateDelta();
-      delta.Initialize(tick, entityId, null, true);
+      delta.Initialize(tick, entityId, null, Tick.INVALID, Tick.INVALID, true);
       return delta;
     }
 
@@ -47,9 +47,9 @@ namespace Railgun
 
     internal bool HasControllerData { get { return this.state.HasControllerData; } }
     internal bool HasImmutableData { get { return this.state.HasImmutableData; } }
-    internal bool IsDestroyed { get { return this.state.RemovedTick.IsValid; } }
-    internal Tick CommandAck { get { return this.state.CommandAck; } }
-    internal Tick RemovedTick { get { return this.state.RemovedTick; } }
+    internal bool IsRemoving { get { return this.RemovedTick.IsValid; } }
+    internal Tick RemovedTick { get; private set; }
+    internal Tick CommandAck { get; private set; } // Controller only
 
     private Tick tick;
     private EntityId entityId;
@@ -64,11 +64,15 @@ namespace Railgun
       Tick tick,
       EntityId entityId,
       RailState state,
+      Tick removedTick,
+      Tick commandAck,
       bool isFrozen)
     {
       this.tick = tick;
       this.entityId = entityId;
       this.state = state;
+      this.RemovedTick = removedTick;
+      this.CommandAck = commandAck;
       this.IsFrozen = isFrozen;
     }
 

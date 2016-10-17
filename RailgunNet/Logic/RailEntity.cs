@@ -385,6 +385,17 @@ namespace Railgun
       return (this.incomingStates.GetLatestAt(tick) != null);
     }
 
+    /// <summary>
+    /// Applies the initial creation delta.
+    /// </summary>
+    internal void PrimeState(RailStateDelta delta)
+    {
+      RailDebug.Assert(delta.IsFrozen == false);
+      RailDebug.Assert(delta.IsRemoving == false);
+      RailDebug.Assert(delta.HasImmutableData);
+      this.AuthStateBase.ApplyDelta(delta);
+    }
+
     internal void ReceiveDelta(RailStateDelta delta)
     {
       bool stored = false;
@@ -396,7 +407,7 @@ namespace Railgun
       }
       else
       {
-        if (delta.IsDestroyed)
+        if (delta.IsRemoving)
           this.RemovedTick = delta.RemovedTick;
         else
           stored = this.incomingStates.Store(delta);
@@ -451,8 +462,6 @@ namespace Railgun
 
       foreach (RailStateDelta delta in toApply)
       {
-        if (this.authTick == Tick.START)
-          RailDebug.Assert(delta.HasImmutableData);
         if (delta.IsFrozen == false)
           this.AuthStateBase.ApplyDelta(delta);
         this.shouldBeFrozen = delta.IsFrozen;

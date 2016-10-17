@@ -145,6 +145,7 @@ namespace Railgun
           
         entity = delta.ProduceEntity();
         entity.AssignId(delta.EntityId);
+        entity.PrimeState(delta);
         this.pendingEntities.Add(entity.Id, entity);
         this.knownEntities.Add(entity.Id, entity);
       }

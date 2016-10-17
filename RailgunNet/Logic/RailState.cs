@@ -101,12 +101,15 @@ namespace Railgun
       if (includeImmutableData)
         deltaState.ApplyImmutableFrom(current);
 
-      deltaState.RemovedTick = removedTick;
-      deltaState.CommandAck = commandAck;
-
       // We don't need to include a tick when sending -- it's in the packet
       RailStateDelta delta = RailResource.Instance.CreateDelta();
-      delta.Initialize(Tick.INVALID, entityId, deltaState, false);
+      delta.Initialize(
+        Tick.INVALID, 
+        entityId, 
+        deltaState,
+        removedTick,
+        commandAck,
+        false);
       return delta;
     }
 
@@ -147,8 +150,6 @@ namespace Railgun
     private uint Flags { get; set; }              // Synchronized
     internal bool HasControllerData { get; set; } // Synchronized
     internal bool HasImmutableData { get; set; }  // Synchronized
-    internal Tick RemovedTick { get; set; }       // Synchronized
-    internal Tick CommandAck { get; set; }        // Synchronized to Controller
 
     #region Client
     protected abstract void DecodeMutableData(RailBitBuffer buffer, uint flags);
@@ -255,12 +256,12 @@ namespace Railgun
         buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
 
         // Write: [IsRemoved]
-        buffer.WriteBool(state.RemovedTick.IsValid);
+        buffer.WriteBool(delta.RemovedTick.IsValid);
 
-        if (state.RemovedTick.IsValid)
+        if (delta.RemovedTick.IsValid)
         {
           // Write: [RemovedTick]
-          buffer.WriteTick(state.RemovedTick);
+          buffer.WriteTick(delta.RemovedTick);
 
           // End Write
         }
@@ -284,7 +285,7 @@ namespace Railgun
             state.EncodeControllerData(buffer);
 
             // Write: [Command Ack]
-            buffer.WriteTick(state.CommandAck);
+            buffer.WriteTick(delta.CommandAck);
           }
 
           if (state.HasImmutableData)
@@ -304,6 +305,9 @@ namespace Railgun
       RailStateDelta delta = RailResource.Instance.CreateDelta();
       RailState state = null;
 
+      Tick commandAck = Tick.INVALID;
+      Tick removedTick = Tick.INVALID;
+
       // Read: [EntityId]
       EntityId entityId = buffer.ReadEntityId();
 
@@ -321,8 +325,8 @@ namespace Railgun
 
         if (isRemoved)
         {
-          // Read: [DestroyedTick]
-          state.RemovedTick = buffer.ReadTick();
+          // Read: [RemovedTick]
+          removedTick = buffer.ReadTick();
 
           // End Read
         }
@@ -346,7 +350,7 @@ namespace Railgun
             state.DecodeControllerData(buffer);
 
             // Read: [Command Ack]
-            state.CommandAck = buffer.ReadTick();
+            commandAck = buffer.ReadTick();
           }
 
           if (state.HasImmutableData)
@@ -357,7 +361,13 @@ namespace Railgun
         }
       }
 
-      delta.Initialize(packetTick, entityId, state, isFrozen);
+      delta.Initialize(
+        packetTick, 
+        entityId, 
+        state,
+        removedTick,
+        commandAck,
+        isFrozen);
       return delta;
     }
 #endif

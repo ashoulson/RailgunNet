@@ -40,6 +40,8 @@ namespace Railgun
 #if SERVER
   public interface IRailControllerServer : IRailController
   {
+    string Identifier { get; set; } // Name, ID, or Token
+
     void GrantControl(RailEntity entity);
     void RevokeControl(RailEntity entity);
 
