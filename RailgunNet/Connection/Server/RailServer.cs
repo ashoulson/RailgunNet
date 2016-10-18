@@ -141,16 +141,9 @@ namespace Railgun
     /// </summary>
     public void RemoveEntity(RailEntity entity)
     {
-      if (entity.Controller != null)
-      {
-        IRailControllerServer serverController = 
-          (IRailControllerServer)entity.Controller;
-        serverController.RevokeControl(entity);
-      }
-
       if (entity.IsRemoving == false)
       {
-        entity.MarkForRemove();
+        entity.MarkForRemove(); // Also handles the controller
         this.destroyedEntities.Add(entity.Id, entity);
       }
     }
@@ -183,7 +176,7 @@ namespace Railgun
       RailEntity entity;
       if (this.Room.TryGet(update.EntityId, out entity))
       {
-        if (entity.Controller == peer)
+        if ((entity.Controller == peer) && (entity.IsRemoving == false))
         {
           foreach (RailCommand command in update.Commands)
             entity.ReceiveCommand(command);

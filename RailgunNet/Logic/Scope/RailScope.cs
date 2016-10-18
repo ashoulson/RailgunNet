@@ -50,7 +50,7 @@ namespace Railgun
     private readonly List<KeyValuePair<float, RailEntity>> entryList;
     private readonly List<RailStateDelta> activeList;
     private readonly List<RailStateDelta> frozenList;
-    private readonly List<RailStateDelta> destroyedList;
+    private readonly List<RailStateDelta> removedList;
 
     internal RailScope()
     {
@@ -61,7 +61,7 @@ namespace Railgun
       this.entryList = new List<KeyValuePair<float, RailEntity>>();
       this.activeList = new List<RailStateDelta>();
       this.frozenList = new List<RailStateDelta>();
-      this.destroyedList = new List<RailStateDelta>();
+      this.removedList = new List<RailStateDelta>();
     }
 
     internal bool EvaluateEvent(
@@ -75,14 +75,14 @@ namespace Railgun
       Tick serverTick,
       RailServerPacket packet,
       IEnumerable<RailEntity> activeEntities,
-      IEnumerable<RailEntity> destroyedEntities)
+      IEnumerable<RailEntity> removedEntities)
     {
       this.ProduceScoped(target, serverTick, activeEntities);
-      this.ProduceDestroyed(target, destroyedEntities);
+      this.ProduceRemoved(target, removedEntities);
 
-      packet.Populate(this.activeList, this.frozenList, this.destroyedList);
+      packet.Populate(this.activeList, this.frozenList, this.removedList);
 
-      this.destroyedList.Clear();
+      this.removedList.Clear();
       this.frozenList.Clear();
       this.activeList.Clear();
     }
@@ -125,8 +125,12 @@ namespace Railgun
 
       foreach (RailEntity entity in activeEntities)
       {
-        // Controlled entities are always in scope with highest priority
-        if (entity.Controller == target)
+        if (entity.IsRemoving)
+        {
+          continue;
+        }
+        // Controlled entities are always in scope to their controller
+        else if (entity.Controller == target)
         {
           this.entryList.Add(
             new KeyValuePair<float, RailEntity>(float.MinValue, entity));
@@ -159,7 +163,7 @@ namespace Railgun
     /// <summary>
     /// Produces deltas for all non-acked destroyed entities.
     /// </summary>
-    private void ProduceDestroyed(
+    private void ProduceRemoved(
       IRailController target,
       IEnumerable<RailEntity> destroyedEntities)
     {
@@ -168,7 +172,7 @@ namespace Railgun
         RailViewEntry latest = this.ackedByClient.GetLatest(entity.Id);
         if (latest.IsValid && (latest.Tick < entity.RemovedTick))
           // Note: Because the removed tick is valid, this should force-create
-          this.destroyedList.Add(entity.ProduceDelta(latest.Tick, target));
+          this.removedList.Add(entity.ProduceDelta(latest.Tick, target));
       }
     }
 

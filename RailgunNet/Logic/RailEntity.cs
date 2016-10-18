@@ -105,6 +105,9 @@ namespace Railgun
 
     // The remote (client) tick of the last command we processed
     private Tick commandAck;
+
+    // The controller at the time of entity removal
+    private IRailController priorController;
 #endif
 
 #if CLIENT
@@ -221,9 +224,12 @@ namespace Railgun
 
     internal void AssignController(IRailController controller)
     {
-      this.Controller = controller;
-      this.ClearCommands();
-      this.deferNotifyControllerChanged = true;
+      if (this.Controller != controller)
+      {
+        this.Controller = controller;
+        this.ClearCommands();
+        this.deferNotifyControllerChanged = true;
+      }
     }
 
     private void Initialize()
@@ -235,6 +241,13 @@ namespace Railgun
 
     internal void Cleanup()
     {
+#if CLIENT
+      // Set the final auth state before removing
+      this.UpdateAuthState();
+      this.StateBase.OverwriteFrom(this.AuthStateBase);
+      RailDebug.Assert(this.hasStarted == true);
+      this.NotifyControllerChanged();
+#endif
       this.OnShutdown();
     }
 
@@ -289,7 +302,9 @@ namespace Railgun
         basis = this.outgoingStates.LatestAt(basisTick);
 
       // Flags for special data modes
-      bool includeControllerData = (destination == this.Controller);
+      bool includeControllerData =
+        (destination == this.Controller) ||
+        (destination == this.priorController);
       bool includeImmutableData = (basisTick.IsValid == false);
 
       return RailState.CreateDelta(
@@ -312,6 +327,14 @@ namespace Railgun
 
     internal void MarkForRemove()
     {
+      // Automatically revoke control but keep a history for 
+      // sending the final controller data to the client.
+      if (this.Controller != null)
+      {
+        this.priorController = this.Controller;
+        this.Controller.AsServer.RevokeControl(this);
+      }
+
       // We'll remove on the next tick since we're probably 
       // already mid-way through evaluating this tick
       this.RemovedTick = this.Room.Tick + 1;
@@ -352,6 +375,32 @@ namespace Railgun
       if (span <= 0.0f)
         return 0.0f;
       return progress / span;
+    }
+
+    internal void ClientRemove(Tick localTick)
+    {
+      this.UpdateAuthState();
+      this.StateBase.OverwriteFrom(this.AuthStateBase);
+      this.Initialize();
+
+      this.NotifyControllerChanged();
+      this.SetFreeze(this.shouldBeFrozen);
+
+      if (this.IsFrozen == false)
+      {
+        if (this.Controller == null)
+        {
+          this.UpdateProxy();
+        }
+        else
+        {
+          this.nextTick = Tick.INVALID;
+          this.UpdateControlled(localTick);
+          this.UpdatePredicted();
+        }
+
+        this.PostUpdate();
+      }
     }
 
     internal void ClientUpdate(Tick localTick)
@@ -396,7 +445,10 @@ namespace Railgun
       this.AuthStateBase.ApplyDelta(delta);
     }
 
-    internal void ReceiveDelta(RailStateDelta delta)
+    /// <summary>
+    /// Returns true iff we stored the delta. False if it will leak.
+    /// </summary>
+    internal bool ReceiveDelta(RailStateDelta delta)
     {
       bool stored = false;
       if (delta.IsFrozen)
@@ -409,16 +461,13 @@ namespace Railgun
       {
         if (delta.IsRemoving)
           this.RemovedTick = delta.RemovedTick;
-        else
-          stored = this.incomingStates.Store(delta);
+        stored = this.incomingStates.Store(delta);
 
         if (delta.HasControllerData)
           this.CleanCommands(delta.CommandAck);
       }
 
-      // We never stored it, so free the delta
-      if (stored == false)
-        RailPool.Free(delta);
+      return stored;
     }
 
     private void CleanCommands(Tick ackTick)

@@ -50,6 +50,7 @@ namespace Railgun
       this.serverPeer = null;
       this.localTick = Tick.START;
       this.Room.Initialize(Tick.INVALID);
+      this.Room.EntityRemoved += this.OnEntityRemoved;
 
       this.pendingEntities = 
         new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
@@ -125,6 +126,11 @@ namespace Railgun
         this.pendingEntities.Remove(entity.Id);
       this.toRemove.Clear();
     }
+
+    private void OnEntityRemoved(RailEntity entity)
+    {
+      this.knownEntities.Remove(entity.Id);
+    }
 #endregion
 
 #region Packet Receive
@@ -140,9 +146,9 @@ namespace Railgun
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
       {
         RailDebug.Assert(delta.IsFrozen == false, "Frozen unknown entity");
-        if (delta.IsFrozen)
+        if (delta.IsFrozen || delta.IsRemoving)
           return;
-          
+
         entity = delta.ProduceEntity();
         entity.AssignId(delta.EntityId);
         entity.PrimeState(delta);
@@ -150,8 +156,16 @@ namespace Railgun
         this.knownEntities.Add(entity.Id, entity);
       }
 
-      entity.ReceiveDelta(delta);
-      this.UpdateControlStatus(entity, delta);
+      // If we're already removing the entity, we don't care about other deltas
+      bool stored = false;
+      if (entity.IsRemoving == false)
+      {
+        stored = entity.ReceiveDelta(delta);
+        this.UpdateControlStatus(entity, delta);
+      }
+
+      if (stored == false)
+        RailPool.Free(delta);
     }
 
     private void UpdateControlStatus(RailEntity entity, RailStateDelta delta)
@@ -160,7 +174,12 @@ namespace Railgun
       if (delta.IsFrozen)
         return;
 
-      if (delta.HasControllerData)
+      if (delta.IsRemoving)
+      {
+        if (entity.Controller != null)
+          this.serverPeer.RevokeControl(entity);
+      }
+      else if (delta.HasControllerData)
       {
         if (entity.Controller == null)
           this.serverPeer.GrantControl(entity);

@@ -71,9 +71,9 @@ namespace Railgun
     internal void Populate(
       IEnumerable<RailStateDelta> activeDeltas,
       IEnumerable<RailStateDelta> frozenDeltas,
-      IEnumerable<RailStateDelta> destroyedDeltas)
+      IEnumerable<RailStateDelta> removedDeltas)
     {
-      this.deltas.AddPending(destroyedDeltas);
+      this.deltas.AddPending(removedDeltas);
       this.deltas.AddPending(frozenDeltas);
       this.deltas.AddPending(activeDeltas);
     }

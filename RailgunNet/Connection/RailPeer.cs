@@ -119,12 +119,12 @@ namespace Railgun
     /// </summary>
     public virtual void GrantControl(RailEntity entity)
     {
+      RailDebug.Assert(entity.IsRemoving == false);
       if (entity.Controller == this)
         return;
-
       RailDebug.Assert(entity.Controller == null);
-      this.controlledEntities.Add(entity);
 
+      this.controlledEntities.Add(entity);
       entity.AssignController(this);
     }
 
@@ -134,8 +134,8 @@ namespace Railgun
     public virtual void RevokeControl(RailEntity entity)
     {
       RailDebug.Assert(entity.Controller == this);
-      this.controlledEntities.Remove(entity);
 
+      this.controlledEntities.Remove(entity);
       entity.AssignController(null);
     }
 

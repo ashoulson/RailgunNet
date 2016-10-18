@@ -262,37 +262,33 @@ namespace Railgun
         {
           // Write: [RemovedTick]
           buffer.WriteTick(delta.RemovedTick);
-
-          // End Write
         }
-        else
+
+        // Write: [HasControllerData]
+        buffer.WriteBool(state.HasControllerData);
+
+        // Write: [HasImmutableData]
+        buffer.WriteBool(state.HasImmutableData);
+
+        // Write: [Flags]
+        buffer.Write(state.FlagBits, state.Flags);
+
+        // Write: [Mutable Data]
+        state.EncodeMutableData(buffer, state.Flags);
+
+        if (state.HasControllerData)
         {
-          // Write: [HasControllerData]
-          buffer.WriteBool(state.HasControllerData);
+          // Write: [Controller Data]
+          state.EncodeControllerData(buffer);
 
-          // Write: [HasImmutableData]
-          buffer.WriteBool(state.HasImmutableData);
+          // Write: [Command Ack]
+          buffer.WriteTick(delta.CommandAck);
+        }
 
-          // Write: [Flags]
-          buffer.Write(state.FlagBits, state.Flags);
-
-          // Write: [Mutable Data]
-          state.EncodeMutableData(buffer, state.Flags);
-
-          if (state.HasControllerData)
-          {
-            // Write: [Controller Data]
-            state.EncodeControllerData(buffer);
-
-            // Write: [Command Ack]
-            buffer.WriteTick(delta.CommandAck);
-          }
-
-          if (state.HasImmutableData)
-          {
-            // Write: [Immutable Data]
-            state.EncodeImmutableData(buffer);
-          }
+        if (state.HasImmutableData)
+        {
+          // Write: [Immutable Data]
+          state.EncodeImmutableData(buffer);
         }
       }
     }
@@ -327,37 +323,33 @@ namespace Railgun
         {
           // Read: [RemovedTick]
           removedTick = buffer.ReadTick();
-
-          // End Read
         }
-        else
+
+        // Read: [HasControllerData]
+        state.HasControllerData = buffer.ReadBool();
+
+        // Read: [HasImmutableData]
+        state.HasImmutableData = buffer.ReadBool();
+
+        // Read: [Flags]
+        state.Flags = buffer.Read(state.FlagBits);
+
+        // Read: [Mutable Data]
+        state.DecodeMutableData(buffer, state.Flags);
+
+        if (state.HasControllerData)
         {
-          // Read: [HasControllerData]
-          state.HasControllerData = buffer.ReadBool();
+          // Read: [Controller Data]
+          state.DecodeControllerData(buffer);
 
-          // Read: [HasImmutableData]
-          state.HasImmutableData = buffer.ReadBool();
+          // Read: [Command Ack]
+          commandAck = buffer.ReadTick();
+        }
 
-          // Read: [Flags]
-          state.Flags = buffer.Read(state.FlagBits);
-
-          // Read: [Mutable Data]
-          state.DecodeMutableData(buffer, state.Flags);
-
-          if (state.HasControllerData)
-          {
-            // Read: [Controller Data]
-            state.DecodeControllerData(buffer);
-
-            // Read: [Command Ack]
-            commandAck = buffer.ReadTick();
-          }
-
-          if (state.HasImmutableData)
-          {
-            // Read: [Immutable Data]
-            state.DecodeImmutableData(buffer);
-          }
+        if (state.HasImmutableData)
+        {
+          // Read: [Immutable Data]
+          state.DecodeImmutableData(buffer);
         }
       }
 
