@@ -174,8 +174,6 @@ namespace Railgun
     internal abstract uint CompareMutableData(RailState basis);
     internal abstract bool IsControllerDataEqual(RailState basis);
 
-    internal abstract void ApplyInterpolated(RailState first, RailState second, float t);
-
     private int factoryType;
 
     protected bool GetFlag(uint flags, uint flag)
@@ -393,11 +391,6 @@ namespace Railgun
     {
       return IsControllerDataEqual((T)basis);
     }
-
-    internal override void ApplyInterpolated(RailState first, RailState second, float t)
-    {
-      this.ApplySmoothed((T)first, (T)second, t);
-    }
     #endregion
 
     protected abstract void ApplyMutableFrom(T source, uint flags);
@@ -406,10 +399,5 @@ namespace Railgun
 
     protected abstract uint CompareMutableData(T basis);
     protected abstract bool IsControllerDataEqual(T basis);
-
-    protected virtual void ApplySmoothed(T first, T second, float t)
-    {
-      // Do nothing -- will just use whatever the current state is
-    }
   }
 }

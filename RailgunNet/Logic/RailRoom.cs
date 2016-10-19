@@ -35,10 +35,12 @@ namespace Railgun
     /// </summary>
     public event Action<Tick> PostRoomUpdate;
 
+#if CLIENT
     /// <summary>
     /// Notifies that we removed an entity.
     /// </summary>
     internal Action<RailEntity> EntityRemoved;
+#endif
 
     public object UserData { get; set; }
 
@@ -87,8 +89,10 @@ namespace Railgun
         entity.Cleanup();
         entity.Room = null;
 
+#if CLIENT
         if (this.EntityRemoved != null)
           this.EntityRemoved.Invoke(entity);
+#endif
       }
     }
 

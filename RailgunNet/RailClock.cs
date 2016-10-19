@@ -93,21 +93,21 @@ namespace Railgun
       if (this.ShouldSnapTick(delta))
       {
         // Reset
-        RailDebug.LogMessage("Reset");
+        //RailDebug.LogMessage("Reset");
         this.estimatedRemote = this.latestRemote - this.delayDesired;
         return; // 0;
       }
       else if (delta > this.delayMax)
       {
         // Jump 1
-        RailDebug.LogMessage("Jump 1");
+        //RailDebug.LogMessage("Jump 1");
         this.estimatedRemote = this.estimatedRemote + 1;
         return; // 2;
       }
       else if (delta < this.delayMin)
       {
         // Stall 1
-        RailDebug.LogMessage("Stall 1");
+        //RailDebug.LogMessage("Stall 1");
         this.estimatedRemote = this.estimatedRemote - 1;
         return; // 0;
       }
