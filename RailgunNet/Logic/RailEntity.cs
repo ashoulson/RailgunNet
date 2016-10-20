@@ -295,7 +295,8 @@ namespace Railgun
 
     internal RailStateDelta ProduceDelta(
       Tick basisTick, 
-      IRailController destination)
+      IRailController destination,
+      bool force)
     {
       RailStateRecord basis = null;
       if (basisTick.IsValid)
@@ -314,7 +315,8 @@ namespace Railgun
         includeControllerData,
         includeImmutableData,
         this.commandAck,
-        this.RemovedTick);
+        this.RemovedTick,
+        force);
     }
 
     internal void ReceiveCommand(RailCommand command)

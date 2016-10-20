@@ -76,9 +76,11 @@ namespace Railgun
       bool includeControllerData,
       bool includeImmutableData,
       Tick commandAck,
-      Tick removedTick)
+      Tick removedTick,
+      bool force)
     {
       bool shouldReturn =
+        force ||
         includeControllerData ||
         includeImmutableData ||
         removedTick.IsValid;

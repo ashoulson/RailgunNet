@@ -154,7 +154,9 @@ namespace Railgun
       foreach (KeyValuePair<float, RailEntity> entry in this.entryList)
       { 
         RailViewEntry latest = this.ackedByClient.GetLatest(entry.Value.Id);
-        RailStateDelta delta = entry.Value.ProduceDelta(latest.Tick, target);
+        // Force an update if the entity is frozen so it unfreezes
+        RailStateDelta delta = 
+          entry.Value.ProduceDelta(latest.Tick, target, latest.IsFrozen);
         if (delta != null)
           this.activeList.Add(delta);
       }
@@ -172,7 +174,8 @@ namespace Railgun
         RailViewEntry latest = this.ackedByClient.GetLatest(entity.Id);
         if (latest.IsValid && (latest.Tick < entity.RemovedTick))
           // Note: Because the removed tick is valid, this should force-create
-          this.removedList.Add(entity.ProduceDelta(latest.Tick, target));
+          this.removedList.Add(
+            entity.ProduceDelta(latest.Tick, target, false));
       }
     }
 

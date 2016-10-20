@@ -48,7 +48,7 @@ namespace Railgun
     /// <summary>
     /// Number of outgoing commands to send per packet.
     /// </summary>
-    internal const int COMMAND_SEND_COUNT = 8;
+    internal const int COMMAND_SEND_COUNT = 25;
 
     /// <summary>
     /// Number of commands to buffer for prediction.
@@ -103,7 +103,7 @@ namespace Railgun
     /// <summary>
     /// Maximum bytes for a single command update.
     /// </summary>
-    internal const int MAXSIZE_COMMANDUPDATE = 100;
+    internal const int MAXSIZE_COMMANDUPDATE = 200;
 
     /// <summary>
     /// Number of bits before doing VarInt fallback in compression.
