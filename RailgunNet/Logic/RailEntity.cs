@@ -67,6 +67,7 @@ namespace Railgun
     protected virtual void Revert() { }                                    // Called on controller
     internal virtual void UpdateControlGeneric(RailCommand toPopulate) { } // Called on controller
     internal virtual void ApplyControlGeneric(RailCommand toApply) { }     // Called on controller and server
+    protected virtual void UpdateFrozen() { }                              // Called on non-controller client
     protected virtual void UpdateProxy() { }                               // Called on non-controller client
     protected virtual void UpdateAuth() { }                                // Called on server
     protected virtual void PostUpdate() { }                                // Called on controller and server
@@ -379,32 +380,6 @@ namespace Railgun
       return progress / span;
     }
 
-    internal void ClientRemove(Tick localTick)
-    {
-      this.UpdateAuthState();
-      this.StateBase.OverwriteFrom(this.AuthStateBase);
-      this.Initialize();
-
-      this.NotifyControllerChanged();
-      this.SetFreeze(this.shouldBeFrozen);
-
-      if (this.IsFrozen == false)
-      {
-        if (this.Controller == null)
-        {
-          this.UpdateProxy();
-        }
-        else
-        {
-          this.nextTick = Tick.INVALID;
-          this.UpdateControlled(localTick);
-          this.UpdatePredicted();
-        }
-
-        this.PostUpdate();
-      }
-    }
-
     internal void ClientUpdate(Tick localTick)
     {
       this.UpdateAuthState();
@@ -414,7 +389,11 @@ namespace Railgun
       this.NotifyControllerChanged();
       this.SetFreeze(this.shouldBeFrozen);
 
-      if (this.IsFrozen == false)
+      if (this.IsFrozen)
+      {
+        this.UpdateFrozen();
+      }
+      else
       { 
         if (this.Controller == null)
         {
