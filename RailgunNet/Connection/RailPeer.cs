@@ -111,6 +111,7 @@ namespace Railgun
       this.lastQueuedEventId = SequenceId.START.Next;
       this.processedEventHistory = new SequenceWindow(SequenceId.START);
 
+      this.netPeer.BindController(this);
       this.netPeer.PayloadReceived += this.OnPayloadReceived;
     }
 

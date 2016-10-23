@@ -43,6 +43,24 @@ namespace Railgun
   public struct EntityId
   {
     #region Encoding/Decoding
+
+    #region Byte Writing
+    public int PutBytes(
+      byte[] buffer, 
+      int startIndex)
+    {
+      return RailUtil.PutBytes(this.idValue, buffer, startIndex);
+    }
+
+    public static EntityId ReadBytes(
+      byte[] buffer, 
+      int startIndex, 
+      out int length)
+    {
+      return new EntityId(RailUtil.ReadBytes(buffer, startIndex, out length));
+    }
+    #endregion
+
     internal void Write(RailBitBuffer buffer)
     {
       buffer.WriteUInt(this.idValue);

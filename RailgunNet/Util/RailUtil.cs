@@ -81,5 +81,55 @@ namespace Railgun
       }
       return value;
     }
+
+    public static int PutBytes(
+      uint value, 
+      byte[] buffer, 
+      int startIndex)
+    {
+      int length = 0;
+      byte dataByte = 0;
+
+      do
+      {
+        // Take the lowest 7 bits
+        dataByte = (byte)(value & 0x7F);
+        value >>= 7;
+
+        // If there is more data, set the 8th bit to true
+        if (value > 0)
+          dataByte |= 0x80;
+
+        // Store the next byte
+        buffer[startIndex++] = dataByte;
+        length++;
+      }
+      while (value > 0);
+
+      return length;
+    }
+
+    public static uint ReadBytes(
+      byte[] buffer, 
+      int startIndex, 
+      out int length)
+    {
+      length = 0;
+      byte dataByte = 0;
+      uint value = 0;
+
+      do
+      {
+        dataByte = buffer[startIndex++];
+
+        // Add back in the shifted 7 bits
+        value |= (dataByte & 0x7Fu) << (length * 7);
+
+        length++;
+        // Continue if we're flagged for more
+      } while ((dataByte & 0x80) > 0);
+
+      return value;
+    }
   }
 }
