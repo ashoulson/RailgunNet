@@ -60,12 +60,28 @@ namespace Railgun
       this.toRemove = new List<RailEntity>();
     }
 
+    /// <summary>
+    /// Sets the current server peer.
+    /// </summary>
     public void SetPeer(IRailNetPeer netPeer)
     {
-      RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
-      this.serverPeer = new RailClientPeer(netPeer, this.Interpreter);
-      this.serverPeer.PacketReceived += this.OnPacketReceived;
-      this.serverPeer.EventReceived += base.OnEventReceived;
+      if (netPeer == null)
+      {
+        if (this.serverPeer != null)
+        {
+          this.serverPeer.PacketReceived -= this.OnPacketReceived;
+          this.serverPeer.EventReceived -= base.OnEventReceived;
+        }
+
+        this.serverPeer = null;
+      }
+      else
+      {
+        RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
+        this.serverPeer = new RailClientPeer(netPeer, this.Interpreter);
+        this.serverPeer.PacketReceived += this.OnPacketReceived;
+        this.serverPeer.EventReceived += base.OnEventReceived;
+      }
     }
 
     public override void Update()
@@ -91,10 +107,12 @@ namespace Railgun
     /// </summary>
     public void QueueEvent(RailEvent evnt, int attempts = 3)
     {
-      this.serverPeer.QueueEvent(evnt, attempts);
+      RailDebug.Assert(this.serverPeer != null);
+      if (this.serverPeer != null)
+        this.serverPeer.QueueEvent(evnt, attempts);
     }
 
-#region Local Updating
+    #region Local Updating
     /// <summary>
     /// Updates the room a number of ticks. If we have entities waiting to be
     /// added, this function will check them and add them if applicable.
@@ -131,9 +149,9 @@ namespace Railgun
     {
       this.knownEntities.Remove(entity.Id);
     }
-#endregion
+    #endregion
 
-#region Packet Receive
+    #region Packet Receive
     private void OnPacketReceived(IRailServerPacket packet)
     {
       foreach (RailStateDelta delta in packet.Deltas)
@@ -190,7 +208,7 @@ namespace Railgun
           this.serverPeer.RevokeControl(entity);
       }
     }
-#endregion
+    #endregion
   }
 }
 #endif
