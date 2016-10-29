@@ -19,7 +19,6 @@
 */
 
 #if SERVER
-using System;
 using System.Collections.Generic;
 
 namespace Railgun
