@@ -71,7 +71,7 @@ namespace Railgun
     }
 
     internal void PopulateDeltas(
-      IRailController target,
+      RailController target,
       Tick serverTick,
       RailServerPacket packet,
       IEnumerable<RailEntity> activeEntities,
@@ -116,7 +116,7 @@ namespace Railgun
     /// active delta list.
     /// </summary>
     private void ProduceScoped(
-      IRailController target,
+      RailController target,
       Tick serverTick,
       IEnumerable<RailEntity> activeEntities)
     {
@@ -166,7 +166,7 @@ namespace Railgun
     /// Produces deltas for all non-acked destroyed entities.
     /// </summary>
     private void ProduceRemoved(
-      IRailController target,
+      RailController target,
       IEnumerable<RailEntity> destroyedEntities)
     {
       foreach (RailEntity entity in destroyedEntities)

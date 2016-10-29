@@ -83,13 +83,17 @@ namespace Railgun
     protected virtual void OnUnfrozen() { }
     #endregion
 
-    protected internal virtual RailConfig.RailUpdateOrder UpdateOrder { get { return RailConfig.RailUpdateOrder.Normal; } }
+    protected internal virtual RailConfig.RailUpdateOrder UpdateOrder
+    {
+      get { return RailConfig.RailUpdateOrder.Normal; }
+    }
 
     // Simulation info
     public bool IsRemoving { get { return this.RemovedTick.IsValid; } }
     public bool IsFrozen { get; private set; }
-    public IRailController Controller { get; private set; }
     public RailRoom Room { get; internal set; }
+    public RailController Controller { get; private set; }
+
     internal abstract RailState StateBase { get; set; }
 
     // Synchronization info
@@ -108,7 +112,7 @@ namespace Railgun
     private Tick commandAck;
 
     // The controller at the time of entity removal
-    private IRailController priorController;
+    private RailController priorController;
 #endif
 
 #if CLIENT
@@ -223,7 +227,7 @@ namespace Railgun
       this.Id = id;
     }
 
-    internal void AssignController(IRailController controller)
+    internal void AssignController(RailController controller)
     {
       if (this.Controller != controller)
       {
@@ -296,7 +300,7 @@ namespace Railgun
 
     internal RailStateDelta ProduceDelta(
       Tick basisTick, 
-      IRailController destination,
+      RailController destination,
       bool force)
     {
       RailStateRecord basis = null;
@@ -328,14 +332,14 @@ namespace Railgun
         RailPool.Free(command);
     }
 
-    internal void MarkForRemove()
+    internal void Shutdown()
     {
       // Automatically revoke control but keep a history for 
       // sending the final controller data to the client.
       if (this.Controller != null)
       {
         this.priorController = this.Controller;
-        this.Controller.AsServer.RevokeControl(this);
+        this.Controller.RevokeControlInternal(this);
       }
 
       // We'll remove on the next tick since we're probably 

@@ -26,38 +26,34 @@ namespace Railgun
   public class RailClient 
     : RailConnection
   {
+    /// <summary>
+    /// The peer for our connection to the server.
+    /// </summary>
     private RailClientPeer serverPeer;
 
     /// <summary>
-    /// Entities that are waiting to be added to the world.
+    /// The local simulation tick, used for commands
     /// </summary>
-    private Dictionary<EntityId, RailEntity> pendingEntities;
-
-    /// <summary>
-    /// All known entities, either in-world or pending.
-    /// </summary>
-    private Dictionary<EntityId, RailEntity> knownEntities;
-
-    // The local simulation tick, used for commands
     private Tick localTick;
 
-    // Pre-allocated removal list
-    List<RailEntity> toRemove;
+    /// <summary>
+    /// The client's room instance. TODO: Multiple rooms?
+    /// </summary>
+    private RailClientRoom clientRoom;
+    private new RailClientRoom Room { get { return this.clientRoom; } }
 
     public RailClient()
     {
       RailConnection.IsServer = false;
       this.serverPeer = null;
       this.localTick = Tick.START;
-      this.Room.Initialize(Tick.INVALID);
-      this.Room.EntityRemoved += this.OnEntityRemoved;
+      this.clientRoom = null;
+    }
 
-      this.pendingEntities = 
-        new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
-      this.knownEntities =
-        new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
-
-      this.toRemove = new List<RailEntity>();
+    public void StartRoom()
+    {
+      this.clientRoom = new RailClientRoom(this);
+      this.SetRoom(this.clientRoom, Tick.INVALID);
     }
 
     /// <summary>
@@ -90,13 +86,18 @@ namespace Railgun
       {
         this.DoStart();
         this.serverPeer.Update();
-        this.UpdateRoom(this.localTick, this.serverPeer.EstimatedRemoteTick);
 
-        if (this.localTick.IsSendTick)
-          this.serverPeer.SendPacket(
+        if (this.Room != null)
+        {
+          this.Room.ClientUpdate(
             this.localTick,
-            this.serverPeer.ControlledEntities); // TODO: Sort me by most recently sent
-        this.localTick++;
+            this.serverPeer.EstimatedRemoteTick);
+          if (this.localTick.IsSendTick)
+            this.serverPeer.SendPacket(
+              this.localTick,
+              this.Room.LocalController.ControlledEntities);
+          this.localTick++;
+        }
       }
     }
 
@@ -105,110 +106,28 @@ namespace Railgun
     /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
     /// to send the event reliable-ordered (infinite retries).
     /// </summary>
-    public void QueueEvent(RailEvent evnt, int attempts = 3)
+    internal void QueueEvent(RailEvent evnt, int attempts = 3)
     {
+      // TODO: Make this a function of rooms, not connections
       RailDebug.Assert(this.serverPeer != null);
       if (this.serverPeer != null)
         this.serverPeer.QueueEvent(evnt, attempts);
     }
 
-    #region Local Updating
-    /// <summary>
-    /// Updates the room a number of ticks. If we have entities waiting to be
-    /// added, this function will check them and add them if applicable.
-    /// </summary>
-    private void UpdateRoom(
-      Tick localTick, 
-      Tick estimatedServerTick)
-    {
-      this.UpdatePendingEntities(estimatedServerTick);
-      this.Room.ClientUpdate(localTick, estimatedServerTick);
-    }
-
-    /// <summary>
-    /// Checks to see if any pending entities can be added to the world and
-    /// adds them if applicable.
-    /// </summary>
-    private void UpdatePendingEntities(Tick serverTick)
-    {
-      foreach (RailEntity entity in this.pendingEntities.Values)
-      {
-        if (entity.HasReadyState(serverTick))
-        {
-          this.Room.AddEntity(entity);
-          this.toRemove.Add(entity);
-        }
-      }
-
-      foreach (RailEntity entity in this.toRemove)
-        this.pendingEntities.Remove(entity.Id);
-      this.toRemove.Clear();
-    }
-
-    private void OnEntityRemoved(RailEntity entity)
-    {
-      this.knownEntities.Remove(entity.Id);
-    }
-    #endregion
-
-    #region Packet Receive
     private void OnPacketReceived(IRailServerPacket packet)
     {
-      foreach (RailStateDelta delta in packet.Deltas)
-        this.ProcessDelta(delta);
-    }
-
-    private void ProcessDelta(RailStateDelta delta)
-    {
-      RailEntity entity;
-      if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
+      if (this.Room == null)
       {
-        RailDebug.Assert(delta.IsFrozen == false, "Frozen unknown entity");
-        if (delta.IsFrozen || delta.IsRemoving)
-          return;
-
-        entity = delta.ProduceEntity();
-        entity.AssignId(delta.EntityId);
-        entity.PrimeState(delta);
-        this.pendingEntities.Add(entity.Id, entity);
-        this.knownEntities.Add(entity.Id, entity);
-      }
-
-      // If we're already removing the entity, we don't care about other deltas
-      bool stored = false;
-      if (entity.IsRemoving == false)
-      {
-        stored = entity.ReceiveDelta(delta);
-        this.UpdateControlStatus(entity, delta);
-      }
-
-      if (stored == false)
-        RailPool.Free(delta);
-    }
-
-    private void UpdateControlStatus(RailEntity entity, RailStateDelta delta)
-    {
-      // Can't infer anything if the delta is an empty frozen update
-      if (delta.IsFrozen)
-        return;
-
-      if (delta.IsRemoving)
-      {
-        if (entity.Controller != null)
-          this.serverPeer.RevokeControl(entity);
-      }
-      else if (delta.HasControllerData)
-      {
-        if (entity.Controller == null)
-          this.serverPeer.GrantControl(entity);
+        foreach (RailStateDelta delta in packet.Deltas)
+          RailPool.Free(delta);
       }
       else
       {
-        if (entity.Controller != null)
-          this.serverPeer.RevokeControl(entity);
+        foreach (RailStateDelta delta in packet.Deltas)
+          if (this.Room.ProcessDelta(delta) == false)
+            RailPool.Free(delta);
       }
     }
-    #endregion
   }
 }
 #endif

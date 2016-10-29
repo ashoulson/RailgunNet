@@ -32,20 +32,38 @@ namespace Railgun
 
     public static bool IsServer { get; protected set; }
 
+    private static bool SafeToExecute(RailEntity entity, RailPeer sender)
+    {
+      if (entity == null)
+        return false;
+
+      bool safe = true;
+#if SERVER
+      safe = (entity.Controller == sender.Controller);
+#endif
+      return safe;
+    }
+
     public RailRoom Room { get { return this.room; } }
     internal RailInterpreter Interpreter { get { return this.interpreter; } }
 
-    private readonly RailRoom room;
     private readonly RailInterpreter interpreter;
+    private RailRoom room;
     private bool hasStarted;
 
     public abstract void Update();
 
     protected RailConnection()
     {
-      this.room = new RailRoom();
       this.interpreter = new RailInterpreter();
+      this.room = null;
       this.hasStarted = false;
+    }
+
+    protected void SetRoom(RailRoom room, Tick startTick)
+    {
+      this.room = room;
+      this.room.Initialize(startTick);
     }
 
     internal void OnEventReceived(RailEvent evnt, RailPeer sender)
@@ -55,19 +73,12 @@ namespace Railgun
         RailEntity entity = null;
         this.Room.TryGet(evnt.EntityId, out entity);
 
-#if SERVER
-        // Entity events can only be executed on controlled entities
-        bool safeToExecute = (entity != null) && (entity.Controller == sender);
-#elif CLIENT
-        bool safeToExecute = (entity != null);
-#endif
-
-        if (safeToExecute)
-          evnt.Invoke(this.room, sender, entity);
+        if (RailConnection.SafeToExecute(entity, sender))
+          evnt.Invoke(this.room, sender.Controller, entity);
       }
       else
       {
-        evnt.Invoke(this.room, sender);
+        evnt.Invoke(this.room, sender.Controller);
       }
     }
 

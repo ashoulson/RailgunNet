@@ -37,6 +37,6 @@ namespace Railgun
     object PlayerData { get; set; }
 
     void SendPayload(byte[] buffer, int length);
-    void BindController(IRailController controller);
+    void BindController(RailController controller);
   }
 }

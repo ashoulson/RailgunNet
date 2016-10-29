@@ -68,7 +68,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection\Client\RailClientPeer.cs" />
+    <Compile Include="Connection\Client\RailClientRoom.cs" />
     <Compile Include="Connection\RailPackedList.cs" />
+    <Compile Include="Connection\Server\RailServerRoom.cs" />
+    <Compile Include="Logic\RailController.cs" />
     <Compile Include="Logic\RailState.cs" />
     <Compile Include="Logic\Wrappers\RailCommandUpdate.cs" />
     <Compile Include="Logic\Wrappers\RailStateDelta.cs" />
@@ -83,7 +86,6 @@
     <Compile Include="System\Types\FixedByteBuffer8.cs" />
     <Compile Include="System\Types\Window.cs" />
     <Compile Include="System\Types\SequenceId.cs" />
-    <Compile Include="Logic\IRailController.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />
     <Compile Include="Logic\Scope\RailScope.cs" />
@@ -91,7 +93,7 @@
     <Compile Include="Connection\Server\RailServerPeer.cs" />
     <Compile Include="Connection\RailPacket.cs" />
     <Compile Include="Connection\Server\RailServerPacket.cs" />
-    <Compile Include="Logic\RailView.cs" />
+    <Compile Include="System\RailView.cs" />
     <Compile Include="System\RailRegistry.cs" />
     <Compile Include="Util\Debug\RailDebug.cs" />
     <Compile Include="Tools\RailDelayList.cs" />

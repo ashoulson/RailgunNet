@@ -49,6 +49,8 @@ namespace Railgun
       Tick localTick,
       IEnumerable<RailEntity> controlledEntities)
     {
+      // TODO: Sort controlledEntities by most recently sent
+
       RailClientPacket packet = base.PrepareSend<RailClientPacket>(localTick);
       packet.Populate(
         this.ProduceCommandUpdates(controlledEntities), 

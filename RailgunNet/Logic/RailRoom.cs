@@ -23,8 +23,23 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public class RailRoom
+  public abstract class RailRoom
   {
+#if SERVER
+    /// <summary>
+    /// Fired when a controller has been added (i.e. player join).
+    /// The controller has control of no entities at this point.
+    /// </summary>
+    public event Action<RailController> ControllerJoined;
+
+    /// <summary>
+    /// Fired when a controller has been removed (i.e. player leave).
+    /// This event fires before the controller has control of its entities
+    /// revoked (this is done immediately afterwards).
+    /// </summary>
+    public event Action<RailController> ControllerLeft;
+#endif
+
     /// <summary>
     /// Fired before all entities have updated, for updating global logic.
     /// </summary>
@@ -35,12 +50,10 @@ namespace Railgun
     /// </summary>
     public event Action<Tick> PostRoomUpdate;
 
-#if CLIENT
     /// <summary>
     /// Notifies that we removed an entity.
     /// </summary>
-    internal Action<RailEntity> EntityRemoved;
-#endif
+    public event Action<RailEntity> EntityRemoved;
 
     public object UserData { get; set; }
 
@@ -49,21 +62,39 @@ namespace Railgun
     /// server tick. On the server this will be the authoritative tick.
     /// </summary>
     public Tick Tick { get; internal protected set; }
-    public IEnumerable<RailEntity> Entities 
-    { 
-      get { return this.entities.Values; } 
-    }
+    public IEnumerable<RailEntity> Entities { get { return this.entities.Values; } }
 
-    private Dictionary<EntityId, RailEntity> entities;
-    private List<EntityId> toRemove; // Pre-allocated removal list
+#if CLIENT
+    public abstract RailController LocalController { get; }
+#endif
+
+    protected List<EntityId> toRemove; // Pre-allocated removal list
+    protected virtual void HandleRemovedEntity(EntityId entityId) { }
+
+    private readonly RailConnection connection;
+    private readonly Dictionary<EntityId, RailEntity> entities;
 
     public bool TryGet(EntityId id, out RailEntity value)
     {
       return this.entities.TryGetValue(id, out value);
     }
 
-    internal RailRoom()
+    /// <summary>
+    /// Queues an event to broadcast to the server (for clients) or 
+    /// to all present clients (for the server) with a number of retries.
+    /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
+    /// to send the event reliable-ordered (infinite retries).
+    /// </summary>
+    public abstract void BroadcastEvent(RailEvent evnt, int attempts = 3);
+
+#if SERVER
+    public abstract T AddNewEntity<T>() where T : RailEntity;
+    public abstract void RemoveEntity(RailEntity entity);
+#endif
+
+    internal RailRoom(RailConnection connection)
     {
+      this.connection = connection;
       this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
       this.Tick = Tick.INVALID;
       this.toRemove = new List<EntityId>();
@@ -74,13 +105,29 @@ namespace Railgun
       this.Tick = tick;
     }
 
-    internal void AddEntity(RailEntity entity)
+    protected void OnPreRoomUpdate(Tick tick)
     {
-      this.entities.Add(entity.Id, entity);
-      entity.Room = this;
+      this.PreRoomUpdate?.Invoke(tick);
     }
 
-    private void RemoveEntity(EntityId entityId)
+    protected void OnPostRoomUpdate(Tick tick)
+    {
+      this.PostRoomUpdate?.Invoke(tick);
+    }
+
+#if SERVER
+    protected void OnControllerJoined(RailController controller)
+    {
+      this.ControllerJoined?.Invoke(controller);
+    }
+
+    protected void OnControllerLeft(RailController controller)
+    {
+      this.ControllerLeft?.Invoke(controller);
+    }
+#endif
+
+    protected void RemoveEntity(EntityId entityId)
     {
       RailEntity entity;
       if (this.entities.TryGetValue(entityId, out entity))
@@ -88,81 +135,26 @@ namespace Railgun
         this.entities.Remove(entityId);
         entity.Cleanup();
         entity.Room = null;
+        // TODO: Pooling?
 
-#if CLIENT
-        if (this.EntityRemoved != null)
-          this.EntityRemoved.Invoke(entity);
-#endif
+        this.HandleRemovedEntity(entityId);
+        this.EntityRemoved?.Invoke(entity);
       }
     }
 
-#if SERVER
-    internal void ServerUpdate()
-    {
-      this.Tick = this.Tick.GetNext();
-
-      if (this.PreRoomUpdate != null)
-        this.PreRoomUpdate.Invoke(this.Tick);
-
-      foreach (RailEntity entity in this.GetAllEntities())
-      {
-        Tick removedTick = entity.RemovedTick;
-        if (removedTick.IsValid && (removedTick <= this.Tick))
-          this.toRemove.Add(entity.Id);
-        else
-          entity.ServerUpdate();
-      }
-
-      // Cleanup all entities marked for removal
-      foreach (EntityId id in this.toRemove)
-        this.RemoveEntity(id);
-      this.toRemove.Clear();
-
-      if (this.PostRoomUpdate != null)
-        this.PostRoomUpdate.Invoke(this.Tick);
-    }
-
-    internal void StoreStates()
-    {
-      foreach (RailEntity entity in this.entities.Values)
-        entity.StoreRecord();
-    }
-#endif
-#if CLIENT
-    internal void ClientUpdate(Tick localTick, Tick estimatedServerTick)
-    {
-      this.Tick = estimatedServerTick;
-
-      if (this.PreRoomUpdate != null)
-        this.PreRoomUpdate.Invoke(this.Tick);
-
-      // Perform regular update cadence and mark entities for removal
-      foreach (RailEntity entity in this.GetAllEntities())
-      {
-        Tick removedTick = entity.RemovedTick;
-        if (removedTick.IsValid && (removedTick <= this.Tick))
-          this.toRemove.Add(entity.Id);
-        else
-          entity.ClientUpdate(localTick);
-      }
-
-      // Cleanup all entities marked for removal
-      foreach (EntityId id in this.toRemove)
-        this.RemoveEntity(id);
-      this.toRemove.Clear();
-
-      if (this.PostRoomUpdate != null)
-        this.PostRoomUpdate.Invoke(this.Tick);
-    }
-#endif
-
-    private IEnumerable<RailEntity> GetAllEntities()
+    protected IEnumerable<RailEntity> GetAllEntities()
     {
       // TODO: This makes multiple full passes, could probably optimize
       foreach (RailConfig.RailUpdateOrder order in RailConfig.Orders)
         foreach (RailEntity entity in this.entities.Values)
           if (entity.UpdateOrder == order)
             yield return entity;
+    }
+
+    protected void RegisterEntity(RailEntity entity)
+    {
+      this.entities.Add(entity.Id, entity);
+      entity.Room = this;
     }
   }
 }

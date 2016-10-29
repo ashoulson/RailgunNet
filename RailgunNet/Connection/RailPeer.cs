@@ -25,23 +25,12 @@ namespace Railgun
 {
   internal delegate void EventReceived(RailEvent evnt, RailPeer sender);
 
-  internal abstract class RailPeer : IRailController
+  internal abstract class RailPeer
   {
     internal event EventReceived EventReceived;
 
-    object IRailController.UserData { get; set; }
-
-#if SERVER
-    public virtual IRailControllerServer AsServer
-    {
-      get { throw new InvalidOperationException(); }
-    }
-#endif
-
-    public IEnumerable<RailEntity> ControlledEntities
-    {
-      get { return this.controlledEntities; }
-    }
+    internal IRailNetPeer NetPeer { get { return this.netPeer; } }
+    internal RailController Controller { get { return this.controller; } }
 
     public Tick EstimatedRemoteTick
     {
@@ -59,11 +48,6 @@ namespace Railgun
     private readonly IRailNetPeer netPeer;
 
     /// <summary>
-    /// The entities controlled by this controller.
-    /// </summary>
-    protected readonly HashSet<RailEntity> controlledEntities;
-
-    /// <summary>
     /// An estimator for the remote peer's current tick.
     /// </summary>
     private readonly RailClock remoteClock;
@@ -72,6 +56,11 @@ namespace Railgun
     /// Interpreter for converting byte input to a BitBuffer.
     /// </summary>
     private readonly RailInterpreter interpreter;
+
+    /// <summary>
+    /// The controller associated with this peer.
+    /// </summary>
+    private readonly RailController controller;
 
     #region Event-Related
     /// <summary>
@@ -100,10 +89,9 @@ namespace Railgun
       RailPacket reusableOutgoing)
     {
       this.netPeer = netPeer;
-      this.interpreter = interpreter;
-
-      this.controlledEntities = new HashSet<RailEntity>();
       this.remoteClock = new RailClock();
+      this.interpreter = interpreter;
+      this.controller = new RailController(this);
 
       this.outgoingEvents = new Queue<RailEvent>();
       this.reusableIncoming = reusableIncoming;
@@ -111,33 +99,8 @@ namespace Railgun
       this.lastQueuedEventId = SequenceId.START.Next;
       this.processedEventHistory = new SequenceWindow(SequenceId.START);
 
-      this.netPeer.BindController(this);
+      this.netPeer.BindController(this.controller);
       this.netPeer.PayloadReceived += this.OnPayloadReceived;
-    }
-
-    /// <summary>
-    /// Adds an entity to be controlled by this peer.
-    /// </summary>
-    public virtual void GrantControl(RailEntity entity)
-    {
-      RailDebug.Assert(entity.IsRemoving == false);
-      if (entity.Controller == this)
-        return;
-      RailDebug.Assert(entity.Controller == null);
-
-      this.controlledEntities.Add(entity);
-      entity.AssignController(this);
-    }
-
-    /// <summary>
-    /// Remove an entity from being controlled by this peer.
-    /// </summary>
-    public virtual void RevokeControl(RailEntity entity)
-    {
-      RailDebug.Assert(entity.Controller == this);
-
-      this.controlledEntities.Remove(entity);
-      entity.AssignController(null);
     }
 
     /// <summary>
@@ -321,11 +284,7 @@ namespace Railgun
     internal RailPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
-      : base(
-          netPeer,
-          interpreter,
-          new TIncoming(),
-          new TOugtoing())
+      : base(netPeer, interpreter, new TIncoming(), new TOugtoing())
     {
     }
   }

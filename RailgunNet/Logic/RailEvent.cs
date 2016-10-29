@@ -70,7 +70,7 @@ namespace Railgun
     protected virtual bool CanSendToFrozen { get { return false; } }
 
     // Bindings
-    public IRailController Sender { get; internal set; }
+    public RailController Sender { get; internal set; }
 
     // Synchronized
     internal SequenceId EventId { get; set; }
@@ -88,8 +88,8 @@ namespace Railgun
     protected abstract void DecodeData(RailBitBuffer buffer, Tick packetTick);
     protected abstract void ResetData();
 
-    protected internal virtual void Invoke(RailRoom room, IRailController sender) { }
-    protected internal virtual void Invoke(RailRoom room, IRailController sender, RailEntity entity) { }
+    protected internal virtual void Invoke(RailRoom room, RailController sender) { }
+    protected internal virtual void Invoke(RailRoom room, RailController sender, RailEntity entity) { }
 
     private int factoryType;
 

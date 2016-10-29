@@ -29,45 +29,21 @@ namespace Railgun
   /// </summary>
   internal class RailServerPeer
     : RailPeer<RailClientPacket, RailServerPacket>
-    , IRailControllerServer
   {
     internal event Action<RailServerPeer, IRailClientPacket> PacketReceived;
 
     public string Identifier { get; set; }
-
-    /// <summary>
-    /// Used for setting the scope evaluator heuristics.
-    /// </summary>
-    public RailScopeEvaluator ScopeEvaluator
-    {
-      set { this.scope.Evaluator = value; }
-    }
-
-#if SERVER
-    /// <summary>
-    /// Used for up-referencing for performing server functions.
-    /// </summary>
-    public override IRailControllerServer AsServer
-    {
-      get { return this; }
-    }
-#endif
-
-    private readonly RailScope scope;
 
     internal RailServerPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(netPeer, interpreter)
     {
-      this.scope = new RailScope();
     }
 
     internal void Shutdown()
     {
-      foreach (RailEntity entity in this.controlledEntities)
-        entity.AssignController(null);
-      this.controlledEntities.Clear();
+      this.Controller.Shutdown();
     }
 
     internal void SendPacket(
@@ -76,11 +52,19 @@ namespace Railgun
       IEnumerable<RailEntity> destroyed)
     {
       RailServerPacket packet = base.PrepareSend<RailServerPacket>(localTick);
-      this.scope.PopulateDeltas(this, localTick, packet, active, destroyed);
+      this.Controller.Scope.PopulateDeltas(
+        this.Controller, 
+        localTick, 
+        packet, 
+        active, 
+        destroyed);
       base.SendPacket(packet);
 
       foreach (RailStateDelta delta in packet.Sent)
-        this.scope.RegisterSent(delta.EntityId, localTick, delta.IsFrozen);
+        this.Controller.Scope.RegisterSent(
+          delta.EntityId, 
+          localTick, 
+          delta.IsFrozen);
     }
 
     protected override void ProcessPacket(RailPacket packet)
@@ -88,9 +72,8 @@ namespace Railgun
       base.ProcessPacket(packet);
 
       RailClientPacket clientPacket = (RailClientPacket)packet;
-      this.scope.IntegrateAcked(clientPacket.View);
-      if (this.PacketReceived != null)
-        this.PacketReceived.Invoke(this, clientPacket);
+      this.Controller.Scope.IntegrateAcked(clientPacket.View);
+      this.PacketReceived?.Invoke(this, clientPacket);
     }
   }
 }
