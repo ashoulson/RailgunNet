@@ -33,7 +33,7 @@ namespace Railgun
     }
 
     // Pre-cache the array for iterating over.
-    internal static RailUpdateOrder[] Orders = new[]
+    internal static readonly RailUpdateOrder[] Orders = new[]
     {
       RailUpdateOrder.Early,
       RailUpdateOrder.Normal,
