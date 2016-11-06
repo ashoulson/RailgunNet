@@ -196,16 +196,6 @@ namespace Railgun
       }
     }
 
-    internal bool IsSendTick
-    {
-      get
-      {
-        if (this.IsValid)
-          return ((this.RawValue % RailConfig.NETWORK_SEND_RATE) == 0);
-        return false;
-      }
-    }
-
     private readonly uint tickValue;
 
     private Tick(uint tickValue)
@@ -236,6 +226,13 @@ namespace Railgun
       if (this.tickValue == 0)
         return "Tick:INVALID";
       return "Tick:" + (this.tickValue - 1);
+    }
+
+    internal bool IsSendTick(int tickRate)
+    {
+      if (this.IsValid)
+        return ((this.RawValue % tickRate) == 0);
+      return false;
     }
   }
 }

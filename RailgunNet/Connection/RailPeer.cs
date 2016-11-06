@@ -79,17 +79,23 @@ namespace Railgun
     private SequenceWindow processedEventHistory;
     #endregion
 
+    /// <summary>
+    /// Our local tick. Set during update.
+    /// </summary>
+    private Tick localTick;
+
     protected readonly RailPacket reusableIncoming;
     protected readonly RailPacket reusableOutgoing;
 
     protected RailPeer(
       IRailNetPeer netPeer,
+      int remoteSendRate,
       RailInterpreter interpreter,
       RailPacket reusableIncoming,
       RailPacket reusableOutgoing)
     {
       this.netPeer = netPeer;
-      this.remoteClock = new RailClock();
+      this.remoteClock = new RailClock(remoteSendRate);
       this.interpreter = interpreter;
       this.controller = new RailController(this);
 
@@ -99,17 +105,16 @@ namespace Railgun
       this.lastQueuedEventId = SequenceId.START.Next;
       this.processedEventHistory = new SequenceWindow(SequenceId.START);
 
+      this.localTick = Tick.START;
+
       this.netPeer.BindController(this.controller);
       this.netPeer.PayloadReceived += this.OnPayloadReceived;
     }
 
-    /// <summary>
-    /// Returns the number of frames we should simulate to sync up with
-    /// the predicted remote peer clock, if any.
-    /// </summary>
-    internal virtual void Update()
+    internal virtual void Update(Tick localTick)
     {
       this.remoteClock.Update();
+      this.localTick = localTick;
     }
 
     protected void SendPacket(RailPacket packet)
@@ -123,7 +128,7 @@ namespace Railgun
       this.reusableIncoming.Reset();
       this.reusableIncoming.Decode(bitBuffer);
       if (bitBuffer.IsFinished)
-        this.ProcessPacket(this.reusableIncoming);
+        this.ProcessPacket(this.reusableIncoming, this.localTick);
       else
         RailDebug.LogError("Bad packet read, discarding...");
     }
@@ -149,7 +154,9 @@ namespace Railgun
     /// <summary>
     /// Records acknowledging information for the packet.
     /// </summary>
-    protected virtual void ProcessPacket(RailPacket packet)
+    protected virtual void ProcessPacket(
+      RailPacket packet, 
+      Tick localTick)
     {
       this.remoteClock.UpdateLatest(packet.SenderTick);
       foreach (RailEvent evnt in this.FilterIncomingEvents(packet.Events))
@@ -283,8 +290,14 @@ namespace Railgun
   {
     internal RailPeer(
       IRailNetPeer netPeer,
+      int remoteSendRate,
       RailInterpreter interpreter)
-      : base(netPeer, interpreter, new TIncoming(), new TOugtoing())
+      : base(
+          netPeer, 
+          remoteSendRate, 
+          interpreter, 
+          new TIncoming(), 
+          new TOugtoing())
     {
     }
   }

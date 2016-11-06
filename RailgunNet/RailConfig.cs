@@ -43,7 +43,12 @@ namespace Railgun
     /// <summary>
     /// Network send rate in frames/packet.
     /// </summary>
-    public const int NETWORK_SEND_RATE = 2;
+    public const int SERVER_SEND_RATE = 2;
+
+    /// <summary>
+    /// Network send rate in frames/packet.
+    /// </summary>
+    public const int CLIENT_SEND_RATE = 4;
 
     /// <summary>
     /// Number of outgoing commands to send per packet.
@@ -61,9 +66,10 @@ namespace Railgun
     internal const int DEJITTER_BUFFER_LENGTH = 50;
 
     /// <summary>
-    /// Number of ticks without data before freezing an entity.
+    /// Number of ticks we'll resend a view entry for without receiving
+    /// an update on that entity.
     /// </summary>
-    internal const int TICKS_BEFORE_FREEZE = 20;
+    internal const int VIEW_TICKS = 100;
 
     #region Message Sizes
     /// <summary>

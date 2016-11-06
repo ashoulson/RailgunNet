@@ -82,6 +82,7 @@ namespace Railgun
     #region Encode/Decode
     protected override void EncodePayload(
       RailBitBuffer buffer,
+      Tick localTick,
       int reservedBytes)
     {
 #if SERVER

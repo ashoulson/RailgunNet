@@ -163,7 +163,7 @@ namespace Railgun
       this.incomingStates =
         new RailDejitterBuffer<RailStateDelta>(
           RailConfig.DEJITTER_BUFFER_LENGTH,
-          RailConfig.NETWORK_SEND_RATE);
+          RailConfig.SERVER_SEND_RATE);
       this.outgoingCommands = 
         new Queue<RailCommand>();
 #endif

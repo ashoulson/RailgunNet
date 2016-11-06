@@ -46,7 +46,7 @@ namespace Railgun
     public Tick LatestRemote { get { return this.latestRemote; } }
 
     internal RailClock(
-      int remoteSendRate = RailConfig.NETWORK_SEND_RATE,
+      int remoteSendRate,
       int delayMin = RailClock.DELAY_MIN,
       int delayMax = RailClock.DELAY_MAX)
     {

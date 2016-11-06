@@ -37,7 +37,10 @@ namespace Railgun
     internal RailServerPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
-      : base(netPeer, interpreter)
+      : base(
+          netPeer, 
+          RailConfig.CLIENT_SEND_RATE,
+          interpreter)
     {
     }
 
@@ -67,9 +70,9 @@ namespace Railgun
           delta.IsFrozen);
     }
 
-    protected override void ProcessPacket(RailPacket packet)
+    protected override void ProcessPacket(RailPacket packet, Tick localTick)
     {
-      base.ProcessPacket(packet);
+      base.ProcessPacket(packet, localTick);
 
       RailClientPacket clientPacket = (RailClientPacket)packet;
       this.Controller.Scope.IntegrateAcked(clientPacket.View);

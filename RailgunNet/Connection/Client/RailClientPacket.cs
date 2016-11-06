@@ -75,6 +75,8 @@ namespace Railgun
       RailView view)
     {
       this.commandUpdates.AddPending(commandUpdates);
+
+      // We don't care about sending/storing the local tick
       this.view.Integrate(view);
     }
 #endif
@@ -82,6 +84,7 @@ namespace Railgun
     #region Encode/Decode
     protected override void EncodePayload(
       RailBitBuffer buffer, 
+      Tick localTick,
       int reservedBytes)
     {
 #if CLIENT
@@ -89,7 +92,7 @@ namespace Railgun
       this.EncodeCommands(buffer);
 
       // Write: [View]
-      this.EncodeView(buffer, reservedBytes);
+      this.EncodeView(buffer, localTick, reservedBytes);
     }
 
     protected void EncodeCommands(RailBitBuffer buffer)
@@ -101,17 +104,21 @@ namespace Railgun
         (commandUpdate) => commandUpdate.Encode(buffer));
     }
 
-    protected void EncodeView(RailBitBuffer buffer, int reservedBytes)
+    protected void EncodeView(
+      RailBitBuffer buffer, 
+      Tick localTick,
+      int reservedBytes)
     {
       buffer.PackToSize(
         RailConfig.PACKCAP_MESSAGE_TOTAL - reservedBytes,
         int.MaxValue,
-        this.view.GetOrdered(),
+        this.view.GetOrdered(localTick),
         (pair) =>
         {
-          buffer.WriteEntityId(pair.Key);        // Write: [EntityId]
-          buffer.WriteTick(pair.Value.Tick);     // Write: [Tick]
-          buffer.WriteBool(pair.Value.IsFrozen); // Write: [IsFrozen]
+          buffer.WriteEntityId(pair.Key);                // Write: [EntityId]
+          buffer.WriteTick(pair.Value.LastReceivedTick); // Write: [LastReceivedTick]
+          // (Local tick not transmitted)
+          buffer.WriteBool(pair.Value.IsFrozen);         // Write: [IsFrozen]
         });
 #endif
     }
@@ -142,7 +149,8 @@ namespace Railgun
             return new KeyValuePair<EntityId, RailViewEntry>(
               buffer.ReadEntityId(),  // Read: [EntityId] 
               new RailViewEntry(
-                buffer.ReadTick(),    // Read: [Tick]
+                buffer.ReadTick(),    // Read: [LastReceivedTick]
+                Tick.INVALID,         // (Local tick not transmitted)
                 buffer.ReadBool()));  // Read: [IsFrozen]
           });
 

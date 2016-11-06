@@ -25,18 +25,24 @@ namespace Railgun
   internal struct RailViewEntry
   {
     internal static readonly RailViewEntry INVALID = 
-      new RailViewEntry(Tick.INVALID, true);
+      new RailViewEntry(Tick.INVALID, Tick.INVALID, true);
 
-    internal bool IsValid { get { return this.tick.IsValid; } }
-    internal Tick Tick { get { return this.tick; } }
+    internal bool IsValid { get { return this.lastReceivedTick.IsValid; } }
+    internal Tick LastReceivedTick { get { return this.lastReceivedTick; } }
+    internal Tick LocalUpdateTick { get { return this.localUpdateTick; } }
     internal bool IsFrozen { get { return this.isFrozen; } }
 
-    private readonly Tick tick;
+    private readonly Tick lastReceivedTick;
+    private readonly Tick localUpdateTick;
     private readonly bool isFrozen;
 
-    public RailViewEntry(Tick tick, bool isFrozen)
+    public RailViewEntry(
+      Tick lastReceivedTick, 
+      Tick localUpdateTick,
+      bool isFrozen)
     {
-      this.tick = tick;
+      this.lastReceivedTick = lastReceivedTick;
+      this.localUpdateTick = localUpdateTick;
       this.isFrozen = isFrozen;
     }
   }
@@ -52,7 +58,7 @@ namespace Railgun
         KeyValuePair<EntityId, RailViewEntry> x, 
         KeyValuePair<EntityId, RailViewEntry> y)
       {
-        return ViewComparer.Comparer.Compare(x.Value.Tick, y.Value.Tick);
+        return ViewComparer.Comparer.Compare(x.Value.LastReceivedTick, y.Value.LastReceivedTick);
       }
     }
 
@@ -86,19 +92,27 @@ namespace Railgun
     /// <summary>
     /// Records an acked status from the peer for a given entity ID.
     /// </summary>
-    internal void RecordUpdate(EntityId entityId, Tick tick, bool isFrozen)
+    internal void RecordUpdate(
+      EntityId entityId, 
+      Tick receivedTick, 
+      Tick localTick, 
+      bool isFrozen)
     {
-      this.RecordUpdate(entityId, new RailViewEntry(tick, isFrozen));
+      this.RecordUpdate(
+        entityId, 
+        new RailViewEntry(receivedTick, localTick, isFrozen));
     }
 
     /// <summary>
     /// Records an acked status from the peer for a given entity ID.
     /// </summary>
-    internal void RecordUpdate(EntityId entityId, RailViewEntry entry)
+    internal void RecordUpdate(
+      EntityId entityId,
+      RailViewEntry entry)
     {
       RailViewEntry currentEntry;
       if (this.latestUpdates.TryGetValue(entityId, out currentEntry))
-        if (currentEntry.Tick > entry.Tick)
+        if (currentEntry.LastReceivedTick > entry.LastReceivedTick)
           return;
 
       this.latestUpdates[entityId] = entry;
@@ -115,12 +129,16 @@ namespace Railgun
     /// we send the most recent updated entities since they're the most likely
     /// to actually matter to the server/client scope.
     /// </summary>
-    public IEnumerable<KeyValuePair<EntityId, RailViewEntry>> GetOrdered()
+    public IEnumerable<KeyValuePair<EntityId, RailViewEntry>> GetOrdered(
+      Tick localTick)
     {
-      // TODO: If we have an entity frozen, we probably shouldn't constantly
-      //       send view acks for it unless we're getting requests to freeze.
       this.sortList.Clear();
-      this.sortList.AddRange(this.latestUpdates);
+      foreach (var pair in this.latestUpdates)
+        // If we haven't received an update on an entity for too long, don't
+        // bother sending a view for it (the server will update us eventually)
+        if (localTick - pair.Value.LocalUpdateTick < RailConfig.VIEW_TICKS)
+          this.sortList.Add(pair);
+
       this.sortList.Sort(RailView.Comparer);
       this.sortList.Reverse();
       return this.sortList;

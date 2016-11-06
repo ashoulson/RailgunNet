@@ -85,17 +85,20 @@ namespace Railgun
       if (this.serverPeer != null)
       {
         this.DoStart();
-        this.serverPeer.Update();
+        this.serverPeer.Update(this.localTick);
 
         if (this.Room != null)
         {
           this.Room.ClientUpdate(
             this.localTick,
             this.serverPeer.EstimatedRemoteTick);
-          if (this.localTick.IsSendTick)
+
+          int sendRate = RailConfig.CLIENT_SEND_RATE;
+          if (this.localTick.IsSendTick(sendRate))
             this.serverPeer.SendPacket(
               this.localTick,
               this.Room.LocalController.ControlledEntities);
+
           this.localTick++;
         }
       }

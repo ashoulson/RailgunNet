@@ -104,11 +104,10 @@ namespace Railgun
       this.DoStart();
 
       foreach (RailServerPeer client in this.clients.Values)
-        client.Update();
+        client.Update(this.Room.Tick);
 
       this.Room.ServerUpdate();
-
-      if (this.Room.Tick.IsSendTick)
+      if (this.Room.Tick.IsSendTick(RailConfig.SERVER_SEND_RATE))
       {
         this.Room.StoreStates();
         this.BroadcastPackets();

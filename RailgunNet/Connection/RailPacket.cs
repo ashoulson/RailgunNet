@@ -101,8 +101,12 @@ namespace Railgun
     }
 
     #region Encoding/Decoding
-    protected abstract void EncodePayload(RailBitBuffer buffer, int reservedBytes);
-    protected abstract void DecodePayload(RailBitBuffer buffer);
+    protected abstract void EncodePayload(
+      RailBitBuffer buffer, 
+      Tick localTick, 
+      int reservedBytes);
+    protected abstract void DecodePayload(
+      RailBitBuffer buffer);
 
     /// <summary>
     /// After writing the header we write the packet data in three passes.
@@ -120,7 +124,7 @@ namespace Railgun
       this.EncodeEvents(buffer, RailConfig.PACKCAP_EARLY_EVENTS);
 
       // Write: [Payload]
-      this.EncodePayload(buffer, 1); // Leave one byte for the event count
+      this.EncodePayload(buffer, this.senderTick, 1); // Leave one byte for the event count
 
       // Write: [Events] (Fill Pack)
       this.EncodeEvents(buffer, RailConfig.PACKCAP_MESSAGE_TOTAL);

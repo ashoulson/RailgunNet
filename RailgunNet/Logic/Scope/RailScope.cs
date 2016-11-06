@@ -94,7 +94,8 @@ namespace Railgun
 
     internal void RegisterSent(EntityId entityId, Tick tick, bool isFrozen)
     {
-      this.lastSent.RecordUpdate(entityId, tick, isFrozen);
+      // We don't care about the local tick on the server side
+      this.lastSent.RecordUpdate(entityId, tick, Tick.INVALID, isFrozen);
     }
 
     private bool GetPriority(
@@ -104,8 +105,15 @@ namespace Railgun
     {
       RailViewEntry lastSent = this.lastSent.GetLatest(entity.Id);
       if (lastSent.IsValid)
-        return this.EvaluateEntity(entity, current - lastSent.Tick, out priority);
-      return this.EvaluateEntity(entity, int.MaxValue, out priority);
+        return this.EvaluateEntity(
+          entity, 
+          current - lastSent.LastReceivedTick, 
+          out priority);
+
+      return this.EvaluateEntity(
+        entity, 
+        int.MaxValue, 
+        out priority);
     }
 
     /// <summary>
@@ -154,9 +162,14 @@ namespace Railgun
       foreach (KeyValuePair<float, RailEntity> entry in this.entryList)
       { 
         RailViewEntry latest = this.ackedByClient.GetLatest(entry.Value.Id);
+
         // Force an update if the entity is frozen so it unfreezes
         RailStateDelta delta = 
-          entry.Value.ProduceDelta(latest.Tick, target, latest.IsFrozen);
+          entry.Value.ProduceDelta(
+            latest.LastReceivedTick, 
+            target, 
+            latest.IsFrozen);
+
         if (delta != null)
           this.activeList.Add(delta);
       }
@@ -172,10 +185,10 @@ namespace Railgun
       foreach (RailEntity entity in destroyedEntities)
       {
         RailViewEntry latest = this.ackedByClient.GetLatest(entity.Id);
-        if (latest.IsValid && (latest.Tick < entity.RemovedTick))
+        if (latest.IsValid && (latest.LastReceivedTick < entity.RemovedTick))
           // Note: Because the removed tick is valid, this should force-create
           this.removedList.Add(
-            entity.ProduceDelta(latest.Tick, target, false));
+            entity.ProduceDelta(latest.LastReceivedTick, target, false));
       }
     }
 

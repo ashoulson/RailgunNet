@@ -39,7 +39,10 @@ namespace Railgun
     internal RailClientPeer(
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
-      : base(netPeer, interpreter)
+      : base(
+          netPeer, 
+          RailConfig.SERVER_SEND_RATE,
+          interpreter)
     {
       this.localView = new RailView();
       this.sortingList = new List<RailEntity>();
@@ -63,15 +66,18 @@ namespace Railgun
         commandUpdate.Entity.LastSentCommandTick = localTick;
     }
 
-    protected override void ProcessPacket(RailPacket packet)
+    protected override void ProcessPacket(
+      RailPacket packet,
+      Tick localTick)
     {
-      base.ProcessPacket(packet);
+      base.ProcessPacket(packet, localTick);
 
       RailServerPacket serverPacket = (RailServerPacket)packet;
       foreach (RailStateDelta delta in serverPacket.Deltas)
         this.localView.RecordUpdate(
           delta.EntityId, 
-          packet.SenderTick, 
+          packet.SenderTick,
+          localTick,
           delta.IsFrozen);
       if (this.PacketReceived != null)
         this.PacketReceived.Invoke(serverPacket);
