@@ -71,6 +71,12 @@ namespace Railgun
     /// </summary>
     internal const int VIEW_TICKS = 100;
 
+    /// <summary>
+    /// How many chunks to keep in the history bit array. The resulting
+    /// max history length will be EVENT_HISTORY_CHUNKS * 32.
+    /// </summary>
+    internal const int HISTORY_CHUNKS = 6;
+
     #region Message Sizes
     /// <summary>
     /// Data buffer size used for packet I/O. 

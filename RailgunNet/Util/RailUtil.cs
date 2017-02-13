@@ -24,7 +24,6 @@ namespace Railgun
 {
   public static class RailUtil
   {
-
     // http://stackoverflow.com/questions/15967240/fastest-implementation-of-log2int-and-log2float
     private static readonly int[] DeBruijnLookup = new int[32]
     {

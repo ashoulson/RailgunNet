@@ -41,24 +41,28 @@ namespace Railgun
     #endregion
 
     #region Creation
-    internal static RailEntity Create(int factoryType)
+    internal static RailEntity Create(
+      RailResource resource, 
+      int factoryType)
     {
-      RailEntity entity = RailResource.Instance.CreateEntity(factoryType);
+      RailEntity entity = resource.CreateEntity(factoryType);
+      entity.resource = resource;
       entity.factoryType = factoryType;
-      entity.StateBase = RailState.Create(factoryType);
+      entity.StateBase = RailState.Create(resource, factoryType);
 #if CLIENT
-      entity.AuthStateBase = entity.StateBase.Clone();
-      entity.NextStateBase = entity.StateBase.Clone();
+      entity.AuthStateBase = entity.StateBase.Clone(resource);
+      entity.NextStateBase = entity.StateBase.Clone(resource);
 #endif
       return entity;
     }
 
 #if SERVER
-    internal static T Create<T>()
+    internal static T Create<T>(
+      RailResource resource)
       where T : RailEntity
     {
-      int factoryType = RailResource.Instance.GetEntityFactoryType<T>();
-      return (T)RailEntity.Create(factoryType);
+      int factoryType = resource.GetEntityFactoryType<T>();
+      return (T)RailEntity.Create(resource, factoryType);
     }
 #endif
     #endregion
@@ -89,9 +93,9 @@ namespace Railgun
     }
 
     // Simulation info
+    public RailRoom Room { get; internal set; }
     public bool IsRemoving { get { return this.RemovedTick.IsValid; } }
     public bool IsFrozen { get; private set; }
-    public RailRoom Room { get; internal set; }
     public RailController Controller { get; private set; }
 
     internal abstract RailState StateBase { get; set; }
@@ -100,6 +104,7 @@ namespace Railgun
     public EntityId Id { get; private set; }
     internal Tick RemovedTick { get; private set; }
 
+    private RailResource resource;
     private int factoryType;
     private bool hasStarted;
     private bool deferNotifyControllerChanged;
@@ -159,6 +164,7 @@ namespace Railgun
         new RailQueueBuffer<RailStateRecord>(
           RailConfig.DEJITTER_BUFFER_LENGTH);
 #endif
+
 #if CLIENT
       this.incomingStates =
         new RailDejitterBuffer<RailStateDelta>(
@@ -167,12 +173,16 @@ namespace Railgun
       this.outgoingCommands = 
         new Queue<RailCommand>();
 #endif
+
       this.Reset();
     }
 
     private void Reset()
     {
+      // TODO: Is this complete/usable?
+
       this.Room = null;
+      this.resource = null;
 
       this.Id = EntityId.INVALID;
       this.Controller = null;
@@ -201,6 +211,12 @@ namespace Railgun
 
       this.ResetStates();
       this.OnReset();
+    }
+
+    public TEvent CreateEvent<TEvent>()
+      where TEvent : RailEvent
+    {
+      return RailEvent.Create<TEvent>(this.resource, this);
     }
 
     private void ResetStates()
@@ -291,6 +307,7 @@ namespace Railgun
     {
       RailStateRecord record =
         RailState.CreateRecord(
+          this.resource,
           this.Room.Tick,
           this.StateBase, 
           this.outgoingStates.Latest);
@@ -299,7 +316,7 @@ namespace Railgun
     }
 
     internal RailStateDelta ProduceDelta(
-      Tick basisTick, 
+      Tick basisTick,
       RailController destination,
       bool force)
     {
@@ -314,6 +331,7 @@ namespace Railgun
       bool includeImmutableData = (basisTick.IsValid == false);
 
       return RailState.CreateDelta(
+        this.resource,
         this.Id,
         this.StateBase,
         basis,
@@ -474,7 +492,7 @@ namespace Railgun
       RailDebug.Assert(this.Controller != null);
       if (this.outgoingCommands.Count < RailConfig.COMMAND_BUFFER_COUNT)
       {
-        RailCommand command = RailCommand.Create();
+        RailCommand command = RailCommand.Create(this.resource);
 
         command.ClientTick = localTick;
         command.IsNewCommand = true;

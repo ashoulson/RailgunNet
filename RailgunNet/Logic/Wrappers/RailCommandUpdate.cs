@@ -36,10 +36,11 @@ namespace Railgun
     #endregion
 
     internal static RailCommandUpdate Create(
+      RailResource resource,
       EntityId entityId, 
       IEnumerable<RailCommand> commands)
     {
-      RailCommandUpdate update = RailResource.Instance.CreateCommandUpdate();
+      RailCommandUpdate update = resource.CreateCommandUpdate();
       update.Initialize(entityId, commands);
       return update;
     }
@@ -93,9 +94,11 @@ namespace Railgun
 #endif
 
 #if SERVER
-    internal static RailCommandUpdate Decode(RailBitBuffer buffer)
+    internal static RailCommandUpdate Decode(
+      RailResource resource,
+      RailBitBuffer buffer)
     {
-      RailCommandUpdate update = RailResource.Instance.CreateCommandUpdate();
+      RailCommandUpdate update = resource.CreateCommandUpdate();
 
       // Read: [EntityId]
       update.entityId = buffer.ReadEntityId();
@@ -105,7 +108,7 @@ namespace Railgun
 
       // Read: [Commands]
       for (int i = 0; i < count; i++)
-        update.commands.Store(RailCommand.Decode(buffer));
+        update.commands.Store(RailCommand.Decode(resource, buffer));
 
       return update;
     }

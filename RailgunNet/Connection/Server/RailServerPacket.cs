@@ -81,16 +81,18 @@ namespace Railgun
 
     #region Encode/Decode
     protected override void EncodePayload(
+      RailResource resource,
       RailBitBuffer buffer,
       Tick localTick,
       int reservedBytes)
     {
 #if SERVER
       // Write: [Deltas]
-      this.EncodeDeltas(buffer, reservedBytes);
+      this.EncodeDeltas(resource, buffer, reservedBytes);
     }
 
     private void EncodeDeltas(
+      RailResource resource,
       RailBitBuffer buffer, 
       int reservedBytes)
     {
@@ -98,22 +100,26 @@ namespace Railgun
         buffer,
         RailConfig.PACKCAP_MESSAGE_TOTAL - reservedBytes,
         RailConfig.MAXSIZE_ENTITY,
-        (delta) => RailState.EncodeDelta(buffer, delta));
+        (delta) => RailState.EncodeDelta(resource, buffer, delta));
 #endif
     }
 
-    protected override void DecodePayload(RailBitBuffer buffer)
+    protected override void DecodePayload(
+      RailResource resource,
+      RailBitBuffer buffer)
     {
 #if CLIENT
       // Read: [Deltas]
-      this.DecodeDeltas(buffer);
+      this.DecodeDeltas(resource, buffer);
     }
 
-    private void DecodeDeltas(RailBitBuffer buffer)
+    private void DecodeDeltas(
+      RailResource resource,
+      RailBitBuffer buffer)
     {
       this.deltas.Decode(
         buffer,
-        () => RailState.DecodeDelta(buffer, this.SenderTick));
+        () => RailState.DecodeDelta(resource, buffer, this.SenderTick));
 #endif
     }
     #endregion

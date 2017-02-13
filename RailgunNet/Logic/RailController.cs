@@ -18,6 +18,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+using System;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -26,17 +27,24 @@ namespace Railgun
   {
     public object UserData { get; set; }
 
+    public virtual Tick EstimatedRemoteTick
+    {
+      get
+      {
+        throw new InvalidOperationException(
+          "Local controller has no remote tick");
+      }
+    }
+
     public IEnumerable<RailEntity> ControlledEntities
     {
       get { return this.controlledEntities; }
     }
 
-    public Tick EstimatedRemoteTick
+    public IRailNetPeer NetPeer
     {
-      get { return this.peer.EstimatedRemoteTick; }
+      get { return this.netPeer; }
     }
-
-    public IRailNetPeer NetPeer { get { return this.netPeer; } }
 
 #if SERVER
     /// <summary>
@@ -51,6 +59,8 @@ namespace Railgun
     /// Used for determining which entity updates to send.
     /// </summary>
     internal RailScope Scope { get { return this.scope; } }
+
+    private readonly RailScope scope;
 #endif
 
     /// <summary>
@@ -59,29 +69,33 @@ namespace Railgun
     private readonly HashSet<RailEntity> controlledEntities;
 
     /// <summary>
-    /// The peer this controller represents.
+    /// The network I/O peer for sending/receiving data.
     /// </summary>
-    private readonly RailPeer peer;
+    protected readonly IRailNetPeer netPeer;
 
-    /// <summary>
-    /// The network peer associated with this controller.
-    /// </summary>
-    private readonly IRailNetPeer netPeer;
-
-#if SERVER
-    private readonly RailScope scope;
-#endif
-
-    internal RailController(RailPeer peer)
+    internal RailController(
+      RailResource resource, 
+      IRailNetPeer netPeer = null)
     {
       this.controlledEntities = new HashSet<RailEntity>();
-      this.peer = peer;
-      if (peer != null)
-        this.netPeer = peer.NetPeer;
+      this.netPeer = netPeer;
 
 #if SERVER
-      this.scope = new RailScope();
+      this.scope = new RailScope(this, resource);
 #endif
+
+      if (netPeer != null)
+        netPeer.BindController(this);
+    }
+
+    /// <summary>
+    /// Queues an event to send directly to this peer.
+    /// Caller should call Free() on the event when done sending.
+    /// </summary>
+    public virtual void SendEvent(RailEvent evnt, ushort attempts = 3)
+    {
+      throw new InvalidOperationException(
+        "Cannot send event to local controller");
     }
 
 #if SERVER
@@ -94,13 +108,9 @@ namespace Railgun
     {
       this.RevokeControlInternal(entity);
     }
-
-    public void QueueEvent(RailEvent evnt, int attempts = 3)
-    {
-      this.peer.QueueEvent(evnt, attempts);
-    }
 #endif
 
+    #region Controller
     /// <summary>
     /// Detaches the controller from all controlled entities.
     /// </summary>
@@ -135,5 +145,6 @@ namespace Railgun
       this.controlledEntities.Remove(entity);
       entity.AssignController(null);
     }
+#endregion
   }
 }

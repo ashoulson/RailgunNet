@@ -78,13 +78,10 @@
     <Compile Include="Logic\Wrappers\RailStateRecord.cs" />
     <Compile Include="System\Encoding\RailBitBuffer.cs" />
     <Compile Include="System\Encoding\Compressors\RailIntCompressor.cs" />
-    <Compile Include="System\Types\BitArray\BitArray16.cs" />
-    <Compile Include="System\Types\BitArray\BitArray32.cs" />
-    <Compile Include="System\Types\BitArray\BitArray64.cs" />
+    <Compile Include="System\RailHistory.cs" />
     <Compile Include="System\Types\BitArray\BitArray8.cs" />
-    <Compile Include="System\Types\BitArray\BitArrayHelpers.cs" />
-    <Compile Include="System\Types\FixedByteBuffer8.cs" />
-    <Compile Include="System\Types\Window.cs" />
+    <Compile Include="Util\BitArrayHelpers.cs" />
+    <Compile Include="System\Types\ByteBuffer\ByteBuffer8.cs" />
     <Compile Include="System\Types\SequenceId.cs" />
     <Compile Include="Connection\RailConnection.cs" />
     <Compile Include="Connection\RailPeer.cs" />

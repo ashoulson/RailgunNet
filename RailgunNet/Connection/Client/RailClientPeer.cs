@@ -33,18 +33,22 @@ namespace Railgun
     internal event Action<IRailServerPacket> PacketReceived;
 
     private readonly RailView localView;
+    private readonly Comparer<Tick> tickComparer;
 
     private List<RailEntity> sortingList;
 
     internal RailClientPeer(
+      RailResource resource,
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(
+          resource,
           netPeer, 
           RailConfig.SERVER_SEND_RATE,
           interpreter)
     {
       this.localView = new RailView();
+      this.tickComparer = Tick.CreateComparer();
       this.sortingList = new List<RailEntity>();
     }
 
@@ -66,7 +70,7 @@ namespace Railgun
         commandUpdate.Entity.LastSentCommandTick = localTick;
     }
 
-    protected override void ProcessPacket(
+    internal override void ProcessPacket(
       RailPacket packet,
       Tick localTick)
     {
@@ -91,7 +95,7 @@ namespace Railgun
       this.sortingList.Clear();
       this.sortingList.AddRange(entities);
       this.sortingList.Sort(
-        (x, y) => Tick.Comparer.Compare(
+        (x, y) => this.tickComparer.Compare(
           x.LastSentCommandTick,
           y.LastSentCommandTick));
 
@@ -99,6 +103,7 @@ namespace Railgun
       {
         RailCommandUpdate commandUpdate = 
           RailCommandUpdate.Create(
+            this.resource,
             entity.Id,
             entity.OutgoingCommands);
         commandUpdate.Entity = entity;

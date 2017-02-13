@@ -46,9 +46,8 @@ namespace Railgun
     private RailServerRoom serverRoom;
     private new RailServerRoom Room { get { return this.serverRoom; } }
 
-    public RailServer() : base()
+    public RailServer(RailRegistry registry) : base(registry)
     {
-      RailConnection.IsServer = true;
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
       this.destroyedEntities = new Dictionary<EntityId, RailEntity>();
     }
@@ -58,38 +57,43 @@ namespace Railgun
     /// </summary>
     public void StartRoom()
     {
-      this.serverRoom = new RailServerRoom(this);
+      this.serverRoom = new RailServerRoom(this.resource, this);
       this.SetRoom(this.serverRoom, Tick.START);
     }
 
     /// <summary>
     /// Wraps an incoming connection in a peer and stores it.
     /// </summary>
-    public void AddPeer(IRailNetPeer peer, string identifier)
+    public void AddClient(IRailNetPeer netPeer, string identifier)
     {
-      if (this.clients.ContainsKey(peer) == false)
+      if (this.clients.ContainsKey(netPeer) == false)
       {
-        RailServerPeer client = new RailServerPeer(peer, this.Interpreter);
+        RailServerPeer client = 
+          new RailServerPeer(
+            this.resource, 
+            netPeer, 
+            this.Interpreter);
+
         client.Identifier = identifier;
         client.EventReceived += base.OnEventReceived;
         client.PacketReceived += this.OnPacketReceived;
-        this.clients.Add(peer, client);
-        this.Room.AddController(client.Controller);
+        this.clients.Add(netPeer, client);
+        this.Room.AddClient(client);
       }
     }
 
     /// <summary>
     /// Wraps an incoming connection in a peer and stores it.
     /// </summary>
-    public void RemovePeer(IRailNetPeer peer)
+    public void RemoveClient(IRailNetPeer netClient)
     {
-      if (this.clients.ContainsKey(peer))
+      if (this.clients.ContainsKey(netClient))
       {
-        RailServerPeer client = this.clients[peer];
-        this.clients.Remove(peer);
-        this.Room.RemoveController(client.Controller);
+        RailServerPeer client = this.clients[netClient];
+        this.clients.Remove(netClient);
+        this.Room.RemoveClient(client);
 
-        // Revoke control of all the entities controlled by that controller
+        // Revoke control of all the entities controlled by that client
         client.Shutdown();
       }
     }
@@ -147,9 +151,8 @@ namespace Railgun
       RailEntity entity;
       if (this.Room.TryGet(update.EntityId, out entity))
       {
-        bool canReceive =
-          (entity.Controller == peer.Controller) &&
-          (entity.IsRemoving == false);
+        bool canReceive = 
+          (entity.Controller == peer) && (entity.IsRemoving == false);
 
         if (canReceive)
           foreach (RailCommand command in update.Commands)

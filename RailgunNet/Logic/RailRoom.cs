@@ -30,14 +30,14 @@ namespace Railgun
     /// Fired when a controller has been added (i.e. player join).
     /// The controller has control of no entities at this point.
     /// </summary>
-    public event Action<RailController> ControllerJoined;
+    public event Action<RailController> ClientJoined;
 
     /// <summary>
     /// Fired when a controller has been removed (i.e. player leave).
     /// This event fires before the controller has control of its entities
     /// revoked (this is done immediately afterwards).
     /// </summary>
-    public event Action<RailController> ControllerLeft;
+    public event Action<RailController> ClientLeft;
 #endif
 
     /// <summary>
@@ -64,13 +64,10 @@ namespace Railgun
     public Tick Tick { get; internal protected set; }
     public IEnumerable<RailEntity> Entities { get { return this.entities.Values; } }
 
-#if CLIENT
-    public abstract RailController LocalController { get; }
-#endif
-
     protected List<EntityId> toRemove; // Pre-allocated removal list
     protected virtual void HandleRemovedEntity(EntityId entityId) { }
 
+    internal readonly RailResource resource;
     private readonly RailConnection connection;
     private readonly Dictionary<EntityId, RailEntity> entities;
 
@@ -79,23 +76,32 @@ namespace Railgun
       return this.entities.TryGetValue(id, out value);
     }
 
+#if CLIENT
     /// <summary>
-    /// Queues an event to broadcast to the server (for clients) or 
-    /// to all present clients (for the server) with a number of retries.
-    /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
-    /// to send the event reliable-ordered (infinite retries).
+    /// Raises an event to be sent to the server.
+    /// Caller should call Free() on the event when done sending.
     /// </summary>
-    public abstract void BroadcastEvent(RailEvent evnt, int attempts = 3);
+    public abstract void RaiseEvent(RailEvent evnt, ushort attempts = 3);
+#endif
 
 #if SERVER
+    /// <summary>
+    /// Queues an event to broadcast to all present clients.
+    /// Caller should call Free() on the event when done sending.
+    /// </summary>
+    public abstract void BroadcastEvent(RailEvent evnt, ushort attempts = 3);
+
     public abstract T AddNewEntity<T>() where T : RailEntity;
     public abstract void RemoveEntity(RailEntity entity);
 #endif
 
-    internal RailRoom(RailConnection connection)
+    internal RailRoom(RailResource resource, RailConnection connection)
     {
+      this.resource = resource;
       this.connection = connection;
-      this.entities = new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
+      this.entities = 
+        new Dictionary<EntityId, RailEntity>(
+          EntityId.CreateEqualityComparer());
       this.Tick = Tick.INVALID;
       this.toRemove = new List<EntityId>();
     }
@@ -115,18 +121,6 @@ namespace Railgun
       this.PostRoomUpdate?.Invoke(tick);
     }
 
-#if SERVER
-    protected void OnControllerJoined(RailController controller)
-    {
-      this.ControllerJoined?.Invoke(controller);
-    }
-
-    protected void OnControllerLeft(RailController controller)
-    {
-      this.ControllerLeft?.Invoke(controller);
-    }
-#endif
-
     protected void RemoveEntity(EntityId entityId)
     {
       RailEntity entity;
@@ -135,7 +129,7 @@ namespace Railgun
         this.entities.Remove(entityId);
         entity.Cleanup();
         entity.Room = null;
-        // TODO: Pooling?
+        // TODO: Pooling entities?
 
         this.HandleRemovedEntity(entityId);
         this.EntityRemoved?.Invoke(entity);
@@ -156,5 +150,17 @@ namespace Railgun
       this.entities.Add(entity.Id, entity);
       entity.Room = this;
     }
+
+#if SERVER
+    protected void OnClientJoined(RailController client)
+    {
+      this.ClientJoined?.Invoke(client);
+    }
+
+    protected void OnClientLeft(RailController client)
+    {
+      this.ClientLeft?.Invoke(client);
+    }
+#endif
   }
 }

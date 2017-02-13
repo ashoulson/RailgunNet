@@ -55,9 +55,9 @@ namespace Railgun
     internal const uint FLAGS_NONE = 0x00000000; // No values different
 
     #region Creation
-    internal static RailState Create(int factoryType)
+    internal static RailState Create(RailResource resource, int factoryType)
     {
-      RailState state = RailResource.Instance.CreateState(factoryType);
+      RailState state = resource.CreateState(factoryType);
       state.factoryType = factoryType;
       state.InitializeData();
       return state;
@@ -70,6 +70,7 @@ namespace Railgun
     /// the current and basis.
     /// </summary>
     internal static RailStateDelta CreateDelta(
+      RailResource resource,
       EntityId entityId,
       RailState current,
       RailStateRecord basisRecord,
@@ -91,7 +92,7 @@ namespace Railgun
       if ((flags == 0) && (shouldReturn == false))
         return null;
 
-      RailState deltaState = RailState.Create(current.factoryType);
+      RailState deltaState = RailState.Create(resource, current.factoryType);
       deltaState.Flags = flags;
       deltaState.ApplyMutableFrom(current, deltaState.Flags);
 
@@ -104,7 +105,7 @@ namespace Railgun
         deltaState.ApplyImmutableFrom(current);
 
       // We don't need to include a tick when sending -- it's in the packet
-      RailStateDelta delta = RailResource.Instance.CreateDelta();
+      RailStateDelta delta = resource.CreateDelta();
       delta.Initialize(
         Tick.INVALID, 
         entityId, 
@@ -121,6 +122,7 @@ namespace Railgun
     /// return null if there is no change between the current and latest.
     /// </summary>
     internal static RailStateRecord CreateRecord(
+      RailResource resource,
       Tick tick,
       RailState current,
       RailStateRecord latestRecord = null)
@@ -135,17 +137,12 @@ namespace Railgun
           return null;
       }
 
-      RailStateRecord record = RailResource.Instance.CreateRecord();
-      record.Overwrite(tick, current);
+      RailStateRecord record = resource.CreateRecord();
+      record.Overwrite(resource, tick, current);
       return record;
     }
 #endif
     #endregion
-
-    private static RailIntCompressor FactoryTypeCompressor
-    {
-      get { return RailResource.Instance.EntityTypeCompressor; }
-    }
 
     protected internal abstract int FlagBits { get; }
 
@@ -190,14 +187,14 @@ namespace Railgun
       return 0;
     }
 
-    internal RailEntity ProduceEntity()
+    internal RailEntity ProduceEntity(RailResource resource)
     {
-      return RailEntity.Create(this.factoryType);
+      return RailEntity.Create(resource, this.factoryType);
     }
 
-    internal RailState Clone()
+    internal RailState Clone(RailResource resource)
     {
-      RailState clone = RailState.Create(this.factoryType);
+      RailState clone = RailState.Create(resource, this.factoryType);
       clone.OverwriteFrom(this);
       return clone;
     }
@@ -240,6 +237,7 @@ namespace Railgun
 
 #if SERVER
     internal static void EncodeDelta(
+      RailResource resource,
       RailBitBuffer buffer,
       RailStateDelta delta)
     {
@@ -253,7 +251,7 @@ namespace Railgun
       {
         // Write: [FactoryType]
         RailState state = delta.State;
-        buffer.WriteInt(RailState.FactoryTypeCompressor, state.factoryType);
+        buffer.WriteInt(resource.EntityTypeCompressor, state.factoryType);
 
         // Write: [IsRemoved]
         buffer.WriteBool(delta.RemovedTick.IsValid);
@@ -295,10 +293,11 @@ namespace Railgun
 #endif
 #if CLIENT
     internal static RailStateDelta DecodeDelta(
+      RailResource resource,
       RailBitBuffer buffer, 
       Tick packetTick)
     {
-      RailStateDelta delta = RailResource.Instance.CreateDelta();
+      RailStateDelta delta = resource.CreateDelta();
       RailState state = null;
 
       Tick commandAck = Tick.INVALID;
@@ -313,8 +312,8 @@ namespace Railgun
       if (isFrozen == false)
       {
         // Read: [FactoryType]
-        int factoryType = buffer.ReadInt(RailState.FactoryTypeCompressor);
-        state = RailState.Create(factoryType);
+        int factoryType = buffer.ReadInt(resource.EntityTypeCompressor);
+        state = RailState.Create(resource, factoryType);
 
         // Read: [IsRemoved]
         bool isRemoved = buffer.ReadBool();

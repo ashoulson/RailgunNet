@@ -25,9 +25,12 @@ namespace Railgun
 {
   internal class RailClientRoom : RailRoom
   {
-    public override RailController LocalController
+    /// <summary>
+    /// Returns all locally-controlled entities in the room.
+    /// </summary>
+    internal IEnumerable<RailEntity> LocalEntities
     {
-      get { return this.localController; }
+      get { return this.localPeer.ControlledEntities; }
     }
 
     /// <summary>
@@ -42,21 +45,26 @@ namespace Railgun
 
     /// <summary>
     /// The local controller for predicting control and authority.
+    /// This is a dummy peer that can't send or receive events.
     /// </summary>
-    private readonly RailController localController;
+    private readonly RailController localPeer;
 
     /// <summary>
     /// The local Railgun client.
     /// </summary>
     private readonly RailClient client;
 
-    internal RailClientRoom(RailClient client) : base(client)
+    internal RailClientRoom(RailResource resource, RailClient client) 
+      : base(resource, client)
     {
+      IEqualityComparer<EntityId> entityIdComparer = 
+        EntityId.CreateEqualityComparer();
+
       this.pendingEntities =
-        new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
+        new Dictionary<EntityId, RailEntity>(entityIdComparer);
       this.knownEntities =
-        new Dictionary<EntityId, RailEntity>(EntityId.Comparer);
-      this.localController = new RailController(null);
+        new Dictionary<EntityId, RailEntity>(entityIdComparer);
+      this.localPeer = new RailController(resource);
       this.client = client;
     }
 
@@ -67,12 +75,11 @@ namespace Railgun
 
     /// <summary>
     /// Queues an event to broadcast to the server with a number of retries.
-    /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
-    /// to send the event reliable-ordered (infinite retries).
+    /// Caller should call Free() on the event when done sending.
     /// </summary>
-    public override void BroadcastEvent(RailEvent evnt, int attempts = 3)
+    public override void RaiseEvent(RailEvent evnt, ushort attempts = 3)
     {
-      this.client.QueueEvent(evnt, attempts);
+      this.client.RaiseEvent(evnt, attempts);
     }
 
     /// <summary>
@@ -115,7 +122,7 @@ namespace Railgun
         if (delta.IsFrozen || delta.IsRemoving)
           return false;
 
-        entity = delta.ProduceEntity();
+        entity = delta.ProduceEntity(this.resource);
         entity.AssignId(delta.EntityId);
         entity.PrimeState(delta);
         this.pendingEntities.Add(entity.Id, entity);
@@ -161,17 +168,17 @@ namespace Railgun
       if (delta.IsRemoving)
       {
         if (entity.Controller != null)
-          this.localController.RevokeControlInternal(entity);
+          this.localPeer.RevokeControlInternal(entity);
       }
       else if (delta.HasControllerData)
       {
         if (entity.Controller == null)
-          this.localController.GrantControlInternal(entity);
+          this.localPeer.GrantControlInternal(entity);
       }
       else
       {
         if (entity.Controller != null)
-          this.localController.RevokeControlInternal(entity);
+          this.localPeer.RevokeControlInternal(entity);
       }
     }
   }

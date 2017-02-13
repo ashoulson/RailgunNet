@@ -83,6 +83,7 @@ namespace Railgun
 
     #region Encode/Decode
     protected override void EncodePayload(
+      RailResource resource,
       RailBitBuffer buffer, 
       Tick localTick,
       int reservedBytes)
@@ -123,21 +124,25 @@ namespace Railgun
 #endif
     }
 
-    protected override void DecodePayload(RailBitBuffer buffer)
+    protected override void DecodePayload(
+      RailResource resource,
+      RailBitBuffer buffer)
     {
 #if SERVER
       // Read: [Commands]
-      this.DecodeCommands(buffer);
+      this.DecodeCommands(resource, buffer);
 
       // Read: [View]
       this.DecodeView(buffer);
     }
 
-    protected void DecodeCommands(RailBitBuffer buffer)
+    protected void DecodeCommands(
+      RailResource resource,
+      RailBitBuffer buffer)
     {
       this.commandUpdates.Decode(
         buffer,
-        () => RailCommandUpdate.Decode(buffer));
+        () => RailCommandUpdate.Decode(resource, buffer));
     }
 
     public void DecodeView(RailBitBuffer buffer)

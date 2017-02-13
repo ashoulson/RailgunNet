@@ -36,10 +36,13 @@ namespace Railgun
       this.bitBuffer = new RailBitBuffer();
     }
 
-    internal void SendPacket(IRailNetPeer peer, IRailPacket packet)
+    internal void SendPacket(
+      RailResource resource,
+      IRailNetPeer peer, 
+      IRailPacket packet)
     {
       this.bitBuffer.Clear();
-      packet.Encode(this.bitBuffer);
+      packet.Encode(resource, this.bitBuffer);
       int length = this.bitBuffer.Store(this.bytes);
       RailDebug.Assert(length <= RailConfig.PACKCAP_MESSAGE_TOTAL);
       peer.SendPayload(this.bytes, length);

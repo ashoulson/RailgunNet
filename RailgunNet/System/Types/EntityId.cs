@@ -92,7 +92,11 @@ namespace Railgun
 
     public static readonly EntityId INVALID = new EntityId(0);
     internal static readonly EntityId START = new EntityId(1);
-    internal static readonly EntityIdComparer Comparer = new EntityIdComparer();
+
+    public static IEqualityComparer<EntityId> CreateEqualityComparer()
+    {
+      return new EntityIdComparer();
+    }
 
     public bool IsValid 
     { 

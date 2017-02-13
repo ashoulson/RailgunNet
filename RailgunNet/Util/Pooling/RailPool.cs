@@ -23,14 +23,14 @@ using System.Collections.Generic;
 
 namespace Railgun
 {
-  public interface IRailPool<T>
+  internal interface IRailPool<T>
   {
     T Allocate();
     void Deallocate(T obj);
     IRailPool<T> Clone();
   }
 
-  public class RailPool
+  internal class RailPool
   {
     public static void Free<T>(T obj)
       where T : IRailPoolable<T>

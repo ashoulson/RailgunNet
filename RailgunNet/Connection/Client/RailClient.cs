@@ -42,9 +42,9 @@ namespace Railgun
     private RailClientRoom clientRoom;
     private new RailClientRoom Room { get { return this.clientRoom; } }
 
-    public RailClient()
+    public RailClient(RailRegistry registry)
+      : base(registry)
     {
-      RailConnection.IsServer = false;
       this.serverPeer = null;
       this.localTick = Tick.START;
       this.clientRoom = null;
@@ -52,7 +52,7 @@ namespace Railgun
 
     public void StartRoom()
     {
-      this.clientRoom = new RailClientRoom(this);
+      this.clientRoom = new RailClientRoom(this.resource, this);
       this.SetRoom(this.clientRoom, Tick.INVALID);
     }
 
@@ -74,7 +74,8 @@ namespace Railgun
       else
       {
         RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
-        this.serverPeer = new RailClientPeer(netPeer, this.Interpreter);
+        this.serverPeer = 
+          new RailClientPeer(this.resource, netPeer, this.Interpreter);
         this.serverPeer.PacketReceived += this.OnPacketReceived;
         this.serverPeer.EventReceived += base.OnEventReceived;
       }
@@ -97,7 +98,7 @@ namespace Railgun
           if (this.localTick.IsSendTick(sendRate))
             this.serverPeer.SendPacket(
               this.localTick,
-              this.Room.LocalController.ControlledEntities);
+              this.Room.LocalEntities);
 
           this.localTick++;
         }
@@ -105,16 +106,13 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Queues an event to broadcast to all clients.
-    /// Use a RailEvent.SEND_RELIABLE (-1) for the number of attempts
-    /// to send the event reliable-ordered (infinite retries).
+    /// Queues an event to sent to the server.
     /// </summary>
-    internal void QueueEvent(RailEvent evnt, int attempts = 3)
+    internal void RaiseEvent(RailEvent evnt, ushort attempts = 3)
     {
-      // TODO: Make this a function of rooms, not connections
       RailDebug.Assert(this.serverPeer != null);
       if (this.serverPeer != null)
-        this.serverPeer.QueueEvent(evnt, attempts);
+        this.serverPeer.SendEvent(evnt, attempts);
     }
 
     private void OnPacketReceived(IRailServerPacket packet)

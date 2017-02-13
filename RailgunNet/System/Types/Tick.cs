@@ -66,14 +66,18 @@ namespace Railgun
 
     internal class TickComparer : Comparer<Tick>, IEqualityComparer<Tick>
     {
-      private static readonly Comparer<uint> Comparer =
-        Comparer<uint>.Default;
+      private readonly Comparer<uint> comparer;
+
+      public TickComparer()
+      {
+        this.comparer = Comparer<uint>.Default;
+      }
 
       public override int Compare(Tick x, Tick y)
       {
         RailDebug.Assert(x.IsValid);
         RailDebug.Assert(y.IsValid);
-        return TickComparer.Comparer.Compare(x.tickValue, y.tickValue);
+        return this.comparer.Compare(x.tickValue, y.tickValue);
       }
 
       public bool Equals(Tick x, Tick y)
@@ -90,9 +94,15 @@ namespace Railgun
       }
     }
 
-    private static readonly TickComparer comparer = new TickComparer();
-    public static Comparer<Tick> Comparer { get { return Tick.comparer; } }
-    public static IEqualityComparer<Tick> EqualityComparer { get { return Tick.comparer; } }
+    public static Comparer<Tick> CreateComparer()
+    {
+      return new TickComparer();
+    }
+
+    public static IEqualityComparer<Tick> CreateEqualityComparer()
+    {
+      return new TickComparer();
+    }
 
     internal static Tick Subtract(Tick a, int b, bool warnClamp = false)
     {

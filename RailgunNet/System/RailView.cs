@@ -52,23 +52,30 @@ namespace Railgun
     private class ViewComparer :
       Comparer<KeyValuePair<EntityId, RailViewEntry>>
     {
-      private static readonly Comparer<Tick> Comparer = Tick.Comparer;
+      private readonly Comparer<Tick> comparer;
+
+      public ViewComparer()
+      {
+        this.comparer = Tick.CreateComparer();
+      }
 
       public override int Compare(
         KeyValuePair<EntityId, RailViewEntry> x, 
         KeyValuePair<EntityId, RailViewEntry> y)
       {
-        return ViewComparer.Comparer.Compare(x.Value.LastReceivedTick, y.Value.LastReceivedTick);
+        return this.comparer.Compare(
+          x.Value.LastReceivedTick, 
+          y.Value.LastReceivedTick);
       }
     }
 
-    private static readonly ViewComparer Comparer = new ViewComparer();
-
+    private readonly ViewComparer viewComparer;
     private readonly Dictionary<EntityId, RailViewEntry> latestUpdates;
     private readonly List<KeyValuePair<EntityId, RailViewEntry>> sortList;
 
     public RailView()
     {
+      this.viewComparer = new ViewComparer();
       this.latestUpdates = new Dictionary<EntityId, RailViewEntry>();
       this.sortList = new List<KeyValuePair<EntityId, RailViewEntry>>();
     }
@@ -139,7 +146,7 @@ namespace Railgun
         if (localTick - pair.Value.LocalUpdateTick < RailConfig.VIEW_TICKS)
           this.sortList.Add(pair);
 
-      this.sortList.Sort(RailView.Comparer);
+      this.sortList.Sort(this.viewComparer);
       this.sortList.Reverse();
       return this.sortList;
     }

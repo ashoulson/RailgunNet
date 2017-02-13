@@ -62,10 +62,5 @@ namespace Railgun
       this.entityTypes.Add(
         new KeyValuePair<Type, Type>(typeof(TEntity), typeof(TState)));
     }
-
-    public void Register()
-    {
-      RailResource.Initialize(this);
-    }
   }
 }

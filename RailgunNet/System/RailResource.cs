@@ -26,110 +26,6 @@ namespace Railgun
 {
   internal class RailResource
   {
-    private class MasterInstance
-    {
-      // Read-only data structures, don't need to be thread-local
-      internal Dictionary<int, IRailPool<RailEntity>> EntityFactories { get; private set; }
-      internal Dictionary<Type, int> EntityTypeToKey { get; private set; }
-      internal Dictionary<Type, int> EventTypeToKey { get; private set; }
-      internal RailIntCompressor EventTypeCompressor { get; private set; }
-      internal RailIntCompressor EntityTypeCompressor { get; private set; }
-
-      // Mutable pools, need to be cloned per-thread
-      private IRailPool<RailCommand> commandPool;
-      private Dictionary<int, IRailPool<RailState>> statePools;
-      private Dictionary<int, IRailPool<RailEvent>> eventPools;
-
-      internal MasterInstance(RailRegistry registry)
-      {
-        this.EntityFactories = new Dictionary<int, IRailPool<RailEntity>>();
-        this.EntityTypeToKey = new Dictionary<Type, int>();
-        this.EventTypeToKey = new Dictionary<Type, int>();
-        this.EventTypeCompressor = null;
-        this.EntityTypeCompressor = null;
-
-        this.commandPool = null;
-        this.statePools = new Dictionary<int, IRailPool<RailState>>();
-        this.eventPools = new Dictionary<int, IRailPool<RailEvent>>();
-
-        this.RegisterCommand(registry);
-        this.RegisterEvents(registry);
-        this.RegisterEntities(registry);
-      }
-
-      private void RegisterCommand(RailRegistry registry)
-      {
-        this.commandPool = 
-          RailResource.CreatePool<RailCommand>(registry.CommandType);
-      }
-
-      private void RegisterEvents(RailRegistry registry)
-      {
-        foreach (Type eventType in registry.EventTypes)
-        {
-          IRailPool<RailEvent> statePool =
-            RailResource.CreatePool<RailEvent>(eventType);
-
-          int typeKey = this.eventPools.Count + 1; // 0 is an invalid type
-          this.eventPools.Add(typeKey, statePool);
-          this.EventTypeToKey.Add(eventType, typeKey);
-        }
-
-        this.EventTypeCompressor =
-          new RailIntCompressor(0, this.eventPools.Count + 1);
-      }
-
-      private void RegisterEntities(RailRegistry registry)
-      {
-        foreach (KeyValuePair<Type, Type> pair in registry.EntityTypes)
-        {
-          Type entityType = pair.Key;
-          Type stateType = pair.Value;
-
-          IRailPool<RailState> statePool =
-            RailResource.CreatePool<RailState>(stateType);
-          IRailPool<RailEntity> entityPool =
-            RailResource.CreatePool<RailEntity>(entityType);
-
-          int typeKey = this.statePools.Count + 1; // 0 is an invalid type
-          this.statePools.Add(typeKey, statePool);
-          this.EntityFactories.Add(typeKey, entityPool);
-          this.EntityTypeToKey.Add(entityType, typeKey);
-        }
-
-        this.EntityTypeCompressor =
-          new RailIntCompressor(0, this.EntityFactories.Count + 1);
-      }
-
-      internal IRailPool<RailCommand> CloneCommandPool()
-      {
-        return this.commandPool.Clone();
-      }
-
-      internal Dictionary<int, IRailPool<RailState>> CloneStatePools()
-      {
-        var pools = new Dictionary<int, IRailPool<RailState>>();
-        foreach (var pair in this.statePools)
-          pools.Add(pair.Key, pair.Value.Clone());
-        return pools;
-      }
-
-      internal Dictionary<int, IRailPool<RailEvent>> CloneEventPools()
-      {
-        var pools = new Dictionary<int, IRailPool<RailEvent>>();
-        foreach (var pair in this.eventPools)
-          pools.Add(pair.Key, pair.Value.Clone());
-        return pools;
-      }
-    }
-
-    public static void Initialize(RailRegistry registry)
-    {
-      if (RailResource.Master != null)
-        throw new ApplicationException("RailResource already initialized");
-      RailResource.Master = new MasterInstance(registry);
-    }
-
     private static IRailPool<T> CreatePool<T>(
       Type derivedType)
       where T : IRailPoolable<T>
@@ -141,57 +37,43 @@ namespace Railgun
       return (IRailPool<T>)ci.Invoke(new object[] { });
     }
 
-    // Master resource holder, used for read-only data and creating instances
-    private static MasterInstance Master { get; set; }
+    internal RailIntCompressor EventTypeCompressor { get { return this.eventTypeCompressor; } }
+    internal RailIntCompressor EntityTypeCompressor { get { return this.entityTypeCompressor; } }
 
-    [ThreadStatic]
-    private static RailResource instance;
+    private readonly RailIntCompressor eventTypeCompressor;
+    private readonly RailIntCompressor entityTypeCompressor;
 
-    internal static RailResource Instance
-    {
-      get
-      {
-        if (RailResource.instance == null)
-          RailResource.instance = new RailResource();
-        return RailResource.instance;
-      }
-    }
+    private readonly Dictionary<Type, int> entityTypeToKey;
+    private readonly Dictionary<Type, int> eventTypeToKey;
 
-    // Taken from the master
-    public RailIntCompressor EventTypeCompressor { get; private set; }
-    public RailIntCompressor EntityTypeCompressor { get; private set; }
-    private Dictionary<int, IRailPool<RailEntity>> entityFactories;
-    private Dictionary<Type, int> entityTypeToKey;
-    private Dictionary<Type, int> eventTypeToKey;
+    private readonly IRailPool<RailCommand> commandPool;
+    private readonly Dictionary<int, IRailPool<RailEntity>> entityPools;
+    private readonly Dictionary<int, IRailPool<RailState>> statePools;
+    private readonly Dictionary<int, IRailPool<RailEvent>> eventPools;
 
-    // Mutable pools, need to be cloned per-thread
-    private IRailPool<RailCommand> commandPool;
-    private Dictionary<int, IRailPool<RailState>> statePools;
-    private Dictionary<int, IRailPool<RailEvent>> eventPools;
-
-    private IRailPool<RailStateDelta> deltaPool;
-    private IRailPool<RailCommandUpdate> commandUpdatePool;
+    private readonly IRailPool<RailStateDelta> deltaPool;
+    private readonly IRailPool<RailCommandUpdate> commandUpdatePool;
 #if SERVER
-    private IRailPool<RailStateRecord> recordPool;
+    private readonly IRailPool<RailStateRecord> recordPool;
 #endif
 
-    private RailResource()
+    internal RailResource(RailRegistry registry)
     {
-      MasterInstance master = RailResource.Master;
-      if (master == null)
-        throw new ApplicationException("RailResource not initialized");
+      this.entityTypeToKey = new Dictionary<Type, int>();
+      this.eventTypeToKey = new Dictionary<Type, int>();
 
-      // Copy references to read-only stuff from the master
-      this.EventTypeCompressor = master.EventTypeCompressor;
-      this.EntityTypeCompressor = master.EntityTypeCompressor;
-      this.entityFactories = master.EntityFactories;
-      this.entityTypeToKey = master.EntityTypeToKey;
-      this.eventTypeToKey = master.EventTypeToKey;
+      this.commandPool = this.CreateCommandPool(registry);
+      this.entityPools = new Dictionary<int, IRailPool<RailEntity>>();
+      this.statePools = new Dictionary<int, IRailPool<RailState>>();
+      this.eventPools = new Dictionary<int, IRailPool<RailEvent>>();
 
-      // Clone or instantiate the rest
-      this.commandPool = master.CloneCommandPool();
-      this.statePools = master.CloneStatePools();
-      this.eventPools = master.CloneEventPools();
+      this.RegisterEvents(registry);
+      this.RegisterEntities(registry);
+
+      this.eventTypeCompressor =
+        new RailIntCompressor(0, this.eventPools.Count + 1);
+      this.entityTypeCompressor = 
+        new RailIntCompressor(0, this.entityPools.Count + 1);
 
       this.deltaPool = new RailPool<RailStateDelta>();
       this.commandUpdatePool = new RailPool<RailCommandUpdate>();
@@ -200,15 +82,57 @@ namespace Railgun
 #endif
     }
 
-#region Allocation
-    public RailEntity CreateEntity(int factoryType)
+    private IRailPool<RailCommand> CreateCommandPool(
+      RailRegistry registry)
     {
-      return this.entityFactories[factoryType].Allocate();
+      return
+        RailResource.CreatePool<RailCommand>(
+          registry.CommandType);
     }
 
+    private void RegisterEvents(
+      RailRegistry registry)
+    {
+      foreach (Type eventType in registry.EventTypes)
+      {
+        IRailPool<RailEvent> statePool =
+          RailResource.CreatePool<RailEvent>(eventType);
+
+        int typeKey = this.eventPools.Count + 1; // 0 is an invalid type
+        this.eventPools.Add(typeKey, statePool);
+        this.eventTypeToKey.Add(eventType, typeKey);
+      }
+    }
+
+    private void RegisterEntities(
+      RailRegistry registry)
+    {
+      foreach (KeyValuePair<Type, Type> pair in registry.EntityTypes)
+      {
+        Type entityType = pair.Key;
+        Type stateType = pair.Value;
+
+        IRailPool<RailState> statePool =
+          RailResource.CreatePool<RailState>(stateType);
+        IRailPool<RailEntity> entityPool =
+          RailResource.CreatePool<RailEntity>(entityType);
+
+        int typeKey = this.statePools.Count + 1; // 0 is an invalid type
+        this.statePools.Add(typeKey, statePool);
+        this.entityPools.Add(typeKey, entityPool);
+        this.entityTypeToKey.Add(entityType, typeKey);
+      }
+    }
+
+    #region Allocation
     public RailCommand CreateCommand()
     {
       return this.commandPool.Allocate();
+    }
+
+    public RailEntity CreateEntity(int factoryType)
+    {
+      return this.entityPools[factoryType].Allocate();
     }
 
     public RailState CreateState(int factoryType)
@@ -238,19 +162,19 @@ namespace Railgun
     }
 #endif
 
-#region Typed
-    public int GetEntityFactoryType<T>() 
+    #region Typed
+    public int GetEntityFactoryType<T>()
       where T : RailEntity
     {
       return this.entityTypeToKey[typeof(T)];
     }
 
-    public int GetEventFactoryType<T>() 
+    public int GetEventFactoryType<T>()
       where T : RailEvent
     {
       return this.eventTypeToKey[typeof(T)];
     }
-#endregion
-#endregion
+    #endregion
+    #endregion
   }
 }

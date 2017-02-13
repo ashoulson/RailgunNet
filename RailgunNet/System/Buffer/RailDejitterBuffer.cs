@@ -30,32 +30,29 @@ namespace Railgun
   internal class RailDejitterBuffer<T>
     where T : class, IRailTimedValue, IRailPoolable<T>
   {
-    private static int Compare(T x, T y)
-    {
-      return Tick.Comparer.Compare(x.Tick, y.Tick);
-    }
-
     // Used for converting a key to an index. For example, the server may only
     // send a snapshot every two ticks, so we would divide the tick number
     // key by 2 so as to avoid wasting space in the frame buffer
     private int divisor;
+
+    private T[] data;
+    private int latestIdx;
+    private List<T> returnList; // A reusable list for returning results
+
+    private readonly Comparer<Tick> tickComparer;
 
     /// <summary>
     /// The most recent value stored in this buffer.
     /// </summary>
     internal T Latest
     {
-      get 
+      get
       {
         if (this.latestIdx < 0)
           return null;
         return this.data[this.latestIdx];
       }
     }
-
-    private T[] data;
-    private int latestIdx;
-    private List<T> returnList; // A reusable list for returning results
 
     internal IEnumerable<T> Values
     {
@@ -73,6 +70,7 @@ namespace Railgun
       this.divisor = divisor;
       this.data = new T[capacity / divisor];
       this.latestIdx = -1;
+      this.tickComparer = Tick.CreateComparer();
     }
 
     /// <summary>
@@ -203,7 +201,7 @@ namespace Railgun
           this.returnList.Add(val);
       }
 
-      this.returnList.Sort(RailDejitterBuffer<T>.Compare);
+      this.returnList.Sort(this.Compare);
       return this.returnList;
     }
 
@@ -240,7 +238,7 @@ namespace Railgun
         }
       }
 
-      this.returnList.Sort(RailDejitterBuffer<T>.Compare);
+      this.returnList.Sort(this.Compare);
       return this.returnList;
     }
 
@@ -270,6 +268,11 @@ namespace Railgun
     private int TickToIndex(Tick tick)
     {
       return (int)(tick.RawValue / this.divisor) % this.data.Length;
+    }
+
+    private int Compare(T x, T y)
+    {
+      return this.tickComparer.Compare(x.Tick, y.Tick);
     }
   }
 }

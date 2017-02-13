@@ -23,54 +23,48 @@ using System;
 namespace Railgun
 {
   /// <summary>
-  /// States are attached to entities and contain user-defined data. They are
-  /// responsible for encoding and decoding that data, and delta-compression.
+  /// Events are sent attached to entities and represent temporary changes
+  /// in status. They can be sent to specific controllers or broadcast to all
+  /// controllers for whom the entity is in scope.
   /// </summary>
   public abstract class RailEvent
     : IRailPoolable<RailEvent>
   {
-    public const int SEND_RELIABLE = -1;
-
     #region Pooling
     IRailPool<RailEvent> IRailPoolable<RailEvent>.Pool { get; set; }
     void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
     #endregion
 
-    public static T Create<T>(RailEntity entity)
-      where T : RailEvent
+    internal static TEvent Create<TEvent>(RailResource resource, RailEntity entity)
+      where TEvent : RailEvent
     {
       if (entity == null)
         throw new ArgumentNullException("entity");
 
-      T evnt = RailEvent.Create<T>();
+      int factoryType = resource.GetEventFactoryType<TEvent>();
+      TEvent evnt = (TEvent)RailEvent.Create(resource, factoryType);
       evnt.EntityId = entity.Id;
       return evnt;
     }
 
-    public static T Create<T>()
-      where T : RailEvent
+    private static RailEvent Create(RailResource resource, int factoryType)
     {
-      int factoryType = RailResource.Instance.GetEventFactoryType<T>();
-      return (T)RailEvent.Create(factoryType);
-    }
-
-    internal static RailEvent Create(int factoryType)
-    {
-      RailEvent evnt = RailResource.Instance.CreateEvent(factoryType);
+      RailEvent evnt = resource.CreateEvent(factoryType);
       evnt.factoryType = factoryType;
       return evnt;
     }
 
-    private static RailIntCompressor FactoryTypeCompressor
-    {
-      get { return RailResource.Instance.EventTypeCompressor; }
-    }
-
-    // Settings
+    /// <summary>
+    /// Whether or not this event can be sent to a frozen entity.
+    /// TODO: NOT FULLY IMPLEMENTED
+    /// </summary>
     protected virtual bool CanSendToFrozen { get { return false; } }
 
-    // Bindings
-    public RailController Sender { get; internal set; }
+    /// <summary>
+    /// Whether or not this event can be sent by someone other than the
+    /// controller of the entity. Ignored on clients.
+    /// </summary>
+    protected virtual bool CanProxySend { get { return false; } }
 
     // Synchronized
     internal SequenceId EventId { get; set; }
@@ -79,23 +73,24 @@ namespace Railgun
     // Local only
     internal int Attempts { get; set; }
 
-    internal bool IsReliable { get { return (this.Attempts == RailEvent.SEND_RELIABLE); } }
-    internal bool CanSend { get { return ((this.Attempts > 0) || this.IsReliable); } }
-
     internal abstract void SetDataFrom(RailEvent other);
 
     protected abstract void EncodeData(RailBitBuffer buffer, Tick packetTick);
     protected abstract void DecodeData(RailBitBuffer buffer, Tick packetTick);
     protected abstract void ResetData();
 
-    protected internal virtual void Invoke(RailRoom room, RailController sender) { }
-    protected internal virtual void Invoke(RailRoom room, RailController sender, RailEntity entity) { }
+    protected virtual void Execute(RailRoom room, RailController sender, RailEntity entity) {}
 
     private int factoryType;
 
-    internal RailEvent Clone()
+    public void Free()
     {
-      RailEvent clone = RailEvent.Create(this.factoryType);
+      RailPool.Free(this);
+    }
+
+    internal RailEvent Clone(RailResource resource)
+    {
+      RailEvent clone = RailEvent.Create(resource, this.factoryType);
       clone.EventId = this.EventId;
       clone.EntityId = this.EntityId;
       clone.Attempts = this.Attempts;
@@ -111,24 +106,54 @@ namespace Railgun
       this.ResetData();
     }
 
+    internal void Invoke(
+      RailRoom room, 
+      RailController sender, 
+      RailEntity entity)
+    {
+      if (entity == null)
+      {
+        RailDebug.LogError("Null entity for event " + this.GetType());
+        return;
+      }
+
+      // Don't allow events to be sent to frozen entities if applicable
+      if ((this.CanSendToFrozen == false) && entity.IsFrozen)
+      {
+        return;
+      }
+
+#if SERVER
+      // Check proxy permissions and only accept from controllers if so
+      if ((this.CanProxySend == false) && (entity.Controller != sender))
+      {
+        RailDebug.LogError("Invalid permissions for " + this.GetType());
+        return; 
+      }
+#endif
+
+      this.Execute(room, sender, entity);
+    }
+
     internal void RegisterSent()
     {
       if (this.Attempts > 0)
         this.Attempts--;
     }
 
-    #region Encode/Decode/etc.
+#region Encode/Decode/etc.
     /// <summary>
     /// Note that the packetTick may not be the tick this event was created on
     /// if we're re-trying to send this event in subsequent packets. This tick
     /// is intended for use in tick diffs for compression.
     /// </summary>
     internal void Encode(
+      RailResource resource,
       RailBitBuffer buffer,
       Tick packetTick)
     {
       // Write: [EventType]
-      buffer.WriteInt(RailEvent.FactoryTypeCompressor, this.factoryType);
+      buffer.WriteInt(resource.EventTypeCompressor, this.factoryType);
 
       // Write: [EventId]
       buffer.WriteSequenceId(this.EventId);
@@ -152,13 +177,14 @@ namespace Railgun
     /// is intended for use in tick diffs for compression.
     /// </summary>
     internal static RailEvent Decode(
+      RailResource resource,
       RailBitBuffer buffer,
       Tick packetTick)
     {
       // Read: [EventType]
-      int factoryType = buffer.ReadInt(RailEvent.FactoryTypeCompressor);
+      int factoryType = buffer.ReadInt(resource.EventTypeCompressor);
 
-      RailEvent evnt = RailEvent.Create(factoryType);
+      RailEvent evnt = RailEvent.Create(resource, factoryType);
 
       // Read: [EventId]
       evnt.EventId = buffer.ReadSequenceId();
@@ -177,22 +203,41 @@ namespace Railgun
 
       return evnt;
     }
-    #endregion
+#endregion
   }
 
   /// <summary>
   /// This is the class to override to attach user-defined data to an entity.
   /// </summary>
-  public abstract class RailEvent<T> : RailEvent
-    where T : RailEvent<T>, new()
+  public abstract class RailEvent<TDerived> : RailEvent
+    where TDerived : RailEvent<TDerived>, new()
   {
-    #region Casting Overrides
+#region Casting Overrides
     internal override void SetDataFrom(RailEvent other)
     {
-      this.SetDataFrom((T)other);
+      this.SetDataFrom((TDerived)other);
     }
-    #endregion
+#endregion
 
-    protected internal abstract void SetDataFrom(T other);
+    protected internal abstract void SetDataFrom(TDerived other);
+  }
+
+  public abstract class RailEvent<TDerived, TEntity> : RailEvent<TDerived>
+    where TDerived : RailEvent<TDerived>, new()
+    where TEntity : RailEntity
+  {
+    protected override void Execute(
+      RailRoom room, 
+      RailController sender, 
+      RailEntity entity)
+    {
+      TEntity cast = entity as TEntity;
+      if (cast != null)
+        this.Execute(room, sender, cast);
+      else
+        RailDebug.LogError("Can't cast event entity to " + typeof(TEntity));
+    }
+
+    protected virtual void Execute(RailRoom room, RailController sender, TEntity entity) { }
   }
 }

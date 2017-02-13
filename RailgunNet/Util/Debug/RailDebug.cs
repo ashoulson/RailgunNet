@@ -23,76 +23,32 @@ using System.Diagnostics;
 
 namespace Railgun
 {
-  public interface IRailDebugLogger
-  {
-    void LogMessage(object message);
-    void LogWarning(object message);
-    void LogError(object message);
-  }
-
-  internal class RailConsoleLogger : IRailDebugLogger
-  {
-    public void LogError(object message)
-    {
-      RailConsoleLogger.Log("ERROR: " + message, ConsoleColor.Red);
-    }
-
-    public void LogWarning(object message)
-    {
-      RailConsoleLogger.Log("WARNING: " + message, ConsoleColor.Yellow);
-    }
-
-    public void LogMessage(object message)
-    {
-      RailConsoleLogger.Log("INFO: " + message, ConsoleColor.Gray);
-    }
-
-    private static void Log(object message, ConsoleColor color)
-    {
-      ConsoleColor current = Console.ForegroundColor;
-      Console.ForegroundColor = color;
-      Console.WriteLine(message);
-      Console.ForegroundColor = current;
-    }
-  }
-
   public static class RailDebug
   {
-    public static IRailDebugLogger Logger = new RailConsoleLogger();
-
-    [Conditional("DEBUG")]
-    public static void LogMessage(object message)
+    internal static void LogNotify(object message)
     {
-      if (RailDebug.Logger != null)
-        lock (RailDebug.Logger)
-          RailDebug.Logger.LogMessage(message);
+      Console.WriteLine(
+        "NOTIFY: {0} [Railgun]",
+        message);
+    }
+
+    internal static void LogWarning(object message)
+    {
+      Console.WriteLine(
+        "WARNING: {0} [Railgun]",
+        message);
+    }
+
+    internal static void LogError(object message)
+    {
+      Console.Error.WriteLine(
+        "ERROR: {0} [Railgun]\n {1}",
+        message,
+        Environment.StackTrace);
     }
 
     [Conditional("DEBUG")]
-    public static void LogWarning(object message)
-    {
-      if (RailDebug.Logger != null)
-        lock (RailDebug.Logger)
-          RailDebug.Logger.LogWarning(message);
-    }
-
-    [Conditional("DEBUG")]
-    public static void LogError(object message)
-    {
-      if (RailDebug.Logger != null)
-        lock (RailDebug.Logger)
-          RailDebug.Logger.LogError(message);
-    }
-
-    [Conditional("DEBUG")]
-    public static void Assert(bool condition)
-    {
-      if (condition == false)
-        RailDebug.LogError("Assert Failed!");
-    }
-
-    [Conditional("DEBUG")]
-    public static void Assert(bool condition, object message)
+    internal static void Assert(bool condition, string message = null)
     {
       if (condition == false)
         RailDebug.LogError("Assert Failed: " + message);

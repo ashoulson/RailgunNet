@@ -19,6 +19,7 @@
 */
 
 #if SERVER
+using System;
 using System.Collections.Generic;
 
 namespace Railgun
@@ -31,18 +32,20 @@ namespace Railgun
     private EntityId nextEntityId = EntityId.START;
 
     /// <summary>
-    /// All controllers involved in this room.
+    /// All client controllers involved in this room. 
+    /// Does not include the server's controller.
     /// </summary>
-    private readonly HashSet<RailController> controllers;
+    private readonly HashSet<RailController> clients;
 
     /// <summary>
     /// The local Railgun server.
     /// </summary>
     private readonly RailServer server;
 
-    internal RailServerRoom(RailServer server) : base(server)
+    internal RailServerRoom(RailResource resource, RailServer server)
+      : base(resource, server)
     {
-      this.controllers = new HashSet<RailController>();
+      this.clients = new HashSet<RailController>();
       this.server = server;
     }
 
@@ -65,22 +68,22 @@ namespace Railgun
       }
     }
 
-    public override void BroadcastEvent(RailEvent evnt, int attempts = 3)
+    public override void BroadcastEvent(RailEvent evnt, ushort attempts = 3)
     {
-       foreach (RailController controller in this.controllers)
-        controller.QueueEvent(evnt, attempts);
+       foreach (RailController client in this.clients)
+        client.SendEvent(evnt, attempts);
     }
 
-    internal void AddController(RailController controller)
+    internal void AddClient(RailController client)
     {
-      this.controllers.Add(controller);
-      this.OnControllerJoined(controller);
+      this.clients.Add(client);
+      this.OnClientJoined(client);
     }
 
-    internal void RemoveController(RailController controller)
+    internal void RemoveClient(RailController client)
     {
-      this.controllers.Remove(controller);
-      this.OnControllerLeft(controller);
+      this.clients.Remove(client);
+      this.OnClientLeft(client);
     }
 
     internal void ServerUpdate()
@@ -113,7 +116,7 @@ namespace Railgun
 
     private T CreateEntity<T>() where T : RailEntity
     {
-      T entity = RailEntity.Create<T>();
+      T entity = RailEntity.Create<T>(this.resource);
       entity.AssignId(this.nextEntityId);
       this.nextEntityId = this.nextEntityId.GetNext();
       return (T)entity;

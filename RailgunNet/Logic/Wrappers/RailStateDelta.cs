@@ -33,9 +33,12 @@ namespace Railgun
     Tick IRailTimedValue.Tick { get { return this.tick; } }
     #endregion
 
-    internal static RailStateDelta CreateFrozen(Tick tick, EntityId entityId)
+    internal static RailStateDelta CreateFrozen(
+      RailResource resource,
+      Tick tick, 
+      EntityId entityId)
     {
-      RailStateDelta delta = RailResource.Instance.CreateDelta();
+      RailStateDelta delta = resource.CreateDelta();
       delta.Initialize(tick, entityId, null, Tick.INVALID, Tick.INVALID, true);
       return delta;
     }
@@ -55,9 +58,9 @@ namespace Railgun
     private EntityId entityId;
     private RailState state;
 
-    internal RailEntity ProduceEntity()
+    internal RailEntity ProduceEntity(RailResource resource)
     {
-      return this.state.ProduceEntity();
+      return this.state.ProduceEntity(resource);
     }
 
     public void Initialize(

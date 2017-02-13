@@ -32,21 +32,21 @@ namespace Railgun
   {
     internal event Action<RailServerPeer, IRailClientPacket> PacketReceived;
 
+    /// <summary>
+    /// A connection identifier string. (TODO: Temporary)
+    /// </summary>
     public string Identifier { get; set; }
 
     internal RailServerPeer(
+      RailResource resource,
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(
+          resource,
           netPeer, 
           RailConfig.CLIENT_SEND_RATE,
           interpreter)
     {
-    }
-
-    internal void Shutdown()
-    {
-      this.Controller.Shutdown();
     }
 
     internal void SendPacket(
@@ -55,8 +55,7 @@ namespace Railgun
       IEnumerable<RailEntity> destroyed)
     {
       RailServerPacket packet = base.PrepareSend<RailServerPacket>(localTick);
-      this.Controller.Scope.PopulateDeltas(
-        this.Controller, 
+      this.Scope.PopulateDeltas(
         localTick, 
         packet, 
         active, 
@@ -64,18 +63,18 @@ namespace Railgun
       base.SendPacket(packet);
 
       foreach (RailStateDelta delta in packet.Sent)
-        this.Controller.Scope.RegisterSent(
+        this.Scope.RegisterSent(
           delta.EntityId, 
           localTick, 
           delta.IsFrozen);
     }
 
-    protected override void ProcessPacket(RailPacket packet, Tick localTick)
+    internal override void ProcessPacket(RailPacket packet, Tick localTick)
     {
       base.ProcessPacket(packet, localTick);
 
       RailClientPacket clientPacket = (RailClientPacket)packet;
-      this.Controller.Scope.IntegrateAcked(clientPacket.View);
+      this.Scope.IntegrateAcked(clientPacket.View);
       this.PacketReceived?.Invoke(this, clientPacket);
     }
   }

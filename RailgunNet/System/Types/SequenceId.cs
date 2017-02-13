@@ -44,7 +44,7 @@ namespace Railgun
 
   /// <summary>
   /// A rolling sequence counter for ordering values. Repeats indefinitely
-  /// with 1022 possible unique values (0 is treated as invalid internally).
+  /// with 1023 possible unique values (0 is treated as invalid internally).
   /// 
   /// Consumes 10 bits when encoded for transmission.
   /// </summary>
@@ -80,10 +80,12 @@ namespace Railgun
       }
     }
 
-    public static readonly IEqualityComparer<SequenceId> Comparer =
-      new SequenceIdComparer();
+    public static IEqualityComparer<SequenceId> CreateEqualityComparer()
+    {
+      return new SequenceIdComparer();
+    }
 
-    private const int BITS_USED = 10; // Max: 1022 unique (0 is invalid)
+    private const int BITS_USED = 10; // Max: 1023 unique (0 is invalid)
     private const int MAX_VALUE = (1 << SequenceId.BITS_USED) - 1;
     private const int HALF_WAY_POINT = SequenceId.MAX_VALUE / 2;
     private const int BIT_SHIFT = 32 - SequenceId.BITS_USED;

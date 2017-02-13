@@ -51,6 +51,7 @@ namespace Railgun
     }
 
     public void Overwrite(
+      RailResource resource,
       Tick tick,
       RailState state)
     {
@@ -58,7 +59,7 @@ namespace Railgun
 
       this.tick = tick;
       if (this.state == null)
-        this.state = state.Clone();
+        this.state = state.Clone(resource);
       else
         this.state.OverwriteFrom(state);
     }

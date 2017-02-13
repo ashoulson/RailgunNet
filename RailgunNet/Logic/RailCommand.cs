@@ -31,9 +31,9 @@ namespace Railgun
     void IRailPoolable<RailCommand>.Reset() { this.Reset(); }
     #endregion
 
-    internal static RailCommand Create()
+    internal static RailCommand Create(RailResource resource)
     {
-      return RailResource.Instance.CreateCommand();
+      return resource.CreateCommand();
     }
 
     #region Interface
@@ -74,9 +74,10 @@ namespace Railgun
 
 #if SERVER
     internal static RailCommand Decode(
+      RailResource resource,
       RailBitBuffer buffer)
     {
-      RailCommand command = RailCommand.Create();
+      RailCommand command = RailCommand.Create(resource);
 
       // Read: [SenderTick]
       command.ClientTick = buffer.ReadTick();

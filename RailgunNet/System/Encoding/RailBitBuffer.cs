@@ -50,13 +50,13 @@ namespace Railgun
       }
       catch (OverflowException)
       {
-        RailDebug.LogMessage("Cannot convert to simple ASCII: " + character);
+        RailDebug.LogWarning("Cannot convert to simple ASCII: " + character);
         return 0;
       }
 
       if (value > 127)
       {
-        RailDebug.LogMessage("Cannot convert to simple ASCII: " + character);
+        RailDebug.LogWarning("Cannot convert to simple ASCII: " + character);
         return 0;
       }
 
