@@ -34,7 +34,7 @@ namespace Railgun
         int position = index % HistoryBits.CHUNK_SIZE;
 
         if (chunk >= this.chunks.Length)
-          throw new ArgumentOutOfRangeException("index");
+          throw new ArgumentOutOfRangeException("index (" + index + ")");
         this.chunks[chunk] |= 0x1U << position;
       }
 
@@ -44,7 +44,7 @@ namespace Railgun
         int position = index % HistoryBits.CHUNK_SIZE;
 
         if (chunk >= this.chunks.Length)
-          throw new ArgumentOutOfRangeException("index");
+          throw new ArgumentOutOfRangeException("index (" + index + ")");
         return (this.chunks[chunk] & (1U << position)) != 0;
       }
 
@@ -134,6 +134,8 @@ namespace Railgun
     public bool Contains(SequenceId value)
     {
       int difference = (this.Latest - value);
+      if (difference < 0)
+        return false;
       if (difference == 0)
         return true;
       return this.history.Get(difference - 1);
