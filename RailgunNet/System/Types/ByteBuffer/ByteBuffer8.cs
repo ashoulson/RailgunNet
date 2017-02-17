@@ -43,6 +43,25 @@ namespace Railgun
   {
     public const int MAX_COUNT = 8;
 
+    public static bool operator ==(ByteBuffer8 a, ByteBuffer8 b)
+    {
+      return
+        (a.count == b.count) &&
+        (a.val0 == b.val0) &&
+        (a.val1 == b.val1) &&
+        (a.val2 == b.val2) &&
+        (a.val3 == b.val3) &&
+        (a.val4 == b.val4) &&
+        (a.val5 == b.val5) &&
+        (a.val6 == b.val6) &&
+        (a.val7 == b.val7);
+    }
+
+    public static bool operator !=(ByteBuffer8 a, ByteBuffer8 b)
+    {
+      return !(a == b);
+    }
+
     #region Encoding/Decoding
     internal void Write(RailBitBuffer buffer)
     {
@@ -403,6 +422,18 @@ namespace Railgun
         default:
           throw new ArgumentOutOfRangeException("count = " + count);
       }
+    }
+
+    public override bool Equals(object obj)
+    {
+      if (obj is ByteBuffer8)
+        return (this == (ByteBuffer8)obj);
+      return false;
+    }
+
+    public override int GetHashCode()
+    {
+      throw new NotImplementedException();
     }
   }
 }
