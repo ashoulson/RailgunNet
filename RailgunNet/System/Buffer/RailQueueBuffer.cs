@@ -29,6 +29,15 @@ namespace Railgun
   internal class RailQueueBuffer<T>
     where T : class, IRailTimedValue, IRailPoolable<T>
   {
+    private static IEnumerable<T> Remainder(
+      T latest, 
+      Queue<T>.Enumerator enumerator)
+    {
+      yield return latest;
+      while (enumerator.MoveNext())
+        yield return enumerator.Current;
+    }
+
     internal T Latest { get; private set; }
 
     private readonly Queue<T> data;
@@ -49,14 +58,34 @@ namespace Railgun
       this.Latest = val;
     }
 
-    public T LatestAt(Tick tick)
+    /// <summary>
+    /// Returns the first value with a tick less than or equal to the given
+    /// tick, followed by all subsequent values stored. If no value has a tick
+    /// less than or equal to the given one, this function returns null.
+    /// </summary>
+    public IEnumerable<T> LatestFrom(Tick tick)
     {
-      // TODO: Binary Search
-      T retVal = null;
-      foreach (T val in this.data)
-        if (val.Tick <= tick)
-          retVal = val;
-      return retVal;
+      if (tick.IsValid == false)
+        return null;
+
+      var head = this.data.GetEnumerator();
+      var tail = this.data.GetEnumerator();
+
+      // Find the value at the given tick. TODO: Binary search?
+      T latest = null;
+
+      while (head.MoveNext())
+      {
+        if (head.Current.Tick <= tick)
+          latest = head.Current;
+        else
+          break;
+        tail.MoveNext();
+      }
+
+      if (latest == null)
+        return null;
+      return RailQueueBuffer<T>.Remainder(latest, tail);
     }
 
     /// <summary>

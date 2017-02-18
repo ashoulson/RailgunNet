@@ -320,10 +320,6 @@ namespace Railgun
       RailController destination,
       bool force)
     {
-      RailStateRecord basis = null;
-      if (basisTick.IsValid)
-        basis = this.outgoingStates.LatestAt(basisTick);
-
       // Flags for special data modes
       bool includeControllerData =
         (destination == this.Controller) ||
@@ -334,7 +330,7 @@ namespace Railgun
         this.resource,
         this.Id,
         this.StateBase,
-        basis,
+        this.outgoingStates.LatestFrom(basisTick),
         includeControllerData,
         includeImmutableData,
         this.commandAck,

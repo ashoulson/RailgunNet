@@ -18,6 +18,8 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
+using System.Collections.Generic;
+
 namespace Railgun
 {
   /// <summary>
@@ -73,7 +75,7 @@ namespace Railgun
       RailResource resource,
       EntityId entityId,
       RailState current,
-      RailStateRecord basisRecord,
+      IEnumerable<RailStateRecord> basisStates,
       bool includeControllerData,
       bool includeImmutableData,
       Tick commandAck,
@@ -86,9 +88,17 @@ namespace Railgun
         includeImmutableData ||
         removedTick.IsValid;
 
-      uint flags = RailState.FLAGS_ALL;
-      if ((basisRecord != null) && (basisRecord.State != null))
-        flags = current.CompareMutableData(basisRecord.State);
+      // We don't know what the client has and hasn't received from us since
+      // the acked state. As a result, we'll build diff flags across all 
+      // states sent *between* the latest and current. This accounts for
+      // situations where a value changes and then quickly changes back,
+      // while appearing as no change on just the current-latest diff.
+      uint flags = 0;
+      if (basisStates != null)
+        foreach (RailStateRecord record in basisStates)
+          flags |= current.CompareMutableData(record.State);
+      else
+        flags = RailState.FLAGS_ALL;
       if ((flags == 0) && (shouldReturn == false))
         return null;
 
