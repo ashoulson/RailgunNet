@@ -113,7 +113,7 @@ namespace Railgun
     {
       if (entity == null)
       {
-        RailDebug.LogError("Null entity for event " + this.GetType());
+        RailDebug.LogWarning("No entity for event " + this.GetType());
         return;
       }
 

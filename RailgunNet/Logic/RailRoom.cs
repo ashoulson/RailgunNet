@@ -151,6 +151,12 @@ namespace Railgun
       entity.Room = this;
     }
 
+#if CLIENT
+    internal abstract void RequestControlUpdate(
+      RailEntity entity,
+      RailStateDelta delta);
+#endif
+
 #if SERVER
     protected void OnClientJoined(RailController client)
     {

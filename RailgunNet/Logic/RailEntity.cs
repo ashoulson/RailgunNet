@@ -461,9 +461,6 @@ namespace Railgun
         if (delta.IsRemoving)
           this.RemovedTick = delta.RemovedTick;
         stored = this.incomingStates.Store(delta);
-
-        if (delta.HasControllerData)
-          this.CleanCommands(delta.CommandAck);
       }
 
       return stored;
@@ -508,12 +505,20 @@ namespace Railgun
           this.Room.Tick,
           out next);
 
+      RailStateDelta lastDelta = null;
       foreach (RailStateDelta delta in toApply)
       {
         if (delta.IsFrozen == false)
           this.AuthStateBase.ApplyDelta(delta);
         this.shouldBeFrozen = delta.IsFrozen;
         this.authTick = delta.Tick;
+        lastDelta = delta;
+      }
+
+      if (lastDelta != null)
+      {
+        // Update the control status based on the most recent delta
+        this.Room.RequestControlUpdate(this, lastDelta);
       }
 
       // If there was a next state, update the next state
@@ -535,8 +540,18 @@ namespace Railgun
       // Bring the main state up to the latest (apply all deltas)
       IList<RailStateDelta> deltas = 
         this.incomingStates.GetRange(this.authTick);
+
+      RailStateDelta lastDelta = null;
       foreach (var delta in deltas)
+      {
+        if (delta.HasControllerData == false)
+          break;
         this.StateBase.ApplyDelta(delta);
+        lastDelta = delta;
+      }
+
+      if (lastDelta != null)
+        this.CleanCommands(lastDelta.CommandAck);
       this.Revert();
 
       // Forward-simulate

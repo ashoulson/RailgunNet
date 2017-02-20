@@ -132,10 +132,7 @@ namespace Railgun
       // If we're already removing the entity, we don't care about other deltas
       bool stored = false;
       if (entity.IsRemoving == false)
-      {
         stored = entity.ReceiveDelta(delta);
-        this.UpdateControlStatus(entity, delta);
-      }
       return stored;
     }
 
@@ -159,7 +156,9 @@ namespace Railgun
       this.toRemove.Clear();
     }
 
-    private void UpdateControlStatus(RailEntity entity, RailStateDelta delta)
+    internal override void RequestControlUpdate(
+      RailEntity entity, 
+      RailStateDelta delta)
     {
       // Can't infer anything if the delta is an empty frozen update
       if (delta.IsFrozen)
