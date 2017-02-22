@@ -48,17 +48,17 @@ namespace Railgun
     /// <summary>
     /// Network send rate in frames/packet.
     /// </summary>
-    public const int CLIENT_SEND_RATE = 4;
+    public const int CLIENT_SEND_RATE = 2;
 
     /// <summary>
     /// Number of outgoing commands to send per packet.
     /// </summary>
-    internal const int COMMAND_SEND_COUNT = 25;
+    internal const int COMMAND_SEND_COUNT = 40;
 
     /// <summary>
     /// Number of commands to buffer for prediction.
     /// </summary>
-    internal const int COMMAND_BUFFER_COUNT = 50;
+    internal const int COMMAND_BUFFER_COUNT = 40;
 
     /// <summary>
     /// Number of entries to store in a dejitter buffer.
@@ -115,7 +115,7 @@ namespace Railgun
     /// <summary>
     /// Maximum bytes for a single command update.
     /// </summary>
-    internal const int MAXSIZE_COMMANDUPDATE = 200;
+    internal const int MAXSIZE_COMMANDUPDATE = 335;
 
     /// <summary>
     /// Number of bits before doing VarInt fallback in compression.
