@@ -90,12 +90,32 @@ namespace Railgun
       }
     }
 
+    /// <summary>
+    /// An invalid entity ID. Should never be used explicitly.
+    /// </summary>
     public static readonly EntityId INVALID = new EntityId(0);
-    internal static readonly EntityId START = new EntityId(1);
+
+    /// <summary>
+    /// Never used internally in Railgun, and will never be assigned to
+    /// an entity. Provided for use as a "special" entityId in applications.
+    /// </summary>
+    public static readonly EntityId RESERVED = new EntityId(1);
+
+    internal static readonly EntityId START = new EntityId(2);
 
     public static IEqualityComparer<EntityId> CreateEqualityComparer()
     {
       return new EntityIdComparer();
+    }
+
+    public static bool operator ==(EntityId a, EntityId b)
+    {
+      return (a.idValue == b.idValue);
+    }
+
+    public static bool operator !=(EntityId a, EntityId b)
+    {
+      return (a.idValue != b.idValue);
     }
 
     public bool IsValid 
