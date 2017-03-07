@@ -276,9 +276,11 @@ namespace Railgun
     {
 #if SERVER
       this.incomingCommands.Clear();
+      this.commandAck = Tick.INVALID;
 #endif
 #if CLIENT
       this.outgoingCommands.Clear();
+      this.LastSentCommandTick = Tick.START;
 #endif
     }
 
