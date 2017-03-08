@@ -36,7 +36,7 @@ namespace Railgun
     public T Newest { get { return this.list.Last; } }
     public T Oldest { get { return this.list.First; } }
 
-    public void Clear(Action<T> cleanup)
+    public void Clear(Action<T> cleanup = null)
     {
       if (cleanup != null)
         this.list.ForEach(cleanup);
