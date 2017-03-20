@@ -141,7 +141,7 @@ namespace Railgun
         this.Attempts--;
     }
 
-#region Encode/Decode/etc.
+    #region Encode/Decode/etc.
     /// <summary>
     /// Note that the packetTick may not be the tick this event was created on
     /// if we're re-trying to send this event in subsequent packets. This tick
@@ -203,7 +203,7 @@ namespace Railgun
 
       return evnt;
     }
-#endregion
+    #endregion
   }
 
   /// <summary>
@@ -212,12 +212,12 @@ namespace Railgun
   public abstract class RailEvent<TDerived> : RailEvent
     where TDerived : RailEvent<TDerived>, new()
   {
-#region Casting Overrides
+    #region Casting Overrides
     internal override void SetDataFrom(RailEvent other)
     {
       this.SetDataFrom((TDerived)other);
     }
-#endregion
+    #endregion
 
     protected internal abstract void SetDataFrom(TDerived other);
   }

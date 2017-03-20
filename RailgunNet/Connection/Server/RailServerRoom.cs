@@ -42,15 +42,27 @@ namespace Railgun
     /// </summary>
     private readonly RailServer server;
 
+    /// <summary>
+    /// Lock to prevent adding entities during the update loop.
+    /// </summary>
+    private bool addEntityLock;
+
     internal RailServerRoom(RailResource resource, RailServer server)
       : base(resource, server)
     {
       this.clients = new HashSet<RailController>();
       this.server = server;
+      this.addEntityLock = false;
     }
 
+    /// <summary>
+    /// Adds an entity to the room. Cannot be done during the update pass.
+    /// </summary>
     public override T AddNewEntity<T>()
     {
+      if (this.addEntityLock)
+        throw new InvalidOperationException("Can't add during update");
+
       T entity = this.CreateEntity<T>();
       this.RegisterEntity(entity);
       return entity;
@@ -90,6 +102,7 @@ namespace Railgun
     {
       this.Tick = this.Tick.GetNext();
       this.OnPreRoomUpdate(this.Tick);
+      this.addEntityLock = true;
 
       foreach (RailEntity entity in this.GetAllEntities())
       {
@@ -105,6 +118,7 @@ namespace Railgun
         this.RemoveEntity(id);
       this.toRemove.Clear();
 
+      this.addEntityLock = false;
       this.OnPostRoomUpdate(this.Tick);
     }
 
