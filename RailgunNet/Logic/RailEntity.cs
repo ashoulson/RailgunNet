@@ -71,6 +71,7 @@ namespace Railgun
     protected virtual void Revert() { }                                    // Called on controller
     internal virtual void UpdateControlGeneric(RailCommand toPopulate) { } // Called on controller
     internal virtual void ApplyControlGeneric(RailCommand toApply) { }     // Called on controller and server
+    protected virtual void CommandMissing() { }                            // Called on server
     protected virtual void UpdateFrozen() { }                              // Called on non-controller client
     protected virtual void UpdateProxy() { }                               // Called on non-controller client
     protected virtual void UpdateAuth() { }                                // Called on server
@@ -300,6 +301,12 @@ namespace Railgun
         // Use the remote tick rather than the last applied tick
         // because we might be skipping some commands to keep up
         this.UpdateCommandAck(this.Controller.EstimatedRemoteTick);
+      }
+      else if (this.Controller != null)
+      {
+        // We have no command to work from but might still want to
+        // do an update in the command sequence
+        this.CommandMissing();
       }
 
       this.PostUpdate();
