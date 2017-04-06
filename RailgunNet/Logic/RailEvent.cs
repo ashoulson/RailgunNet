@@ -235,7 +235,11 @@ namespace Railgun
       if (cast != null)
         this.Execute(room, sender, cast);
       else
-        RailDebug.LogError("Can't cast event entity to " + typeof(TEntity));
+        RailDebug.LogError(
+          "Can't cast event " + 
+          this.GetType() + 
+          " entity to " + 
+          typeof(TEntity));
     }
 
     protected virtual void Execute(RailRoom room, RailController sender, TEntity entity) { }
