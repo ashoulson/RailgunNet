@@ -36,6 +36,8 @@ namespace Railgun
     /// </summary>
     object PlayerData { get; set; }
 
+    float? Ping { get; }
+
     void SendPayload(byte[] buffer, int length);
     void BindController(RailController controller);
   }

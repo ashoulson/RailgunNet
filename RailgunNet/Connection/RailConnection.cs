@@ -68,7 +68,9 @@ namespace Railgun
         }
       }
 
-      RailDebug.LogError("Invalid or missing entity for event");
+      RailDebug.LogError(
+        "Invalid or missing entity for event " + 
+        evnt.GetType());
     }
 
     protected void DoStart()

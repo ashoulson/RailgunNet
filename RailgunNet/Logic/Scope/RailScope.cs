@@ -111,15 +111,20 @@ namespace Railgun
       out float priority)
     {
       RailViewEntry lastSent = this.lastSent.GetLatest(entity.Id);
+      RailViewEntry lastAcked = this.ackedByClient.GetLatest(entity.Id);
+
+      int ticksSinceSend = int.MaxValue;
+      int ticksSinceAck = int.MaxValue;
+
       if (lastSent.IsValid)
-        return this.EvaluateEntity(
-          entity, 
-          current - lastSent.LastReceivedTick, 
-          out priority);
+        ticksSinceSend = current - lastSent.LastReceivedTick;
+      if (lastAcked.IsValid)
+        ticksSinceAck = current - lastAcked.LastReceivedTick;
 
       return this.EvaluateEntity(
-        entity, 
-        int.MaxValue, 
+        entity,
+        ticksSinceSend,
+        ticksSinceAck, 
         out priority);
     }
 
@@ -207,9 +212,15 @@ namespace Railgun
     private bool EvaluateEntity(
       RailEntity entity, 
       int ticksSinceSend, 
+      int ticksSinceAck,
       out float priority)
     {
-      return this.Evaluator.Evaluate(entity, ticksSinceSend, out priority);
+      return 
+        this.Evaluator.Evaluate(
+          entity, 
+          ticksSinceSend, 
+          ticksSinceAck,
+          out priority);
     }
   }
 }
