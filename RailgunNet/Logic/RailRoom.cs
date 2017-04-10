@@ -53,7 +53,7 @@ namespace Railgun
     /// <summary>
     /// Notifies that we removed an entity.
     /// </summary>
-    public event Action<RailEntity> EntityRemoved;
+    public event Action<IRailEntity> EntityRemoved;
 
     public object UserData { get; set; }
 
@@ -62,16 +62,16 @@ namespace Railgun
     /// server tick. On the server this will be the authoritative tick.
     /// </summary>
     public Tick Tick { get; internal protected set; }
-    public IEnumerable<RailEntity> Entities { get { return this.entities.Values; } }
+    public IEnumerable<IRailEntity> Entities { get { return this.entities.Values; } }
 
     protected List<EntityId> toRemove; // Pre-allocated removal list
     protected virtual void HandleRemovedEntity(EntityId entityId) { }
 
     internal readonly RailResource resource;
     private readonly RailConnection connection;
-    private readonly Dictionary<EntityId, RailEntity> entities;
+    private readonly Dictionary<EntityId, IRailEntity> entities;
 
-    public bool TryGet(EntityId id, out RailEntity value)
+    public bool TryGet(EntityId id, out IRailEntity value)
     {
       return this.entities.TryGetValue(id, out value);
     }
@@ -92,7 +92,7 @@ namespace Railgun
     public abstract void BroadcastEvent(RailEvent evnt, ushort attempts = 3);
 
     public abstract T AddNewEntity<T>() where T : RailEntity;
-    public abstract void RemoveEntity(RailEntity entity);
+    public abstract void RemoveEntity(IRailEntity entity);
 #endif
 
     internal RailRoom(RailResource resource, RailConnection connection)
@@ -100,7 +100,7 @@ namespace Railgun
       this.resource = resource;
       this.connection = connection;
       this.entities = 
-        new Dictionary<EntityId, RailEntity>(
+        new Dictionary<EntityId, IRailEntity>(
           EntityId.CreateEqualityComparer());
       this.Tick = Tick.INVALID;
       this.toRemove = new List<EntityId>();
@@ -123,12 +123,12 @@ namespace Railgun
 
     protected void RemoveEntity(EntityId entityId)
     {
-      RailEntity entity;
+      IRailEntity entity;
       if (this.entities.TryGetValue(entityId, out entity))
       {
         this.entities.Remove(entityId);
-        entity.Cleanup();
-        entity.Room = null;
+        entity.AsBase.Cleanup();
+        entity.AsBase.Room = null;
         // TODO: Pooling entities?
 
         this.HandleRemovedEntity(entityId);

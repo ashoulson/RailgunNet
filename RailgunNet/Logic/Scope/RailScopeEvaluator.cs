@@ -30,7 +30,7 @@ namespace Railgun
     }
 
     protected internal virtual bool Evaluate(
-      RailEntity entity, 
+      IRailEntity entity, 
       int ticksSinceSend,
       int ticksSinceAck,
       out float priority)

@@ -46,7 +46,7 @@ namespace Railgun
     }
 
 #if CLIENT
-    internal RailEntity Entity { get; set; }
+    internal IRailEntity Entity { get; set; }
 #endif
 
     internal EntityId EntityId { get { return this.entityId; } }

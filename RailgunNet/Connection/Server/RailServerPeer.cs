@@ -51,8 +51,8 @@ namespace Railgun
 
     internal void SendPacket(
       Tick localTick,
-      IEnumerable<RailEntity> active,
-      IEnumerable<RailEntity> destroyed)
+      IEnumerable<IRailEntity> active,
+      IEnumerable<IRailEntity> destroyed)
     {
       RailServerPacket packet = base.PrepareSend<RailServerPacket>(localTick);
       this.Scope.PopulateDeltas(

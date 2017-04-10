@@ -28,7 +28,7 @@ namespace Railgun
     /// <summary>
     /// Returns all locally-controlled entities in the room.
     /// </summary>
-    internal IEnumerable<RailEntity> LocalEntities
+    internal IEnumerable<IRailEntity> LocalEntities
     {
       get { return this.localPeer.ControlledEntities; }
     }

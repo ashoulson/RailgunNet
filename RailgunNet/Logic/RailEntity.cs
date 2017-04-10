@@ -34,10 +34,15 @@ namespace Railgun
   /// </summary>
   public abstract class RailEntity
     : IRailPoolable<RailEntity>
+    , IRailEntity
   {
     #region Pooling
     IRailPool<RailEntity> IRailPoolable<RailEntity>.Pool { get; set; }
     void IRailPoolable<RailEntity>.Reset() { this.Reset(); }
+    #endregion
+
+    #region Interface
+    RailEntity IRailEntity.AsBase { get { return this; } }
     #endregion
 
     #region Creation
@@ -592,7 +597,9 @@ namespace Railgun
   /// <summary>
   /// Handy shortcut class for auto-casting the internal state.
   /// </summary>
-  public abstract class RailEntity<TState> : RailEntity
+  public abstract class RailEntity<TState> 
+    : RailEntity
+    , IRailEntity<TState>
     where TState : RailState, new()
   {
     internal override RailState StateBase
@@ -659,7 +666,9 @@ namespace Railgun
   /// <summary>
   /// Handy shortcut class for auto-casting the internal state and command.
   /// </summary>
-  public abstract class RailEntity<TState, TCommand> : RailEntity<TState>
+  public abstract class RailEntity<TState, TCommand> 
+    : RailEntity<TState>
+    , IRailEntity<TState>
     where TState : RailState, new()
     where TCommand : RailCommand
   {

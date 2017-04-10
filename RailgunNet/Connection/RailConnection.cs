@@ -58,7 +58,7 @@ namespace Railgun
     {
       if (evnt.EntityId.IsValid)
       {
-        RailEntity entity = null;
+        IRailEntity entity = null;
         this.Room.TryGet(evnt.EntityId, out entity);
 
         if (entity != null)

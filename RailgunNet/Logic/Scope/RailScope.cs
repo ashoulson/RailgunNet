@@ -26,7 +26,7 @@ namespace Railgun
   internal class RailScope
   {
     private class EntityPriorityComparer : 
-      Comparer<KeyValuePair<float, RailEntity>>
+      Comparer<KeyValuePair<float, IRailEntity>>
     {
       private readonly Comparer<float> floatComparer;
 
@@ -36,8 +36,8 @@ namespace Railgun
       }
 
       public override int Compare(
-        KeyValuePair<float, RailEntity> x, 
-        KeyValuePair<float, RailEntity> y)
+        KeyValuePair<float, IRailEntity> x, 
+        KeyValuePair<float, IRailEntity> y)
       {
         return this.floatComparer.Compare(x.Key, y.Key);
       }
@@ -52,7 +52,7 @@ namespace Railgun
     private readonly EntityPriorityComparer priorityComparer;
 
     // Pre-allocated reusable fill lists
-    private readonly List<KeyValuePair<float, RailEntity>> entryList;
+    private readonly List<KeyValuePair<float, IRailEntity>> entryList;
     private readonly List<RailStateDelta> activeList;
     private readonly List<RailStateDelta> frozenList;
     private readonly List<RailStateDelta> removedList;
@@ -66,7 +66,7 @@ namespace Railgun
       this.ackedByClient = new RailView();
       this.priorityComparer = new EntityPriorityComparer();
 
-      this.entryList = new List<KeyValuePair<float, RailEntity>>();
+      this.entryList = new List<KeyValuePair<float, IRailEntity>>();
       this.activeList = new List<RailStateDelta>();
       this.frozenList = new List<RailStateDelta>();
       this.removedList = new List<RailStateDelta>();
@@ -81,8 +81,8 @@ namespace Railgun
     internal void PopulateDeltas(
       Tick serverTick,
       RailServerPacket packet,
-      IEnumerable<RailEntity> activeEntities,
-      IEnumerable<RailEntity> removedEntities)
+      IEnumerable<IRailEntity> activeEntities,
+      IEnumerable<IRailEntity> removedEntities)
     {
       this.ProduceScoped(serverTick, activeEntities);
       this.ProduceRemoved(this.owner, removedEntities);
@@ -137,7 +137,7 @@ namespace Railgun
     /// </summary>
     private void ProduceScoped(
       Tick serverTick,
-      IEnumerable<RailEntity> activeEntities)
+      IEnumerable<IRailEntity> activeEntities)
     {
       this.entryList.Clear();
       float priority;
@@ -152,12 +152,12 @@ namespace Railgun
         else if (entity.Controller == this.owner)
         {
           this.entryList.Add(
-            new KeyValuePair<float, RailEntity>(float.MinValue, entity));
+            new KeyValuePair<float, IRailEntity>(float.MinValue, entity));
         }
         else if (this.GetPriority(entity, serverTick, out priority))
         {
           this.entryList.Add(
-            new KeyValuePair<float, RailEntity>(priority, entity));
+            new KeyValuePair<float, IRailEntity>(priority, entity));
         }
         else
         {
@@ -173,13 +173,13 @@ namespace Railgun
       }
 
       this.entryList.Sort(this.priorityComparer);
-      foreach (KeyValuePair<float, RailEntity> entry in this.entryList)
+      foreach (KeyValuePair<float, IRailEntity> entry in this.entryList)
       { 
         RailViewEntry latest = this.ackedByClient.GetLatest(entry.Value.Id);
 
         // Force an update if the entity is frozen so it unfreezes
         RailStateDelta delta = 
-          entry.Value.ProduceDelta(
+          entry.Value.AsBase.ProduceDelta(
             latest.LastReceivedTick,
             this.owner,
             latest.IsFrozen);
@@ -194,15 +194,17 @@ namespace Railgun
     /// </summary>
     private void ProduceRemoved(
       RailController target,
-      IEnumerable<RailEntity> destroyedEntities)
+      IEnumerable<IRailEntity> destroyedEntities)
     {
-      foreach (RailEntity entity in destroyedEntities)
+      foreach (IRailEntity entity in destroyedEntities)
       {
         RailViewEntry latest = this.ackedByClient.GetLatest(entity.Id);
-        if (latest.IsValid && (latest.LastReceivedTick < entity.RemovedTick))
-          // Note: Because the removed tick is valid, this should force-create
+        //bool notFinal = latest.LastReceivedTick < entity.AsBase.RemovedTick;
+
+        // Note: Because the removed tick is valid, this should force-create
+        if (latest.IsValid && (latest.LastReceivedTick < entity.AsBase.RemovedTick))
           this.removedList.Add(
-            entity.ProduceDelta(
+            entity.AsBase.ProduceDelta(
               latest.LastReceivedTick, 
               target, 
               false));
@@ -210,7 +212,7 @@ namespace Railgun
     }
 
     private bool EvaluateEntity(
-      RailEntity entity, 
+      IRailEntity entity, 
       int ticksSinceSend, 
       int ticksSinceAck,
       out float priority)

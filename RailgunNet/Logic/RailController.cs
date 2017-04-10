@@ -36,7 +36,7 @@ namespace Railgun
       }
     }
 
-    public IEnumerable<RailEntity> ControlledEntities
+    public IEnumerable<IRailEntity> ControlledEntities
     {
       get { return this.controlledEntities; }
     }
@@ -66,7 +66,7 @@ namespace Railgun
     /// <summary>
     /// The entities controlled by this controller.
     /// </summary>
-    private readonly HashSet<RailEntity> controlledEntities;
+    private readonly HashSet<IRailEntity> controlledEntities;
 
     /// <summary>
     /// The network I/O peer for sending/receiving data.
@@ -77,7 +77,7 @@ namespace Railgun
       RailResource resource, 
       IRailNetPeer netPeer = null)
     {
-      this.controlledEntities = new HashSet<RailEntity>();
+      this.controlledEntities = new HashSet<IRailEntity>();
       this.netPeer = netPeer;
 
 #if SERVER
@@ -99,12 +99,12 @@ namespace Railgun
     }
 
 #if SERVER
-    public void GrantControl(RailEntity entity)
+    public void GrantControl(IRailEntity entity)
     {
       this.GrantControlInternal(entity);
     }
 
-    public void RevokeControl(RailEntity entity)
+    public void RevokeControl(IRailEntity entity)
     {
       this.RevokeControlInternal(entity);
     }
@@ -124,7 +124,7 @@ namespace Railgun
     /// <summary>
     /// Adds an entity to be controlled by this peer.
     /// </summary>
-    internal void GrantControlInternal(RailEntity entity)
+    internal void GrantControlInternal(IRailEntity entity)
     {
       RailDebug.Assert(entity.IsRemoving == false);
       if (entity.Controller == this)
@@ -132,18 +132,18 @@ namespace Railgun
       RailDebug.Assert(entity.Controller == null);
 
       this.controlledEntities.Add(entity);
-      entity.AssignController(this);
+      entity.AsBase.AssignController(this);
     }
 
     /// <summary>
     /// Remove an entity from being controlled by this peer.
     /// </summary>
-    internal void RevokeControlInternal(RailEntity entity)
+    internal void RevokeControlInternal(IRailEntity entity)
     {
       RailDebug.Assert(entity.Controller == this);
 
       this.controlledEntities.Remove(entity);
-      entity.AssignController(null);
+      entity.AsBase.AssignController(null);
     }
 #endregion
   }

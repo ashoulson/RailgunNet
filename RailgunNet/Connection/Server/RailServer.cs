@@ -38,7 +38,7 @@ namespace Railgun
     /// <summary>
     /// Entities that have been destroyed.
     /// </summary>
-    private Dictionary<EntityId, RailEntity> destroyedEntities;
+    private Dictionary<EntityId, IRailEntity> destroyedEntities;
 
     /// <summary>
     /// The server's room instance. TODO: Multiple rooms?
@@ -49,7 +49,7 @@ namespace Railgun
     public RailServer(RailRegistry registry) : base(registry)
     {
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
-      this.destroyedEntities = new Dictionary<EntityId, RailEntity>();
+      this.destroyedEntities = new Dictionary<EntityId, IRailEntity>();
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ namespace Railgun
       }
     }
 
-    internal void LogDestroyedEntity(RailEntity entity)
+    internal void LogDestroyedEntity(IRailEntity entity)
     {
       this.destroyedEntities.Add(entity.Id, entity);
     }
@@ -148,7 +148,7 @@ namespace Railgun
       RailServerPeer peer, 
       RailCommandUpdate update)
     {
-      RailEntity entity;
+      IRailEntity entity;
       if (this.Room.TryGet(update.EntityId, out entity))
       {
         bool canReceive = 
@@ -156,7 +156,7 @@ namespace Railgun
 
         if (canReceive)
           foreach (RailCommand command in update.Commands)
-            entity.ReceiveCommand(command);
+            entity.AsBase.ReceiveCommand(command);
         else // Can't send commands to that entity, so dump them
           foreach (RailCommand command in update.Commands)
             RailPool.Free(command);

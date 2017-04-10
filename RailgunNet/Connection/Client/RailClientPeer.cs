@@ -35,7 +35,7 @@ namespace Railgun
     private readonly RailView localView;
     private readonly Comparer<Tick> tickComparer;
 
-    private List<RailEntity> sortingList;
+    private List<IRailEntity> sortingList;
 
     internal RailClientPeer(
       RailResource resource,
@@ -49,12 +49,12 @@ namespace Railgun
     {
       this.localView = new RailView();
       this.tickComparer = Tick.CreateComparer();
-      this.sortingList = new List<RailEntity>();
+      this.sortingList = new List<IRailEntity>();
     }
 
     internal void SendPacket(
       Tick localTick,
-      IEnumerable<RailEntity> controlledEntities)
+      IEnumerable<IRailEntity> controlledEntities)
     {
       // TODO: Sort controlledEntities by most recently sent
 
@@ -67,7 +67,7 @@ namespace Railgun
       base.SendPacket(packet);
 
       foreach (RailCommandUpdate commandUpdate in packet.Sent)
-        commandUpdate.Entity.LastSentCommandTick = localTick;
+        commandUpdate.Entity.AsBase.LastSentCommandTick = localTick;
     }
 
     internal override void ProcessPacket(
@@ -88,7 +88,7 @@ namespace Railgun
     }
 
     private IEnumerable<RailCommandUpdate> ProduceCommandUpdates(
-      IEnumerable<RailEntity> entities)
+      IEnumerable<IRailEntity> entities)
     {
       // If we have too many entities to fit commands for in a packet,
       // we want to round-robin sort them to avoid starvation
@@ -96,16 +96,16 @@ namespace Railgun
       this.sortingList.AddRange(entities);
       this.sortingList.Sort(
         (x, y) => this.tickComparer.Compare(
-          x.LastSentCommandTick,
-          y.LastSentCommandTick));
+          x.AsBase.LastSentCommandTick,
+          y.AsBase.LastSentCommandTick));
 
-      foreach (RailEntity entity in sortingList)
+      foreach (IRailEntity entity in sortingList)
       {
         RailCommandUpdate commandUpdate = 
           RailCommandUpdate.Create(
             this.resource,
             entity.Id,
-            entity.OutgoingCommands);
+            entity.AsBase.OutgoingCommands);
         commandUpdate.Entity = entity;
         yield return commandUpdate;
       }

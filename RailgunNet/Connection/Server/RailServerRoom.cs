@@ -71,11 +71,11 @@ namespace Railgun
     /// <summary>
     /// Removes an entity from the world and destroys it.
     /// </summary>
-    public override void RemoveEntity(RailEntity entity)
+    public override void RemoveEntity(IRailEntity entity)
     {
       if (entity.IsRemoving == false)
       {
-        entity.Shutdown(); // Also handles the controller
+        entity.AsBase.Shutdown(); // Also handles the controller
         this.server.LogDestroyedEntity(entity);
       }
     }

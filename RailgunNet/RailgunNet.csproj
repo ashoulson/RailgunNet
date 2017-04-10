@@ -71,6 +71,7 @@
     <Compile Include="Connection\Client\RailClientRoom.cs" />
     <Compile Include="Connection\RailPackedList.cs" />
     <Compile Include="Connection\Server\RailServerRoom.cs" />
+    <Compile Include="IRailEntity.cs" />
     <Compile Include="Logic\RailController.cs" />
     <Compile Include="Logic\RailState.cs" />
     <Compile Include="Logic\Wrappers\RailCommandUpdate.cs" />

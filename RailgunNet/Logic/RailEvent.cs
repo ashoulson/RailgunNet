@@ -79,7 +79,13 @@ namespace Railgun
     protected abstract void DecodeData(RailBitBuffer buffer, Tick packetTick);
     protected abstract void ResetData();
 
-    protected virtual void Execute(RailRoom room, RailController sender, RailEntity entity) {}
+    protected virtual void Execute(
+      RailRoom room, 
+      RailController sender,
+      IRailEntity entity)
+    {
+      // Override this to process events
+    }
 
     private int factoryType;
 
@@ -109,7 +115,7 @@ namespace Railgun
     internal void Invoke(
       RailRoom room, 
       RailController sender, 
-      RailEntity entity)
+      IRailEntity entity)
     {
       if (entity == null)
       {
@@ -224,12 +230,12 @@ namespace Railgun
 
   public abstract class RailEvent<TDerived, TEntity> : RailEvent<TDerived>
     where TDerived : RailEvent<TDerived>, new()
-    where TEntity : RailEntity
+    where TEntity : class, IRailEntity
   {
     protected override void Execute(
       RailRoom room, 
-      RailController sender, 
-      RailEntity entity)
+      RailController sender,
+      IRailEntity entity)
     {
       TEntity cast = entity as TEntity;
       if (cast != null)
