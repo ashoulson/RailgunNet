@@ -305,7 +305,7 @@ namespace Railgun
       else if (this.Controller != null)
       {
         // We have no command to work from but might still want to
-        // do an update in the command sequence
+        // do an update in the command sequence (if we have a controller)
         this.CommandMissing();
       }
 
