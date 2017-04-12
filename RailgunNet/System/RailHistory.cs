@@ -126,7 +126,10 @@ namespace Railgun
       {
         int offset = -difference;
         this.history.Shift(offset);
-        this.history.Set(offset - 1);
+
+        // We might shift so far we need to clear everything
+        if ((offset - 1) < this.history.Capacity)
+          this.history.Set(offset - 1);
         this.latest = value;
       }
     }

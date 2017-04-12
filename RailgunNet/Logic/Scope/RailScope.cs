@@ -72,6 +72,14 @@ namespace Railgun
       this.removedList = new List<RailStateDelta>();
     }
 
+    internal bool IsPresentOnClient(EntityId entityId)
+    {
+      if (entityId == EntityId.INVALID)
+        return false;
+      RailViewEntry entry = this.ackedByClient.GetLatest(entityId);
+      return entry.IsValid;
+    }
+
     internal bool EvaluateEvent(
       RailEvent evnt)
     {

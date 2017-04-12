@@ -216,6 +216,12 @@ namespace Railgun
         if (evnt.Attempts <= 0)
           continue;
 
+#if SERVER
+        // Don't send an event if its entity isn't spawned on the client
+        if (this.Scope.IsPresentOnClient(evnt.EntityId) == false)
+          continue;
+#endif
+
         if (firstId.IsValid == false)
           firstId = evnt.EventId;
         RailDebug.Assert(firstId <= evnt.EventId);
@@ -250,7 +256,7 @@ namespace Railgun
         this.EventReceived.Invoke(evnt, this);
       this.eventHistory.Store(evnt.EventId);
     }
-    #endregion
+#endregion
   }
 
   internal class RailPeer<TIncoming, TOutgoing> : RailPeer
