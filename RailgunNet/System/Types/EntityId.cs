@@ -99,9 +99,12 @@ namespace Railgun
     /// Never used internally in Railgun, and will never be assigned to
     /// an entity. Provided for use as a "special" entityId in applications.
     /// </summary>
-    public static readonly EntityId RESERVED = new EntityId(1);
+    public static readonly EntityId RESERVED1 = new EntityId(1);
+    public static readonly EntityId RESERVED2 = new EntityId(2);
+    public static readonly EntityId RESERVED3 = new EntityId(3);
+    public static readonly EntityId RESERVED4 = new EntityId(4);
 
-    internal static readonly EntityId START = new EntityId(2);
+    internal static readonly EntityId START = new EntityId(5);
 
     public static IEqualityComparer<EntityId> CreateEqualityComparer()
     {
