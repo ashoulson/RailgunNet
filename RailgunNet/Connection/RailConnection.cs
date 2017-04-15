@@ -56,21 +56,7 @@ namespace Railgun
 
     internal void OnEventReceived(RailEvent evnt, RailPeer sender)
     {
-      if (evnt.EntityId.IsValid)
-      {
-        IRailEntity entity = null;
-        this.Room.TryGet(evnt.EntityId, out entity);
-
-        if (entity != null)
-        {
-          evnt.Invoke(this.room, sender, entity);
-          return;
-        }
-      }
-
-      RailDebug.LogError(
-        "Invalid or missing entity for event " + 
-        evnt.GetType());
+      evnt.Invoke(this.Room, sender);
     }
 
     protected void DoStart()

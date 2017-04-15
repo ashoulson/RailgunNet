@@ -57,8 +57,6 @@ namespace Railgun
     int TicksAhead { get; }
 #endif
 
-    TEvent CreateEvent<TEvent>() where TEvent : RailEvent;
-
 #if CLIENT
     float ComputeInterpolation(float tickDeltaTime, float timeSinceTick);
 #endif

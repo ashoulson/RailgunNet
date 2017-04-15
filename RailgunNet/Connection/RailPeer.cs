@@ -149,13 +149,25 @@ namespace Railgun
     #region Events
     /// <summary>
     /// Queues an event to send directly to this peer.
-    /// Caller should call Free() on the event when done sending.
     /// </summary>
-    public override void SendEvent(RailEvent evnt, ushort attempts)
+    public override void RaiseEvent(
+      RailEvent evnt,
+      ushort attempts = 3,
+      bool freeWhenDone = true)
+    {
+      this.SendEvent(evnt, attempts);
+      if (freeWhenDone)
+        evnt.Free();
+    }
+
+    /// <summary>
+    /// Queues an event to send directly to this peer (used internally).
+    /// </summary>
+    internal override void SendEvent(
+      RailEvent evnt, 
+      ushort attempts)
     {
       // TODO: Event scoping
-
-      // All global events are sent reliably
       RailEvent clone = evnt.Clone(this.resource);
 
       clone.EventId = this.lastQueuedEventId;
@@ -217,9 +229,13 @@ namespace Railgun
           continue;
 
 #if SERVER
-        // Don't send an event if its entity isn't spawned on the client
-        if (this.Scope.IsPresentOnClient(evnt.EntityId) == false)
+        // Don't send an event if it's out of scope for this peer
+        if (this.Scope.EvaluateEvent(evnt) == false)
+        {
+          // Skipping due to out of scope counts as an attempt
+          evnt.RegisterSkip();
           continue;
+        }
 #endif
 
         if (firstId.IsValid == false)

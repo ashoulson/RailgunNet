@@ -77,9 +77,12 @@ namespace Railgun
     /// Queues an event to broadcast to the server with a number of retries.
     /// Caller should call Free() on the event when done sending.
     /// </summary>
-    public override void RaiseEvent(RailEvent evnt, ushort attempts = 3)
+    public override void RaiseEvent(
+      RailEvent evnt, 
+      ushort attempts = 3,
+      bool freeWhenDone = true)
     {
-      this.client.RaiseEvent(evnt, attempts);
+      this.client.RaiseEvent(evnt, attempts, freeWhenDone);
     }
 
     /// <summary>

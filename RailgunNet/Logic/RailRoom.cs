@@ -76,20 +76,31 @@ namespace Railgun
       return this.entities.TryGetValue(id, out value);
     }
 
+    public TEvent CreateEvent<TEvent>()
+      where TEvent : RailEvent, new()
+    {
+      return RailEvent.Create<TEvent>(this.resource);
+    }
+
 #if CLIENT
     /// <summary>
     /// Raises an event to be sent to the server.
     /// Caller should call Free() on the event when done sending.
     /// </summary>
-    public abstract void RaiseEvent(RailEvent evnt, ushort attempts = 3);
+    public abstract void RaiseEvent(
+      RailEvent evnt, 
+      ushort attempts = 3,
+      bool freeWhenDone = true);
 #endif
 
 #if SERVER
     /// <summary>
     /// Queues an event to broadcast to all present clients.
-    /// Caller should call Free() on the event when done sending.
     /// </summary>
-    public abstract void BroadcastEvent(RailEvent evnt, ushort attempts = 3);
+    public abstract void BroadcastEvent(
+      RailEvent evnt, 
+      ushort attempts = 3,
+      bool freeWhenDone = true);
 
     public abstract T AddNewEntity<T>() where T : RailEntity;
     public abstract void RemoveEntity(IRailEntity entity);

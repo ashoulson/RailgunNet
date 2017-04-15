@@ -22,6 +22,17 @@ using System;
 
 namespace Railgun
 {
+  public enum RailPolicy
+  {
+    All,
+#if SERVER
+    NoProxy,
+#endif
+#if CLIENT
+    NoFrozen,
+#endif
+  }
+
   /// <summary>
   /// Events are sent attached to entities and represent temporary changes
   /// in status. They can be sent to specific controllers or broadcast to all
@@ -35,15 +46,11 @@ namespace Railgun
     void IRailPoolable<RailEvent>.Reset() { this.Reset(); }
     #endregion
 
-    internal static TEvent Create<TEvent>(RailResource resource, RailEntity entity)
+    internal static TEvent Create<TEvent>(RailResource resource)
       where TEvent : RailEvent
     {
-      if (entity == null)
-        throw new ArgumentNullException("entity");
-
       int factoryType = resource.GetEventFactoryType<TEvent>();
       TEvent evnt = (TEvent)RailEvent.Create(resource, factoryType);
-      evnt.EntityId = entity.Id;
       return evnt;
     }
 
@@ -68,10 +75,41 @@ namespace Railgun
 
     // Synchronized
     internal SequenceId EventId { get; set; }
-    internal EntityId EntityId { get; private set; }
 
     // Local only
     internal int Attempts { get; set; }
+
+    public RailRoom Room { get; private set; }
+    public RailController Sender { get; private set; }
+
+    public TEntity Find<TEntity>(
+      EntityId id,
+      RailPolicy policy = RailPolicy.All)
+      where TEntity : class, IRailEntity
+    {
+      if (this.Room == null)
+        return null;
+      if (id.IsValid == false)
+        return null;
+#if SERVER
+      if ((policy == RailPolicy.NoProxy) && (this.Sender == null))
+        return null;
+#endif
+
+      if (this.Room.TryGet(id, out IRailEntity entity) == false)
+        return null;
+#if CLIENT
+      if ((policy == RailPolicy.NoFrozen) && (entity.IsFrozen))
+        return null;
+#endif
+#if SERVER
+      if ((policy == RailPolicy.NoProxy) && (entity.Controller != this.Sender))
+        return null;
+#endif
+      if (entity is TEntity cast)
+        return cast;
+      return null;
+    }
 
     internal abstract void SetDataFrom(RailEvent other);
 
@@ -80,9 +118,8 @@ namespace Railgun
     protected abstract void ResetData();
 
     protected virtual void Execute(
-      RailRoom room, 
-      RailController sender,
-      IRailEntity entity)
+      RailRoom room,
+      RailController sender)
     {
       // Override this to process events
     }
@@ -98,47 +135,29 @@ namespace Railgun
     {
       RailEvent clone = RailEvent.Create(resource, this.factoryType);
       clone.EventId = this.EventId;
-      clone.EntityId = this.EntityId;
       clone.Attempts = this.Attempts;
+      clone.Room = this.Room;
+      clone.Sender = this.Sender;
       clone.SetDataFrom(this);
       return clone;
     }
 
-    private void Reset()
+    protected virtual void Reset()
     {
       this.EventId = SequenceId.INVALID;
-      this.EntityId = EntityId.INVALID;
       this.Attempts = 0;
+      this.Room = null;
+      this.Sender = null;
       this.ResetData();
     }
 
     internal void Invoke(
-      RailRoom room, 
-      RailController sender, 
-      IRailEntity entity)
+      RailRoom room,
+      RailController sender)
     {
-      if (entity == null)
-      {
-        RailDebug.LogWarning("No entity for event " + this.GetType());
-        return;
-      }
-
-      // Don't allow events to be sent to frozen entities if applicable
-      if ((this.CanSendToFrozen == false) && entity.IsFrozen)
-      {
-        return;
-      }
-
-#if SERVER
-      // Check proxy permissions and only accept from controllers if so
-      if ((this.CanProxySend == false) && (entity.Controller != sender))
-      {
-        RailDebug.LogError("Invalid permissions for " + this.GetType());
-        return; 
-      }
-#endif
-
-      this.Execute(room, sender, entity);
+      this.Room = room;
+      this.Sender = sender;
+      this.Execute(room, sender);
     }
 
     internal void RegisterSent()
@@ -147,7 +166,12 @@ namespace Railgun
         this.Attempts--;
     }
 
-    #region Encode/Decode/etc.
+    internal void RegisterSkip()
+    {
+      this.RegisterSent();
+    }
+
+#region Encode/Decode/etc.
     /// <summary>
     /// Note that the packetTick may not be the tick this event was created on
     /// if we're re-trying to send this event in subsequent packets. This tick
@@ -163,15 +187,6 @@ namespace Railgun
 
       // Write: [EventId]
       buffer.WriteSequenceId(this.EventId);
-
-      // Write: [HasEntityId]
-      buffer.WriteBool(this.EntityId.IsValid);
-
-      if (this.EntityId.IsValid)
-      {
-        // Write: [EntityId]
-        buffer.WriteEntityId(this.EntityId);
-      }
 
       // Write: [EventData]
       this.EncodeData(buffer, packetTick);
@@ -195,21 +210,12 @@ namespace Railgun
       // Read: [EventId]
       evnt.EventId = buffer.ReadSequenceId();
 
-      // Read: [HasEntityId]
-      bool hasEntityId = buffer.ReadBool();
-
-      if (hasEntityId)
-      {
-        // Read: [EntityId]
-        evnt.EntityId = buffer.ReadEntityId();
-      }
-
       // Read: [EventData]
       evnt.DecodeData(buffer, packetTick);
 
       return evnt;
     }
-    #endregion
+#endregion
   }
 
   /// <summary>
@@ -218,36 +224,13 @@ namespace Railgun
   public abstract class RailEvent<TDerived> : RailEvent
     where TDerived : RailEvent<TDerived>, new()
   {
-    #region Casting Overrides
+#region Casting Overrides
     internal override void SetDataFrom(RailEvent other)
     {
       this.SetDataFrom((TDerived)other);
     }
-    #endregion
+#endregion
 
     protected internal abstract void SetDataFrom(TDerived other);
-  }
-
-  public abstract class RailEvent<TDerived, TEntity> : RailEvent<TDerived>
-    where TDerived : RailEvent<TDerived>, new()
-    where TEntity : class, IRailEntity
-  {
-    protected override void Execute(
-      RailRoom room, 
-      RailController sender,
-      IRailEntity entity)
-    {
-      TEntity cast = entity as TEntity;
-      if (cast != null)
-        this.Execute(room, sender, cast);
-      else
-        RailDebug.LogError(
-          "Can't cast event " + 
-          this.GetType() + 
-          " entity to " + 
-          typeof(TEntity));
-    }
-
-    protected virtual void Execute(RailRoom room, RailController sender, TEntity entity) { }
   }
 }

@@ -80,10 +80,15 @@ namespace Railgun
       }
     }
 
-    public override void BroadcastEvent(RailEvent evnt, ushort attempts = 3)
+    public override void BroadcastEvent(
+      RailEvent evnt,
+      ushort attempts = 3,
+      bool freeWhenDone = true)
     {
-       foreach (RailController client in this.clients)
+      foreach (RailController client in this.clients)
         client.SendEvent(evnt, attempts);
+      if (freeWhenDone)
+        evnt.Free();
     }
 
     internal void AddClient(RailController client)

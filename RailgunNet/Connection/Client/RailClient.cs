@@ -108,11 +108,14 @@ namespace Railgun
     /// <summary>
     /// Queues an event to sent to the server.
     /// </summary>
-    internal void RaiseEvent(RailEvent evnt, ushort attempts = 3)
+    internal void RaiseEvent(
+      RailEvent evnt, 
+      ushort attempts = 3,
+      bool freeWhenDone = true)
     {
       RailDebug.Assert(this.serverPeer != null);
       if (this.serverPeer != null)
-        this.serverPeer.SendEvent(evnt, attempts);
+        this.serverPeer.RaiseEvent(evnt, attempts, freeWhenDone);
     }
 
     private void OnPacketReceived(IRailServerPacket packet)

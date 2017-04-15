@@ -219,12 +219,6 @@ namespace Railgun
       this.OnReset();
     }
 
-    public TEvent CreateEvent<TEvent>()
-      where TEvent : RailEvent
-    {
-      return RailEvent.Create<TEvent>(this.resource, this);
-    }
-
     private void ResetStates()
     {
 
@@ -393,6 +387,7 @@ namespace Railgun
         this.commandAck = latestCommandTick;
     }
 #endif
+
 #if CLIENT
     public float ComputeInterpolation(
       float tickDeltaTime,
