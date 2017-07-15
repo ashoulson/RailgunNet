@@ -10,14 +10,20 @@
     <AssemblyVersion>0.7.0.0</AssemblyVersion>
     <PackageProjectUrl>https://github.com/ashoulson/RailgunNet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ashoulson/RailgunNet</RepositoryUrl>
+    <RootNamespace>Railgun</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>1701;1702;1705;1591</NoWarn>
+    <DebugType>full</DebugType>
+    <DebugSymbols>True</DebugSymbols>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugClient|AnyCPU'">
     <NoWarn>1701;1702;1705;1591</NoWarn>
+    <DefineConstants>TRACE;DEBUG;CLIENT</DefineConstants>
     <DebugType>full</DebugType>
     <DebugSymbols>True</DebugSymbols>
-    <WarningLevel>0</WarningLevel>
-    <DefineConstants>TRACE;DEBUG;CLIENT</DefineConstants>
     <Optimize>False</Optimize>
   </PropertyGroup>
 
@@ -33,13 +39,12 @@
     <DebugType>full</DebugType>
     <DebugSymbols>True</DebugSymbols>
     <Optimize>False</Optimize>
-    <WarningLevel>3</WarningLevel>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseServer|AnyCPU'">
     <NoWarn>1701;1702;1705;1591</NoWarn>
-    <Optimize>True</Optimize>
     <DefineConstants>TRACE;SERVER</DefineConstants>
+    <Optimize>True</Optimize>
   </PropertyGroup>
 
 </Project>
