@@ -30,11 +30,14 @@ namespace Railgun
       Type derivedType)
       where T : IRailPoolable<T>
     {
-      Type factoryType = typeof(RailPool<,>);
-      Type specific =
-        factoryType.MakeGenericType(typeof(T), derivedType);
-      ConstructorInfo ci = specific.GetConstructor(Type.EmptyTypes);
-      return (IRailPool<T>)ci.Invoke(new object[] { });
+      //Type factoryType = typeof(RailPool<,>);
+      //Type specific =
+      //  factoryType.MakeGenericType(typeof(T), derivedType);
+      //ConstructorInfo ci = specific.GetConstructor(Type.EmptyTypes);
+      //return (IRailPool<T>)ci.Invoke(new object[] { });
+
+      // TODO STANDARD: REDO FOR STANDARD
+      return null;
     }
 
     internal RailIntCompressor EventTypeCompressor { get { return this.eventTypeCompressor; } }

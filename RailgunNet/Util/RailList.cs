@@ -78,10 +78,10 @@ namespace Railgun
     {
 #if DEBUG
       if (startAfter.List != this)
-        throw new AccessViolationException("Node is not in this list");
+        throw new ArgumentException("Node is not in this list");
 #endif
       if (startAfter == null)
-        throw new AccessViolationException();
+        throw new ArgumentException();
       return new RailListIterator<T>(startAfter.Next);
     }
 
@@ -141,7 +141,7 @@ namespace Railgun
     {
 #if DEBUG
       if (node.List != this)
-        throw new AccessViolationException("Node is not in this list");
+        throw new ArgumentException("Node is not in this list");
       if (value.List != null)
         throw new InvalidOperationException("Value is already in a list");
 #endif
@@ -168,7 +168,7 @@ namespace Railgun
     {
 #if DEBUG
       if (node.List != this)
-        throw new AccessViolationException("Node is not in this list");
+        throw new ArgumentException("Node is not in this list");
       if (value.List != null)
         throw new InvalidOperationException("Value is already in a list");
 #endif
@@ -195,7 +195,7 @@ namespace Railgun
     {
 #if DEBUG
       if (node.List != this)
-        throw new AccessViolationException("Node is not in this list");
+        throw new ArgumentException("Node is not in this list");
 #endif
 
       if (this.First == node)
@@ -224,7 +224,7 @@ namespace Railgun
     public T RemoveFirst()
     {
       if (this.First == null)
-        throw new AccessViolationException();
+        throw new InvalidOperationException();
 
       T result = this.First;
       if (result.Next != null)
@@ -249,7 +249,7 @@ namespace Railgun
     public T RemoveLast()
     {
       if (this.Last == null)
-        throw new AccessViolationException();
+        throw new InvalidOperationException();
 
       T result = this.Last;
       if (result.Prev != null)
@@ -275,7 +275,7 @@ namespace Railgun
     {
 #if DEBUG
       if (node.List != this)
-        throw new AccessViolationException("Node is not in this list");
+        throw new ArgumentException("Node is not in this list");
 #endif
       return node.Next;
     }
