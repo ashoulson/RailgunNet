@@ -3,8 +3,6 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Configurations>Debug_Client;Release_Client;Release_Server;Debug_Server</Configurations>
-    <AssemblyName>RailgunNet</AssemblyName>
-    <RootNamespace>RailgunNet</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Client|AnyCPU'">
