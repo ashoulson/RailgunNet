@@ -1,6 +1,6 @@
 ﻿/*
  *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
- *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
+ *  Copyright (c) 2016-2018 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
@@ -18,7 +18,6 @@
  *  3. This notice may not be removed or altered from any source distribution.
 */
 
-using System;
 using System.Collections.Generic;
 
 namespace Railgun

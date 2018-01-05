@@ -1,6 +1,6 @@
 ﻿/*
  *  RailgunNet - A Client/Server Network State-Synchronization Layer for Games
- *  Copyright (c) 2016 - Alexander Shoulson - http://ashoulson.com
+ *  Copyright (c) 2016-2018 - Alexander Shoulson - http://ashoulson.com
  *
  *  This software is provided 'as-is', without any express or implied
  *  warranty. In no event will the authors be held liable for any damages
@@ -17,8 +17,6 @@
  *     misrepresented as being the original software.
  *  3. This notice may not be removed or altered from any source distribution.
 */
-
-using System;
 
 namespace Railgun
 {
@@ -171,7 +169,7 @@ namespace Railgun
       this.RegisterSent();
     }
 
-#region Encode/Decode/etc.
+    #region Encode/Decode/etc.
     /// <summary>
     /// Note that the packetTick may not be the tick this event was created on
     /// if we're re-trying to send this event in subsequent packets. This tick
@@ -215,7 +213,7 @@ namespace Railgun
 
       return evnt;
     }
-#endregion
+    #endregion
   }
 
   /// <summary>
@@ -224,12 +222,12 @@ namespace Railgun
   public abstract class RailEvent<TDerived> : RailEvent
     where TDerived : RailEvent<TDerived>, new()
   {
-#region Casting Overrides
+    #region Casting Overrides
     internal override void SetDataFrom(RailEvent other)
     {
       this.SetDataFrom((TDerived)other);
     }
-#endregion
+    #endregion
 
     protected internal abstract void SetDataFrom(TDerived other);
   }
