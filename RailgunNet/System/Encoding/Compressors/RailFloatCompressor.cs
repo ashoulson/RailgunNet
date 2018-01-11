@@ -22,6 +22,34 @@ namespace Railgun
 {
   public static class RailFloatCompressorExtensions
   {
+    #region Array
+    public static void WriteFloats(
+      this RailBitBuffer buffer,
+      RailFloatCompressor compressor,
+      float[] values)
+    {
+      if (compressor.RequiredBits > RailConfig.VARINT_FALLBACK_SIZE)
+        for (int i = 0; i < values.Length; i++)
+          buffer.WriteUInt(compressor.Pack(values[i]));
+      else
+        for (int i = 0; i < values.Length; i++)
+          buffer.Write(compressor.RequiredBits, compressor.Pack(values[i]));
+    }
+
+    public static void ReadFloats(
+      this RailBitBuffer buffer,
+      RailFloatCompressor compressor,
+      float[] toStore)
+    {
+      if (compressor.RequiredBits > RailConfig.VARINT_FALLBACK_SIZE)
+        for (int i = 0; i < toStore.Length; i++)
+          toStore[i] = compressor.Unpack(buffer.ReadUInt());
+      else
+        for (int i = 0; i < toStore.Length; i++)
+          toStore[i] = compressor.Unpack(buffer.Read(compressor.RequiredBits));
+    }
+    #endregion
+
     public static void WriteFloat(
       this RailBitBuffer buffer, 
       RailFloatCompressor compressor, 

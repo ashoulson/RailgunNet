@@ -18,10 +18,23 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 
+using System;
+
 namespace Railgun
 {
   public static class RailUtil
   {
+    public static bool ValuesEqual<T>(T[] a, T[] b)
+      where T : struct
+    {
+      if (a.Length != b.Length)
+        throw new ArgumentException();
+      for (int i = 0; i < a.Length; i++)
+        if (a[i].Equals(b[i]) == false)
+          return false;
+      return true;
+    }
+
     // http://stackoverflow.com/questions/15967240/fastest-implementation-of-log2int-and-log2float
     private static readonly int[] DeBruijnLookup = new int[32]
     {

@@ -24,6 +24,20 @@ namespace Railgun
 {
   public static class TickExtensions
   {
+    #region Array
+    public static void WriteTicks(this RailBitBuffer buffer, Tick[] ticks)
+    {
+      for (int i = 0; i < ticks.Length; i++)
+        ticks[i].Write(buffer);
+    }
+
+    public static void ReadTicks(this RailBitBuffer buffer, Tick[] toStore)
+    {
+      for (int i = 0; i < toStore.Length; i++)
+        toStore[i] = Tick.Read(buffer);
+    }
+    #endregion
+
     public static void WriteTick(this RailBitBuffer buffer, Tick tick)
     {
       tick.Write(buffer);
