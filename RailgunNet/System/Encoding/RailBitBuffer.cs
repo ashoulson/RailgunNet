@@ -29,6 +29,43 @@ namespace Railgun
   /// </summary>
   public class RailBitBuffer
   {
+    public static int PutBytes(
+      uint value,
+      byte[] buffer,
+      int start)
+    {
+      int first = start;
+
+      while (value > 0x7Fu)
+      {
+        buffer[start] = (byte)(value | 0x80u);
+        value >>= 7;
+        start++;
+      }
+
+      buffer[start] = (byte)(value);
+      return ((start - first) + 1);
+    }
+
+    public static uint ReadBytes(
+      byte[] buffer,
+      ref int position)
+    {
+      byte dataByte = 0;
+      uint value = 0;
+
+      do
+      {
+        value <<= 7;
+        dataByte = buffer[position];
+        value |= (dataByte & 0x7Fu);
+        position++;
+      }
+      while ((dataByte & 0x80u) != 0);
+
+      return value;
+    }
+
     private static int FindHighestBitPosition(byte data)
     {
       int shiftCount = 0;

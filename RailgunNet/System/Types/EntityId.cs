@@ -46,18 +46,17 @@ namespace Railgun
 
     #region Byte Writing
     public int PutBytes(
-      byte[] buffer, 
-      int startIndex)
+      byte[] buffer,
+      int start)
     {
-      return RailUtil.PutBytes(this.idValue, buffer, startIndex);
+      return RailBitBuffer.PutBytes(this.idValue, buffer, start);
     }
 
     public static EntityId ReadBytes(
       byte[] buffer, 
-      int startIndex, 
-      out int length)
+      ref int position)
     {
-      return new EntityId(RailUtil.ReadBytes(buffer, startIndex, out length));
+      return new EntityId(RailBitBuffer.ReadBytes(buffer, ref position));
     }
     #endregion
 

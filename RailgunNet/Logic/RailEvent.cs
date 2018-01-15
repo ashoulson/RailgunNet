@@ -115,6 +115,8 @@ namespace Railgun
     protected abstract void DecodeData(RailBitBuffer buffer, Tick packetTick);
     protected abstract void ResetData();
 
+    protected virtual bool Validate() { return true; }
+
     protected virtual void Execute(
       RailRoom room,
       RailController sender)
@@ -155,7 +157,8 @@ namespace Railgun
     {
       this.Room = room;
       this.Sender = sender;
-      this.Execute(room, sender);
+      if (this.Validate())
+        this.Execute(room, sender);
     }
 
     internal void RegisterSent()
