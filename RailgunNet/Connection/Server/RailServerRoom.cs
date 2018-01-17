@@ -42,17 +42,11 @@ namespace Railgun
     /// </summary>
     private readonly RailServer server;
 
-    /// <summary>
-    /// Lock to prevent adding entities during the update loop.
-    /// </summary>
-    private bool addEntityLock;
-
     internal RailServerRoom(RailResource resource, RailServer server)
       : base(resource, server)
     {
       this.clients = new HashSet<RailController>();
       this.server = server;
-      this.addEntityLock = false;
     }
 
     /// <summary>
@@ -60,23 +54,21 @@ namespace Railgun
     /// </summary>
     public override T AddNewEntity<T>()
     {
-      if (this.addEntityLock)
-        throw new InvalidOperationException("Can't add during update");
-
       T entity = this.CreateEntity<T>();
       this.RegisterEntity(entity);
       return entity;
     }
 
     /// <summary>
-    /// Removes an entity from the world and destroys it.
+    /// Marks an entity for removal from the room and presumably destruction.
+    /// This is deferred until the next frame.
     /// </summary>
-    public override void RemoveEntity(IRailEntity entity)
+    public override void MarkForRemoval(IRailEntity entity)
     {
       if (entity.IsRemoving == false)
       {
-        entity.AsBase.Shutdown(); // Also handles the controller
-        this.server.LogDestroyedEntity(entity);
+        entity.AsBase.MarkForRemoval();
+        this.server.LogRemovedEntity(entity);
       }
     }
 
@@ -107,23 +99,33 @@ namespace Railgun
     {
       this.Tick = this.Tick.GetNext();
       this.OnPreRoomUpdate(this.Tick);
-      this.addEntityLock = true;
 
+      // Collect the entities in the priority order and
+      // separate them out for either update or removal
       foreach (RailEntity entity in this.GetAllEntities())
-      {
-        Tick removedTick = entity.RemovedTick;
-        if (removedTick.IsValid && (removedTick <= this.Tick))
-          this.toRemove.Add(entity.Id);
+        if (entity.ShouldRemove)
+          this.toRemove.Add(entity);
         else
-          entity.ServerUpdate();
-      }
+          this.toUpdate.Add(entity);
 
-      // Cleanup all entities marked for removal
-      foreach (EntityId id in this.toRemove)
-        this.RemoveEntity(id);
+      // Wave 0: Remove all sunsetted entities
+      for (int i = 0; i < this.toRemove.Count; i++)
+        this.RemoveEntity(toRemove[i]);
+
+      // Wave 1: Start/initialize all entities
+      for (int i = 0; i < this.toUpdate.Count; i++)
+        this.toUpdate[i].Startup();
+
+      // Wave 2: Update all entities
+      for (int i = 0; i < this.toUpdate.Count; i++)
+        this.toUpdate[i].ServerUpdate();
+
+      // Wave 3: Post-update all entities
+      for (int i = 0; i < this.toUpdate.Count; i++)
+        this.toUpdate[i].PostUpdate();
+
       this.toRemove.Clear();
-
-      this.addEntityLock = false;
+      this.toUpdate.Clear();
       this.OnPostRoomUpdate(this.Tick);
     }
 

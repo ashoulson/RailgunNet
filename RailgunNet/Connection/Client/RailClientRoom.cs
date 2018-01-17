@@ -95,21 +95,32 @@ namespace Railgun
       this.UpdatePendingEntities(estimatedServerTick);
       this.OnPreRoomUpdate(this.Tick);
 
-      // Perform regular update cadence and mark entities for removal
+      // Collect the entities in the priority order and
+      // separate them out for either update or removal
       foreach (RailEntity entity in this.GetAllEntities())
-      {
-        Tick removedTick = entity.RemovedTick;
-        if (removedTick.IsValid && (removedTick <= this.Tick))
-          this.toRemove.Add(entity.Id);
+        if (entity.ShouldRemove)
+          this.toRemove.Add(entity);
         else
-          entity.ClientUpdate(localTick);
-      }
+          this.toUpdate.Add(entity);
 
-      // Cleanup all entities marked for removal
-      foreach (EntityId id in this.toRemove)
-        this.RemoveEntity(id);
+      // Wave 0: Remove all sunsetted entities
+      for (int i = 0; i < this.toRemove.Count; i++)
+        this.RemoveEntity(toRemove[i]);
+
+      // Wave 1: Start/initialize all entities
+      for (int i = 0; i < this.toUpdate.Count; i++)
+        this.toUpdate[i].Startup();
+
+      // Wave 2: Update all entities
+      for (int i = 0; i < this.toUpdate.Count; i++)
+        this.toUpdate[i].ClientUpdate(localTick);
+
+      // Wave 3: Post-update all entities
+      for (int i = 0; i < this.toUpdate.Count; i++)
+        this.toUpdate[i].PostUpdate();
+
       this.toRemove.Clear();
-
+      this.toUpdate.Clear();
       this.OnPostRoomUpdate(this.Tick);
     }
 
@@ -145,17 +156,24 @@ namespace Railgun
     /// </summary>
     private void UpdatePendingEntities(Tick serverTick)
     {
+      // Note: We're using toRemove here to remove from the *pending* list
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
         if (entity.HasReadyState(serverTick))
         {
-          this.RegisterEntity(entity);
-          this.toRemove.Add(entity.Id);
+          this.toRemove.Add(entity);
+
+          // If the entity was removed while pending, forget about it
+          Tick removeTick = entity.RemovedTick; // Can't use ShouldRemove
+          if (removeTick.IsValid && (removeTick <= serverTick))
+            this.knownEntities.Remove(entity.Id);
+          else
+            this.RegisterEntity(entity);
         }
       }
 
-      foreach (EntityId entityId in this.toRemove)
-        this.pendingEntities.Remove(entityId);
+      for (int i = 0; i < this.toRemove.Count; i++)
+        this.pendingEntities.Remove(this.toRemove[i].Id);
       this.toRemove.Clear();
     }
 

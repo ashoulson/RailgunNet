@@ -35,20 +35,22 @@ namespace Railgun
     private Dictionary<IRailNetPeer, RailServerPeer> clients;
 
     /// <summary>
-    /// Entities that have been destroyed.
+    /// Entities that have been removed or are about to be.
     /// </summary>
-    private Dictionary<EntityId, IRailEntity> destroyedEntities;
+    private Dictionary<EntityId, IRailEntity> removedEntities;
 
     /// <summary>
     /// The server's room instance. TODO: Multiple rooms?
     /// </summary>
-    private RailServerRoom serverRoom;
-    private new RailServerRoom Room { get { return this.serverRoom; } }
+    private new RailServerRoom Room { get; set; }
+
+    private readonly List<IRailEntity> toRemove; // Pre-allocated list for reuse
 
     public RailServer(RailRegistry registry) : base(registry)
     {
       this.clients = new Dictionary<IRailNetPeer, RailServerPeer>();
-      this.destroyedEntities = new Dictionary<EntityId, IRailEntity>();
+      this.removedEntities = new Dictionary<EntityId, IRailEntity>();
+      this.toRemove = new List<IRailEntity>();
     }
 
     /// <summary>
@@ -56,8 +58,8 @@ namespace Railgun
     /// </summary>
     public void StartRoom()
     {
-      this.serverRoom = new RailServerRoom(this.resource, this);
-      this.SetRoom(this.serverRoom, Tick.START);
+      this.Room = new RailServerRoom(this.resource, this);
+      base.SetRoom(this.Room, Tick.START);
     }
 
     /// <summary>
@@ -115,11 +117,46 @@ namespace Railgun
         this.Room.StoreStates();
         this.BroadcastPackets();
       }
+
+      this.CleanRemovedEntities();
     }
 
-    internal void LogDestroyedEntity(IRailEntity entity)
+    internal void LogRemovedEntity(IRailEntity entity)
     {
-      this.destroyedEntities.Add(entity.Id, entity);
+      this.removedEntities.Add(entity.Id, entity);
+    }
+
+    /// <summary>
+    /// Cleans out any removed entities from the removed list
+    /// if they have been acked by all clients.
+    /// </summary>
+    private void CleanRemovedEntities()
+    {
+      // TODO: Retire the Id in all of the views as well?
+
+      foreach (var kvp in this.removedEntities)
+      {
+        bool canRemove = true;
+        EntityId id = kvp.Key;
+        IRailEntity entity = kvp.Value;
+
+        foreach (RailServerPeer peer in this.clients.Values)
+        {
+          Tick lastAcked = peer.Scope.GetLastAckedByClient(id);
+          if (lastAcked.IsValid && (lastAcked < entity.AsBase.RemovedTick))
+          {
+            canRemove = false;
+            break;
+          }
+        }
+
+        if (canRemove)
+          this.toRemove.Add(entity);
+      }
+
+      for (int i = 0; i < this.toRemove.Count; i++)
+        this.removedEntities.Remove(this.toRemove[i].Id);
+      this.toRemove.Clear();
     }
 
     /// <summary>
@@ -131,7 +168,7 @@ namespace Railgun
         clientPeer.SendPacket(
           this.Room.Tick,
           this.Room.Entities,
-          this.destroyedEntities.Values);
+          this.removedEntities.Values);
     }
 
 #region Packet Receive
@@ -147,8 +184,7 @@ namespace Railgun
       RailServerPeer peer, 
       RailCommandUpdate update)
     {
-      IRailEntity entity;
-      if (this.Room.TryGet(update.EntityId, out entity))
+      if (this.Room.TryGet(update.EntityId, out IRailEntity entity))
       {
         bool canReceive = 
           (entity.Controller == peer) && (entity.IsRemoving == false);

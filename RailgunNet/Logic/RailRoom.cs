@@ -71,7 +71,8 @@ namespace Railgun
       get { return this.entities.Values; }
     }
 
-    protected List<EntityId> toRemove; // Pre-allocated removal list
+    protected List<RailEntity> toUpdate; // Pre-allocated update list
+    protected List<RailEntity> toRemove; // Pre-allocated removal list
     protected virtual void HandleRemovedEntity(EntityId entityId) { }
 
     internal readonly RailResource resource;
@@ -110,7 +111,7 @@ namespace Railgun
       bool freeWhenDone = true);
 
     public abstract T AddNewEntity<T>() where T : RailEntity;
-    public abstract void RemoveEntity(IRailEntity entity);
+    public abstract void MarkForRemoval(IRailEntity entity);
 #endif
 
     internal RailRoom(RailResource resource, RailConnection connection)
@@ -121,7 +122,9 @@ namespace Railgun
         new Dictionary<EntityId, IRailEntity>(
           EntityId.CreateEqualityComparer());
       this.Tick = Tick.INVALID;
-      this.toRemove = new List<EntityId>();
+
+      this.toUpdate = new List<RailEntity>();
+      this.toRemove = new List<RailEntity>();
     }
 
     internal void Initialize(Tick tick)
@@ -139,21 +142,6 @@ namespace Railgun
       this.PostRoomUpdate?.Invoke(tick);
     }
 
-    protected void RemoveEntity(EntityId entityId)
-    {
-      IRailEntity entity;
-      if (this.entities.TryGetValue(entityId, out entity))
-      {
-        this.entities.Remove(entityId);
-        entity.AsBase.Cleanup();
-        entity.AsBase.Room = null;
-        // TODO: Pooling entities?
-
-        this.HandleRemovedEntity(entityId);
-        this.EntityRemoved?.Invoke(entity);
-      }
-    }
-
     protected IEnumerable<RailEntity> GetAllEntities()
     {
       // TODO: This makes multiple full passes, could probably optimize
@@ -167,6 +155,20 @@ namespace Railgun
     {
       this.entities.Add(entity.Id, entity);
       entity.Room = this;
+    }
+
+    protected void RemoveEntity(RailEntity entity)
+    {
+      if (this.entities.ContainsKey(entity.Id))
+      {
+        this.entities.Remove(entity.Id);
+        entity.Shutdown();
+        entity.Room = null;
+        // TODO: Pooling entities?
+
+        this.HandleRemovedEntity(entity.Id);
+        this.EntityRemoved?.Invoke(entity);
+      }
     }
 
 #if CLIENT

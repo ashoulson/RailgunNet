@@ -72,13 +72,19 @@ namespace Railgun
       this.removedList = new List<RailStateDelta>();
     }
 
-    internal bool IsPresentOnClient(EntityId entityId)
+#if SERVER
+    internal Tick GetLastAckedByClient(EntityId entityId)
     {
       if (entityId == EntityId.INVALID)
-        return false;
-      RailViewEntry entry = this.ackedByClient.GetLatest(entityId);
-      return entry.IsValid;
+        return Tick.INVALID;
+      return this.ackedByClient.GetLatest(entityId).LastReceivedTick;
     }
+
+    internal bool IsPresentOnClient(EntityId entityId)
+    {
+      return this.GetLastAckedByClient(entityId).IsValid;
+    }
+#endif
 
     internal bool EvaluateEvent(
       RailEvent evnt)
@@ -198,16 +204,15 @@ namespace Railgun
     }
 
     /// <summary>
-    /// Produces deltas for all non-acked destroyed entities.
+    /// Produces deltas for all non-acked removed entities.
     /// </summary>
     private void ProduceRemoved(
       RailController target,
-      IEnumerable<IRailEntity> destroyedEntities)
+      IEnumerable<IRailEntity> removedEntities)
     {
-      foreach (IRailEntity entity in destroyedEntities)
+      foreach (IRailEntity entity in removedEntities)
       {
         RailViewEntry latest = this.ackedByClient.GetLatest(entity.Id);
-        //bool notFinal = latest.LastReceivedTick < entity.AsBase.RemovedTick;
 
         // Note: Because the removed tick is valid, this should force-create
         if (latest.IsValid && (latest.LastReceivedTick < entity.AsBase.RemovedTick))

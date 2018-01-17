@@ -80,11 +80,12 @@ namespace Railgun
     protected virtual void UpdateFrozen() { }                              // Called on non-controller client
     protected virtual void UpdateProxy() { }                               // Called on non-controller client
     protected virtual void UpdateAuth() { }                                // Called on server
-    protected virtual void PostUpdate() { }                                // Called on controller and server
 
-    protected virtual void OnControllerChanged() { }
-    protected virtual void OnStart() { }
-    protected virtual void OnShutdown() { }
+    protected virtual void OnControllerChanged() { }                       // Called on all
+    protected virtual void OnStart() { }                                   // Called on all
+    protected virtual void OnPostUpdate() { }                              // Called on all except frozen
+    protected virtual void OnSunset() { }                                  // Called on server
+    protected virtual void OnShutdown() { }                                // Called on all
 
     protected abstract void OnReset();
 
@@ -110,6 +111,19 @@ namespace Railgun
     // Synchronization info
     public EntityId Id { get; private set; }
     internal Tick RemovedTick { get; private set; }
+
+    /// <summary>
+    /// Whether or not this entity should be removed from a room this tick.
+    /// </summary>
+    internal bool ShouldRemove
+    {
+      get
+      {
+        return 
+          this.RemovedTick.IsValid && 
+          (this.RemovedTick <= this.Room.Tick);
+      }
+    }
 
     private RailResource resource;
     private int factoryType;
@@ -253,6 +267,7 @@ namespace Railgun
       }
     }
 
+    #region Lifecycle and Loop
     private void Initialize()
     {
       if (this.HasStarted == false)
@@ -260,36 +275,20 @@ namespace Railgun
       this.HasStarted = true;
     }
 
-    internal void Cleanup()
+    internal void Startup()
     {
 #if CLIENT
-      // Set the final auth state before removing
       this.UpdateAuthState();
       this.StateBase.OverwriteFrom(this.AuthStateBase);
-      RailDebug.Assert(this.HasStarted == true);
+#endif
+
+      this.Initialize();
       this.NotifyControllerChanged();
-#endif
-
-      this.OnShutdown();
-    }
-
-    private void ClearCommands()
-    {
-#if SERVER
-      this.incomingCommands.Clear();
-      this.commandAck = Tick.INVALID;
-#endif
-#if CLIENT
-      this.outgoingCommands.Clear();
-      this.LastSentCommandTick = Tick.START;
-#endif
     }
 
 #if SERVER
     internal void ServerUpdate()
     {
-      this.Initialize();
-      this.NotifyControllerChanged();
       this.UpdateAuth();
 
       RailCommand latest = this.GetLatestCommand();
@@ -308,10 +307,94 @@ namespace Railgun
         // do an update in the command sequence (if we have a controller)
         this.CommandMissing();
       }
+    }
+#endif
 
-      this.PostUpdate();
+#if CLIENT
+    internal void ClientUpdate(Tick localTick)
+    {
+      this.SetFreeze(this.shouldBeFrozen);
+      if (this.IsFrozen)
+      {
+        this.UpdateFrozen();
+      }
+      else
+      {
+        if (this.Controller == null)
+        {
+          this.UpdateProxy();
+        }
+        else
+        {
+          this.nextTick = Tick.INVALID;
+          this.UpdateControlled(localTick);
+          this.UpdatePredicted();
+        }
+      }
+    }
+#endif
+
+    internal void PostUpdate()
+    {
+#if CLIENT
+      if (this.IsFrozen == false)
+#endif
+      {
+        this.OnPostUpdate();
+      }
     }
 
+#if SERVER
+    internal void MarkForRemoval()
+    {
+      // We'll remove on the next tick since we're probably 
+      // already mid-way through evaluating this tick
+      this.RemovedTick = this.Room.Tick + 1;
+
+      // Notify our inheritors that we are being removed next tick
+      this.OnSunset();
+    }
+#endif
+
+    internal void Shutdown()
+    {
+      RailDebug.Assert(this.HasStarted == true);
+
+#if SERVER
+      // Automatically revoke control but keep a history for 
+      // sending the final controller data to the client.
+      if (this.Controller != null)
+      {
+        this.priorController = this.Controller;
+        this.Controller.RevokeControlInternal(this);
+        this.NotifyControllerChanged();
+      }
+#endif
+
+#if CLIENT
+      // Set the final auth state before removing
+      this.UpdateAuthState();
+      this.StateBase.OverwriteFrom(this.AuthStateBase);
+#endif
+
+      this.OnShutdown();
+    }
+    #endregion
+
+    private void ClearCommands()
+    {
+#if SERVER
+      this.incomingCommands.Clear();
+      this.commandAck = Tick.INVALID;
+#endif
+
+#if CLIENT
+      this.outgoingCommands.Clear();
+      this.LastSentCommandTick = Tick.START;
+#endif
+    }
+
+#if SERVER
     internal void StoreRecord()
     {
       RailStateRecord record =
@@ -355,21 +438,6 @@ namespace Railgun
         RailPool.Free(command);
     }
 
-    internal void Shutdown()
-    {
-      // Automatically revoke control but keep a history for 
-      // sending the final controller data to the client.
-      if (this.Controller != null)
-      {
-        this.priorController = this.Controller;
-        this.Controller.RevokeControlInternal(this);
-      }
-
-      // We'll remove on the next tick since we're probably 
-      // already mid-way through evaluating this tick
-      this.RemovedTick = this.Room.Tick + 1;
-    }
-
     private RailCommand GetLatestCommand()
     {
       if (this.Controller != null)
@@ -406,36 +474,6 @@ namespace Railgun
       if (span <= 0.0f)
         return 0.0f;
       return progress / span;
-    }
-
-    internal void ClientUpdate(Tick localTick)
-    {
-      this.UpdateAuthState();
-      this.StateBase.OverwriteFrom(this.AuthStateBase);
-      this.Initialize();
-
-      this.NotifyControllerChanged();
-      this.SetFreeze(this.shouldBeFrozen);
-
-      if (this.IsFrozen)
-      {
-        this.UpdateFrozen();
-      }
-      else
-      { 
-        if (this.Controller == null)
-        {
-          this.UpdateProxy();
-        }
-        else
-        {
-          this.nextTick = Tick.INVALID;
-          this.UpdateControlled(localTick);
-          this.UpdatePredicted();
-        }
-
-        this.PostUpdate();
-      }
     }
 
     internal bool HasReadyState(Tick tick)
