@@ -139,7 +139,12 @@ namespace Railgun
     /// </summary>
     internal void GrantControlInternal(IRailEntity entity)
     {
+#if SERVER
+      // This could happen on the client as a race condition,
+      // in which case we should be able to handle it alright
       RailDebug.Assert(entity.IsRemoving == false);
+#endif
+
       if (entity.Controller == this)
         return;
       RailDebug.Assert(entity.Controller == null);

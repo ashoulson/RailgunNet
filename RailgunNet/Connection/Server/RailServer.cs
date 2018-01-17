@@ -142,12 +142,17 @@ namespace Railgun
 
         foreach (RailServerPeer peer in this.clients.Values)
         {
+          Tick lastSent = peer.Scope.GetLastSent(id);
+          if (lastSent.IsValid == false)
+            continue; // Was never sent in the first place
+
           Tick lastAcked = peer.Scope.GetLastAckedByClient(id);
-          if (lastAcked.IsValid && (lastAcked < entity.AsBase.RemovedTick))
-          {
-            canRemove = false;
-            break;
-          }
+          if (lastAcked.IsValid && (lastAcked >= entity.AsBase.RemovedTick))
+            continue; // Remove tick was acked by the client
+
+          // Otherwise, not safe to remove
+          canRemove = false;
+          break;
         }
 
         if (canRemove)

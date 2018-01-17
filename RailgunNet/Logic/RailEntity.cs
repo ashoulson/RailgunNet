@@ -268,13 +268,6 @@ namespace Railgun
     }
 
     #region Lifecycle and Loop
-    private void Initialize()
-    {
-      if (this.HasStarted == false)
-        this.OnStart();
-      this.HasStarted = true;
-    }
-
     internal void Startup()
     {
 #if CLIENT
@@ -282,7 +275,9 @@ namespace Railgun
       this.StateBase.OverwriteFrom(this.AuthStateBase);
 #endif
 
-      this.Initialize();
+      if (this.HasStarted == false)
+        this.OnStart();
+      this.HasStarted = true;
       this.NotifyControllerChanged();
     }
 

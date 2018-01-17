@@ -28,6 +28,7 @@ namespace Railgun
     RailEntity AsBase { get; }
 
     RailRoom Room { get; }
+    bool HasStarted { get; }
     bool IsRemoving { get; }
     bool IsFrozen { get; }
     RailController Controller { get; }

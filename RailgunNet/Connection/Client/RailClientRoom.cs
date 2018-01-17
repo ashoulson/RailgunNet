@@ -156,11 +156,11 @@ namespace Railgun
     /// </summary>
     private void UpdatePendingEntities(Tick serverTick)
     {
-      // Note: We're using toRemove here to remove from the *pending* list
       foreach (RailEntity entity in this.pendingEntities.Values)
       {
         if (entity.HasReadyState(serverTick))
         {
+          // Note: We're using toRemove here to remove from the *pending* list
           this.toRemove.Add(entity);
 
           // If the entity was removed while pending, forget about it

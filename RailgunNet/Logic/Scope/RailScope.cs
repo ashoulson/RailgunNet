@@ -73,6 +73,11 @@ namespace Railgun
     }
 
 #if SERVER
+    internal Tick GetLastSent(EntityId entityId)
+    {
+      return this.lastSent.GetLatest(entityId).LastReceivedTick;
+    }
+
     internal Tick GetLastAckedByClient(EntityId entityId)
     {
       if (entityId == EntityId.INVALID)
