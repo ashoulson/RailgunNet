@@ -62,7 +62,14 @@ namespace Railgun
     /// server tick. On the server this will be the authoritative tick.
     /// </summary>
     public Tick Tick { get; internal protected set; }
-    public IEnumerable<IRailEntity> Entities { get { return this.entities.Values; } }
+
+    /// <summary>
+    /// All of the entities currently added to this room.
+    /// </summary>
+    public Dictionary<EntityId, IRailEntity>.ValueCollection Entities
+    {
+      get { return this.entities.Values; }
+    }
 
     protected List<EntityId> toRemove; // Pre-allocated removal list
     protected virtual void HandleRemovedEntity(EntityId entityId) { }

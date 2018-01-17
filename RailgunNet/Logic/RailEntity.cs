@@ -100,6 +100,7 @@ namespace Railgun
 
     // Simulation info
     public RailRoom Room { get; internal set; }
+    public bool HasStarted { get; private set; }
     public bool IsRemoving { get { return this.RemovedTick.IsValid; } }
     public bool IsFrozen { get; private set; }
     public RailController Controller { get; private set; }
@@ -112,7 +113,6 @@ namespace Railgun
 
     private RailResource resource;
     private int factoryType;
-    private bool hasStarted;
     private bool deferNotifyControllerChanged;
 
 #if SERVER
@@ -188,21 +188,21 @@ namespace Railgun
       // TODO: Is this complete/usable?
 
       this.Room = null;
+      this.HasStarted = false;
+      this.IsFrozen = false;
       this.resource = null;
 
       this.Id = EntityId.INVALID;
       this.Controller = null;
-      this.hasStarted = false;
 
       // We always notify a controller change at start
       this.deferNotifyControllerChanged = true;
 
 #if SERVER
-      this.IsFrozen = false; // Entities never freeze on server
-
       this.outgoingStates.Clear();
       this.incomingCommands.Clear();
 #endif
+
 #if CLIENT
       this.LastSentCommandTick = Tick.START;
       this.IsFrozen = true; // Entities start frozen on client
@@ -255,9 +255,9 @@ namespace Railgun
 
     private void Initialize()
     {
-      if (this.hasStarted == false)
+      if (this.HasStarted == false)
         this.OnStart();
-      this.hasStarted = true;
+      this.HasStarted = true;
     }
 
     internal void Cleanup()
@@ -269,6 +269,7 @@ namespace Railgun
       RailDebug.Assert(this.hasStarted == true);
       this.NotifyControllerChanged();
 #endif
+
       this.OnShutdown();
     }
 
