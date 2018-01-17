@@ -266,7 +266,7 @@ namespace Railgun
       // Set the final auth state before removing
       this.UpdateAuthState();
       this.StateBase.OverwriteFrom(this.AuthStateBase);
-      RailDebug.Assert(this.hasStarted == true);
+      RailDebug.Assert(this.HasStarted == true);
       this.NotifyControllerChanged();
 #endif
 
