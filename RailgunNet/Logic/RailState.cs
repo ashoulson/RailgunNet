@@ -80,10 +80,10 @@ namespace Railgun
       bool includeImmutableData,
       Tick commandAck,
       Tick removedTick,
-      bool force)
+      bool forceAllMutable)
     {
       bool shouldReturn =
-        force ||
+        forceAllMutable ||
         includeControllerData ||
         includeImmutableData ||
         removedTick.IsValid;
@@ -94,7 +94,7 @@ namespace Railgun
       // situations where a value changes and then quickly changes back,
       // while appearing as no change on just the current-latest diff.
       uint flags = 0;
-      if (basisStates != null)
+      if ((forceAllMutable == false) && (basisStates != null))
         foreach (RailStateRecord record in basisStates)
           flags |= current.CompareMutableData(record.State);
       else

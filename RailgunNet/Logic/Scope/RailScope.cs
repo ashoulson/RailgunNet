@@ -159,7 +159,6 @@ namespace Railgun
       IEnumerable<IRailEntity> activeEntities)
     {
       this.entryList.Clear();
-      float priority;
 
       foreach (RailEntity entity in activeEntities)
       {
@@ -173,12 +172,12 @@ namespace Railgun
           this.entryList.Add(
             new KeyValuePair<float, IRailEntity>(float.MinValue, entity));
         }
-        else if (this.GetPriority(entity, serverTick, out priority))
+        else if (this.GetPriority(entity, serverTick, out float priority))
         {
           this.entryList.Add(
             new KeyValuePair<float, IRailEntity>(priority, entity));
         }
-        else
+        else if (entity.CanFreeze)
         {
           // We only want to send a freeze state if we aren't already frozen
           RailViewEntry latest = this.ackedByClient.GetLatest(entity.Id);
@@ -196,7 +195,13 @@ namespace Railgun
       { 
         RailViewEntry latest = this.ackedByClient.GetLatest(entry.Value.Id);
 
-        // Force an update if the entity is frozen so it unfreezes
+        // Force a complete update if the entity is frozen so it unfreezes
+        // TODO: Currently if we're unfreezing we force the server to send a
+        //       delta with the FULL mutable dataset. There is probably a
+        //       less wasteful option, like having clients send back
+        //       what tick they last received a non-frozen packet on.
+        //       However, this would cause some tedious tick comparison.
+        //       Should investigate a smarter way to handle this later.
         RailStateDelta delta = 
           entry.Value.AsBase.ProduceDelta(
             latest.LastReceivedTick,

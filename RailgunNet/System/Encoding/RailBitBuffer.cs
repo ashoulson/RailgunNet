@@ -300,7 +300,7 @@ namespace Railgun
     /// </summary>
     public byte PackAll<T>(
       IEnumerable<T> elements,
-      Action<T> encode)
+      Action<T> encode) // TODO: Make this take a buffer!
     {
       byte count = 0;
 
@@ -331,8 +331,8 @@ namespace Railgun
       int maxTotalBytes,
       int maxIndividualBytes,
       IEnumerable<T> elements,
-      Action<T> encode,
-      Action<T> packed = null)
+      Action<T> encode,        // TODO: Make this take a buffer!
+      Action<T> packed = null) // TODO: Make this take a buffer!
     {
       const int MAX_SIZE = 255;
       const int SIZE_BITS = 8;
@@ -385,7 +385,7 @@ namespace Railgun
     /// Max 255 elements.
     /// </summary>
     public IEnumerable<T> UnpackAll<T>(
-      Func<T> decode)
+      Func<T> decode) // TODO: Make this take a buffer!
     {
       // Read: [Count]
       byte count = this.ReadByte();

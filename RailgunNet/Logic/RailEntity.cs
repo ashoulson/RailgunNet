@@ -94,9 +94,15 @@ namespace Railgun
     protected virtual void OnUnfrozen() { }
     #endregion
 
+    // Configuration
     protected internal virtual RailConfig.RailUpdateOrder UpdateOrder
     {
       get { return RailConfig.RailUpdateOrder.Normal; }
+    }
+
+    protected internal virtual bool CanFreeze
+    {
+      get { return true; }
     }
 
     // Simulation info
@@ -405,7 +411,7 @@ namespace Railgun
     internal RailStateDelta ProduceDelta(
       Tick basisTick,
       RailController destination,
-      bool force)
+      bool forceAllMutable)
     {
       // Flags for special data modes
       bool includeControllerData =
@@ -422,7 +428,7 @@ namespace Railgun
         includeImmutableData,
         this.commandAck,
         this.RemovedTick,
-        force);
+        forceAllMutable);
     }
 
     internal void ReceiveCommand(RailCommand command)

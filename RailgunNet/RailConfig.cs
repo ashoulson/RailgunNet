@@ -41,12 +41,12 @@ namespace Railgun
     };
 
     /// <summary>
-    /// Network send rate in frames/packet.
+    /// Network send rate in ticks/packet.
     /// </summary>
     public const int SERVER_SEND_RATE = 2;
 
     /// <summary>
-    /// Network send rate in frames/packet.
+    /// Network send rate in ticks/packet.
     /// </summary>
     public const int CLIENT_SEND_RATE = 2;
 
