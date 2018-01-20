@@ -85,8 +85,7 @@ namespace Railgun
     /// </summary>
     public RailViewEntry GetLatest(EntityId id)
     {
-      RailViewEntry result;
-      if (this.latestUpdates.TryGetValue(id, out result))
+      if (this.latestUpdates.TryGetValue(id, out RailViewEntry result))
         return result;
       return RailViewEntry.INVALID;
     }
