@@ -83,8 +83,7 @@ namespace Railgun
           packet.SenderTick,
           localTick,
           delta.IsFrozen);
-      if (this.PacketReceived != null)
-        this.PacketReceived.Invoke(serverPacket);
+      this.PacketReceived?.Invoke(serverPacket);
     }
 
     private IEnumerable<RailCommandUpdate> ProduceCommandUpdates(

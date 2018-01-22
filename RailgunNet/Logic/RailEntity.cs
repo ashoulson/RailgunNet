@@ -547,12 +547,11 @@ namespace Railgun
     private void UpdateAuthState()
     {
       // Apply all un-applied deltas to the auth state
-      RailStateDelta next;
       IEnumerable<RailStateDelta> toApply =
         this.incomingStates.GetRangeAndNext(
           this.authTick, 
           this.Room.Tick,
-          out next);
+          out RailStateDelta next);
 
       RailStateDelta lastDelta = null;
       foreach (RailStateDelta delta in toApply)
