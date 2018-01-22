@@ -109,6 +109,7 @@ namespace Railgun
       int reservedBytes);
     protected abstract void DecodePayload(
       RailResource resource,
+      RailRoom room,
       RailBitBuffer buffer);
 
     /// <summary>
@@ -118,7 +119,9 @@ namespace Railgun
     /// remaining packet space. If more space is available, we will try
     /// to fill it with any remaining events, up to the maximum packet size.
     /// </summary>
-    public void Encode(RailResource resource, RailBitBuffer buffer)
+    public void Encode(
+      RailResource resource, 
+      RailBitBuffer buffer)
     {
       // Write: [Header]
       this.EncodeHeader(buffer);
@@ -133,7 +136,10 @@ namespace Railgun
       this.EncodeEvents(resource, buffer, RailConfig.PACKCAP_MESSAGE_TOTAL);
     }
 
-    internal void Decode(RailResource resource, RailBitBuffer buffer)
+    internal void Decode(
+      RailResource resource, 
+      RailRoom room, 
+      RailBitBuffer buffer)
     {
       // Read: [Header]
       this.DecodeHeader(buffer);
@@ -142,7 +148,7 @@ namespace Railgun
       this.DecodeEvents(resource, buffer);
 
       // Read: [Payload]
-      this.DecodePayload(resource, buffer);
+      this.DecodePayload(resource, room, buffer);
 
       // Read: [Events] (Fill Pack)
       this.DecodeEvents(resource, buffer);

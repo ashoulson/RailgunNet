@@ -38,10 +38,12 @@ namespace Railgun
     private List<IRailEntity> sortingList;
 
     internal RailClientPeer(
+      RailConnection parent,
       RailResource resource,
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(
+          parent,
           resource,
           netPeer, 
           RailConfig.SERVER_SEND_RATE,

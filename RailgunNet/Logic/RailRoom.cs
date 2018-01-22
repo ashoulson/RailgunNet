@@ -79,7 +79,10 @@ namespace Railgun
     private readonly RailConnection connection;
     private readonly Dictionary<EntityId, IRailEntity> entities;
 
-    public bool TryGet(EntityId id, out IRailEntity value)
+    public virtual bool TryGet(
+      EntityId id, 
+      out IRailEntity value,
+      bool includePending = false)
     {
       return this.entities.TryGetValue(id, out value);
     }

@@ -71,6 +71,7 @@ namespace Railgun
       {
         RailServerPeer client = 
           new RailServerPeer(
+            this,
             this.resource, 
             netPeer, 
             this.Interpreter);

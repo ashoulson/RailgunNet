@@ -38,6 +38,7 @@ namespace Railgun
   ///       
   ///    Immutable Data:
   ///       Sent only once at creation. Can not be changed after.
+  ///       Always available on the state for encoding/decoding other data.
   ///       
   ///    Removal Data (Not currently implemented):
   ///       Sent when the state is removed. Arrives at the time of removal.
@@ -106,13 +107,14 @@ namespace Railgun
       deltaState.Flags = flags;
       deltaState.ApplyMutableFrom(current, deltaState.Flags);
 
+      // Immutable data is always available even if we're not sending it
+      deltaState.HasImmutableData = includeImmutableData;
+      deltaState.ApplyImmutableFrom(current);
+
+      // Controller data is only available if we're sending it
       deltaState.HasControllerData = includeControllerData;
       if (includeControllerData)
         deltaState.ApplyControllerFrom(current);
-
-      deltaState.HasImmutableData = includeImmutableData;
-      if (includeImmutableData)
-        deltaState.ApplyImmutableFrom(current);
 
       // We don't need to include a tick when sending -- it's in the packet
       RailStateDelta delta = resource.CreateDelta();
@@ -272,17 +274,17 @@ namespace Railgun
           buffer.WriteTick(delta.RemovedTick);
         }
 
-        // Write: [HasControllerData]
-        buffer.WriteBool(state.HasControllerData);
-
         // Write: [HasImmutableData]
         buffer.WriteBool(state.HasImmutableData);
 
-        // Write: [Flags]
-        buffer.Write(state.FlagBits, state.Flags);
+        if (state.HasImmutableData)
+        {
+          // Write: [Immutable Data]
+          state.EncodeImmutableData(buffer);
+        }
 
-        // Write: [Mutable Data]
-        state.EncodeMutableData(buffer, state.Flags);
+        // Write: [HasControllerData]
+        buffer.WriteBool(state.HasControllerData);
 
         if (state.HasControllerData)
         {
@@ -293,17 +295,18 @@ namespace Railgun
           buffer.WriteTick(delta.CommandAck);
         }
 
-        if (state.HasImmutableData)
-        {
-          // Write: [Immutable Data]
-          state.EncodeImmutableData(buffer);
-        }
+        // Write: [Flags]
+        buffer.Write(state.FlagBits, state.Flags);
+
+        // Write: [Mutable Data]
+        state.EncodeMutableData(buffer, state.Flags);
       }
     }
 #endif
 #if CLIENT
     internal static RailStateDelta DecodeDelta(
       RailResource resource,
+      RailRoom room,
       RailBitBuffer buffer, 
       Tick packetTick)
     {
@@ -334,17 +337,15 @@ namespace Railgun
           removedTick = buffer.ReadTick();
         }
 
-        // Read: [HasControllerData]
-        state.HasControllerData = buffer.ReadBool();
-
         // Read: [HasImmutableData]
         state.HasImmutableData = buffer.ReadBool();
 
-        // Read: [Flags]
-        state.Flags = buffer.Read(state.FlagBits);
+        // Resolve: [Immutable Data]
+        // This is taken from the packet or from the entity's prior state
+        RailState.ResolveImmutable(room, entityId, state, buffer);
 
-        // Read: [Mutable Data]
-        state.DecodeMutableData(buffer, state.Flags);
+        // Read: [HasControllerData]
+        state.HasControllerData = buffer.ReadBool();
 
         if (state.HasControllerData)
         {
@@ -355,11 +356,11 @@ namespace Railgun
           commandAck = buffer.ReadTick();
         }
 
-        if (state.HasImmutableData)
-        {
-          // Read: [Immutable Data]
-          state.DecodeImmutableData(buffer);
-        }
+        // Read: [Flags]
+        state.Flags = buffer.Read(state.FlagBits);
+
+        // Read: [Mutable Data]
+        state.DecodeMutableData(buffer, state.Flags);
       }
 
       delta.Initialize(
@@ -370,6 +371,32 @@ namespace Railgun
         commandAck,
         isFrozen);
       return delta;
+    }
+
+    private static void ResolveImmutable(
+      RailRoom room,
+      EntityId entityId,
+      RailState state,
+      RailBitBuffer buffer)
+    {
+      if (state.HasImmutableData)
+      {
+        // Read: [Immutable Data]
+        state.DecodeImmutableData(buffer);
+      }
+      else if (room.TryGet(entityId, out IRailEntity entity, true))
+      {
+        // Otherwise, copy over the already-known immutable data
+        state.ApplyImmutableFrom(entity.AsBase.StateBase);
+
+        // Now we do have the immutable data (from a prior state)
+        state.HasImmutableData = true;
+      }
+      else
+      {
+        // Or else we have a problem
+        RailDebug.LogError("Unrecognized entity with no immutable data");
+      }
     }
 #endif
   }

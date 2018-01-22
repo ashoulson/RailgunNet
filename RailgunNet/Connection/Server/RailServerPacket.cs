@@ -106,20 +106,22 @@ namespace Railgun
 
     protected override void DecodePayload(
       RailResource resource,
+      RailRoom room,
       RailBitBuffer buffer)
     {
 #if CLIENT
       // Read: [Deltas]
-      this.DecodeDeltas(resource, buffer);
+      this.DecodeDeltas(resource, room, buffer);
     }
 
     private void DecodeDeltas(
       RailResource resource,
+      RailRoom room,
       RailBitBuffer buffer)
     {
       this.deltas.Decode(
         buffer,
-        () => RailState.DecodeDelta(resource, buffer, this.SenderTick));
+        () => RailState.DecodeDelta(resource, room, buffer, this.SenderTick));
 #endif
     }
     #endregion

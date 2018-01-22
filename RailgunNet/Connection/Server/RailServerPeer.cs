@@ -38,10 +38,12 @@ namespace Railgun
     public string Identifier { get; set; }
 
     internal RailServerPeer(
+      RailConnection parent,
       RailResource resource,
       IRailNetPeer netPeer,
       RailInterpreter interpreter)
       : base(
+          parent,
           resource,
           netPeer, 
           RailConfig.CLIENT_SEND_RATE,

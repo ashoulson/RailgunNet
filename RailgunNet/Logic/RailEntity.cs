@@ -485,12 +485,15 @@ namespace Railgun
     /// <summary>
     /// Applies the initial creation delta.
     /// </summary>
-    internal void PrimeState(RailStateDelta delta)
+    internal void PrimeStates(RailStateDelta delta)
     {
       RailDebug.Assert(delta.IsFrozen == false);
       RailDebug.Assert(delta.IsRemoving == false);
       RailDebug.Assert(delta.HasImmutableData);
+
       this.AuthStateBase.ApplyDelta(delta);
+      this.StateBase.ApplyImmutableFrom(this.AuthStateBase);
+      this.NextStateBase.ApplyImmutableFrom(this.AuthStateBase);
     }
 
     /// <summary>
