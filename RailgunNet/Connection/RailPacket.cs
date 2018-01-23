@@ -109,7 +109,6 @@ namespace Railgun
       int reservedBytes);
     protected abstract void DecodePayload(
       RailResource resource,
-      RailRoom room,
       RailBitBuffer buffer);
 
     /// <summary>
@@ -137,8 +136,7 @@ namespace Railgun
     }
 
     internal void Decode(
-      RailResource resource, 
-      RailRoom room, 
+      RailResource resource,
       RailBitBuffer buffer)
     {
       // Read: [Header]
@@ -148,7 +146,7 @@ namespace Railgun
       this.DecodeEvents(resource, buffer);
 
       // Read: [Payload]
-      this.DecodePayload(resource, room, buffer);
+      this.DecodePayload(resource, buffer);
 
       // Read: [Events] (Fill Pack)
       this.DecodeEvents(resource, buffer);

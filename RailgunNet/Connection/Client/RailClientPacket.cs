@@ -126,7 +126,6 @@ namespace Railgun
 
     protected override void DecodePayload(
       RailResource resource,
-      RailRoom room,
       RailBitBuffer buffer)
     {
 #if SERVER

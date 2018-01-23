@@ -75,7 +75,7 @@ namespace Railgun
       {
         RailDebug.Assert(this.serverPeer == null, "Overwriting peer");
         this.serverPeer = 
-          new RailClientPeer(this, this.resource, netPeer, this.Interpreter);
+          new RailClientPeer(this.resource, netPeer, this.Interpreter);
         this.serverPeer.PacketReceived += this.OnPacketReceived;
         this.serverPeer.EventReceived += base.OnEventReceived;
       }

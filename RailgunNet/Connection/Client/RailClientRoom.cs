@@ -36,12 +36,12 @@ namespace Railgun
     /// <summary>
     /// Entities that are waiting to be added to the world.
     /// </summary>
-    private Dictionary<EntityId, IRailEntity> pendingEntities;
+    private Dictionary<EntityId, RailEntity> pendingEntities;
 
     /// <summary>
     /// All known entities, either in-world or pending.
     /// </summary>
-    private Dictionary<EntityId, IRailEntity> knownEntities;
+    private Dictionary<EntityId, RailEntity> knownEntities;
 
     /// <summary>
     /// The local controller for predicting control and authority.
@@ -61,9 +61,9 @@ namespace Railgun
         EntityId.CreateEqualityComparer();
 
       this.pendingEntities =
-        new Dictionary<EntityId, IRailEntity>(entityIdComparer);
+        new Dictionary<EntityId, RailEntity>(entityIdComparer);
       this.knownEntities =
-        new Dictionary<EntityId, IRailEntity>(entityIdComparer);
+        new Dictionary<EntityId, RailEntity>(entityIdComparer);
       this.localPeer = new RailController(resource);
       this.client = client;
     }
@@ -71,19 +71,6 @@ namespace Railgun
     protected override void HandleRemovedEntity(EntityId entityId)
     {
       this.knownEntities.Remove(entityId);
-    }
-
-    /// <summary>
-    /// Tries to get an entity by the given entity id.
-    /// </summary>
-    public override bool TryGet(
-      EntityId id, 
-      out IRailEntity value, 
-      bool includePending = false)
-    {
-      if (includePending && this.knownEntities.TryGetValue(id, out value))
-        return true;
-      return base.TryGet(id, out value, false);
     }
 
     /// <summary>
@@ -142,7 +129,7 @@ namespace Railgun
     /// </summary>
     internal bool ProcessDelta(RailStateDelta delta)
     {
-      IRailEntity entity;
+      RailEntity entity;
       if (this.knownEntities.TryGetValue(delta.EntityId, out entity) == false)
       {
         RailDebug.Assert(delta.IsFrozen == false, "Frozen unknown entity");
@@ -150,8 +137,8 @@ namespace Railgun
           return false;
 
         entity = delta.ProduceEntity(this.resource);
-        entity.AsBase.AssignId(delta.EntityId);
-        entity.AsBase.PrimeStates(delta);
+        entity.AssignId(delta.EntityId);
+        entity.PrimeState(delta);
         this.pendingEntities.Add(entity.Id, entity);
         this.knownEntities.Add(entity.Id, entity);
       }
@@ -159,7 +146,7 @@ namespace Railgun
       // If we're already removing the entity, we don't care about other deltas
       bool stored = false;
       if (entity.IsRemoving == false)
-        stored = entity.AsBase.ReceiveDelta(delta);
+        stored = entity.ReceiveDelta(delta);
       return stored;
     }
 

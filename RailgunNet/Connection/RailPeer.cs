@@ -66,13 +66,11 @@ namespace Railgun
     /// </summary>
     private Tick localTick;
 
-    protected readonly RailConnection parent;
     protected readonly RailResource resource;
     protected readonly RailPacket reusableIncoming;
     protected readonly RailPacket reusableOutgoing;
 
     internal RailPeer(
-      RailConnection parent,
       RailResource resource,
       IRailNetPeer netPeer,
       int remoteSendRate,
@@ -82,7 +80,6 @@ namespace Railgun
       : base(resource, netPeer)
     {
       this.resource = resource;
-      this.parent = parent;
       this.remoteClock = new RailClock(remoteSendRate);
       this.interpreter = interpreter;
 
@@ -112,26 +109,16 @@ namespace Railgun
       byte[] buffer, 
       int length)
     {
-      if (this.parent.Room == null)
-      {
-        RailDebug.LogError("Received payload without a room, discarding...");
-        return;
-      }
-
       try
       {
         RailBitBuffer bitBuffer = this.interpreter.LoadData(buffer, length);
         this.reusableIncoming.Reset();
-        this.reusableIncoming.Decode(this.resource, this.parent.Room, bitBuffer);
+        this.reusableIncoming.Decode(this.resource, bitBuffer);
 
         if (bitBuffer.IsFinished)
-        {
           this.ProcessPacket(this.reusableIncoming, this.localTick);
-        }
         else
-        {
           RailDebug.LogError("Bad packet read, discarding...");
-        }
       }
       catch (Exception e)
       {
@@ -304,13 +291,11 @@ namespace Railgun
     where TOutgoing : RailPacket, new()
   {
     internal RailPeer(
-      RailConnection parent,
       RailResource resource,
       IRailNetPeer netPeer,
       int remoteSendRate,
       RailInterpreter interpreter)
       : base(
-          parent,
           resource,
           netPeer, 
           remoteSendRate, 
