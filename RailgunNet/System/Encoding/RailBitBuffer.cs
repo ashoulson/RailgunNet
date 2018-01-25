@@ -514,6 +514,18 @@ namespace Railgun
     }
     #endregion
 
+    #region Bool
+    public void WriteFull(ushort value)
+    {
+      this.Write(16, value);
+    }
+
+    public ushort ReadFullU16()
+    {
+      return (ushort)this.Read(16);
+    }
+    #endregion
+
     #region String
     // 7 bits for 0-127 on the simple ASCII table
     private const int ASCII_BITS = 7;
