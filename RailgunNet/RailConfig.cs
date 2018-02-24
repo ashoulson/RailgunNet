@@ -30,6 +30,7 @@ namespace Railgun
       Early,
       Normal,
       Late,
+      VeryLate,
     }
 
     // Pre-cache the array for iterating over.
@@ -38,6 +39,7 @@ namespace Railgun
       RailUpdateOrder.Early,
       RailUpdateOrder.Normal,
       RailUpdateOrder.Late,
+      RailUpdateOrder.VeryLate,
     };
 
     /// <summary>

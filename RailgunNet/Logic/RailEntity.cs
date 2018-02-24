@@ -592,6 +592,10 @@ namespace Railgun
       RailStateDelta lastDelta = null;
       foreach (var delta in deltas)
       {
+        // It's possible the state is null if we lost control
+        // and then immediately went out of scope of the entity
+        if (delta.State == null)
+          break;
         if (delta.HasControllerData == false)
           break;
         this.StateBase.ApplyDelta(delta);
